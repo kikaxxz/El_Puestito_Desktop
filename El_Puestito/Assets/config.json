@@ -1,0 +1,21 @@
+{
+    "total_mesas": 10,
+    "roles_pago": {
+        "Mesero": {
+            "hora": 31.25,
+            "minuto": 0.52
+        },
+        "Michelero": {
+            "hora": 31.25,
+            "minuto": 0.52
+        },
+        "Cajero": {
+            "hora": 33.33,
+            "minuto": 0.55
+        },
+        "Jefe de Cocina": {
+            "hora": 35.4,
+            "minuto": 0.59
+        }
+    }
+}

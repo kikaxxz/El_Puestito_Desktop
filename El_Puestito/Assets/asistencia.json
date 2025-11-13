@@ -1,0 +1,38 @@
+[
+    {
+        "id": "1",
+        "nombre": "Enrique Mauricio Caceres Paladino",
+        "entrada": "-",
+        "salida": "-",
+        "estado": "Ausente",
+        "deviceId": "6d16ac57-6eed-44c7-9b0e-7b96e0b99b2f",
+        "rol": "Cajero"
+    },
+    {
+        "id": "2",
+        "nombre": "Leonardo Miguel Rojas Valdivia",
+        "entrada": "-",
+        "salida": "-",
+        "estado": "Ausente",
+        "deviceId": null,
+        "rol": "Jefe de Cocina"
+    },
+    {
+        "id": "3",
+        "nombre": "Justin David Escoto Valle",
+        "entrada": "-",
+        "salida": "-",
+        "estado": "Ausente",
+        "deviceId": null,
+        "rol": "Mesero"
+    },
+    {
+        "id": "4",
+        "nombre": "Cesar Alberto Paredes Canales",
+        "entrada": "-",
+        "salida": "-",
+        "estado": "Ausente",
+        "deviceId": null,
+        "rol": "Michelero"
+    }
+]

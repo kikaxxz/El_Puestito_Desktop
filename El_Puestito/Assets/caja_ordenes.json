@@ -1,0 +1,19 @@
+{
+    "2": {
+        "order_id": "59722990-9928-412f-9099-f67631c18f3b",
+        "numero_mesa": 2,
+        "mesas_enlazadas": [],
+        "mesero_id": "101",
+        "timestamp": "2025-11-12T23:50:50.889463",
+        "items": [
+            {
+                "item_id": "PIC004",
+                "nombre": "Canasta de Pl\u00e1tanos Mixta",
+                "cantidad": 1,
+                "precio_unitario": 290.0,
+                "imagen": "ordenes/canasta_mixta.png",
+                "notas": ""
+            }
+        ]
+    }
+}

@@ -1,0 +1,489 @@
+{
+    "categorias": [
+        {
+            "nombre": "Para Picar",
+            "items": [
+                {
+                    "id": "PIC001",
+                    "nombre": "Canastas de Plátano con Queso",
+                    "descripcion": "",
+                    "precio": 190.0,
+                    "imagen": "ordenes/canasta_queso.png",
+                    "disponible": true
+                },
+                {
+                    "id": "PIC002",
+                    "nombre": "Canastas de Plátano con Pollo",
+                    "descripcion": "",
+                    "precio": 250.0,
+                    "imagen": "ordenes/canasta_pollo.png",
+                    "disponible": true
+                },
+                {
+                    "id": "PIC003",
+                    "nombre": "Canastas de Plátano con Carne",
+                    "descripcion": "",
+                    "precio": 270.0,
+                    "imagen": "ordenes/canasta_carne.png",
+                    "disponible": true
+                },
+                {
+                    "id": "PIC004",
+                    "nombre": "Canasta de Plátanos Mixta",
+                    "descripcion": "",
+                    "precio": 290.0,
+                    "imagen": "ordenes/canasta_mixta.png",
+                    "disponible": true
+                },
+                {
+                    "id": "PIC005",
+                    "nombre": "Salchipapa con Flow",
+                    "descripcion": "",
+                    "precio": 190.0,
+                    "imagen": "ordenes/salchipapa.png",
+                    "disponible": true
+                },
+                {
+                    "id": "PIC006",
+                    "nombre": "Nacho Pijudo",
+                    "descripcion": "",
+                    "precio": 200.0,
+                    "imagen": "ordenes/nacho_pijudo.png",
+                    "disponible": true
+                },
+                {
+                    "id": "PIC007",
+                    "nombre": "Alitas de 6",
+                    "descripcion": "",
+                    "precio": 280.0,
+                    "imagen": "ordenes/alitas.png",
+                    "disponible": true
+                },
+                {
+                    "id": "PIC008",
+                    "nombre": "Alitas de 10",
+                    "descripcion": "",
+                    "precio": 390.0,
+                    "imagen": "ordenes/alitas.png",
+                    "disponible": true
+                },
+                {
+                    "id": "PIC009",
+                    "nombre": "Dedos de Pollo",
+                    "descripcion": "",
+                    "precio": 250.0,
+                    "imagen": "ordenes/dedos_pollo.png",
+                    "disponible": true
+                },
+                {
+                    "id": "PIC010",
+                    "nombre": "Chicharrón 1 Lb",
+                    "descripcion": "",
+                    "precio": 260.0,
+                    "imagen": "ordenes/chicharron.png",
+                    "disponible": true
+                }
+            ]
+        },
+        {
+            "nombre": "Carnes",
+            "items": [
+                {
+                    "id": "CAR001",
+                    "nombre": "Filete de Pollo a la Plancha",
+                    "descripcion": "Acompañado de vegetales salteados y papas.",
+                    "precio": 280.0,
+                    "imagen": "ordenes/filete_pollo.png",
+                    "disponible": true
+                },
+                {
+                    "id": "CAR002",
+                    "nombre": "Filete de Res a la Plancha",
+                    "descripcion": "Acompañado de vegetales salteados y papas.",
+                    "precio": 350.0,
+                    "imagen": "ordenes/filete_res.png",
+                    "disponible": true
+                },
+                {
+                    "id": "CAR003",
+                    "nombre": "Filete de Cerdo a la Plancha",
+                    "descripcion": "Acompañado de vegetales salteados y papas.",
+                    "precio": 300.0,
+                    "imagen": "ordenes/filete_cerdo.png",
+                    "disponible": true
+                }
+            ]
+        },
+        {
+            "nombre": "Para Compartir",
+            "items": [
+                {
+                    "id": "COM001",
+                    "nombre": "Alitas de 8",
+                    "descripcion": "",
+                    "precio": 350.0,
+                    "imagen": "ordenes/alitas.png",
+                    "disponible": true
+                },
+                {
+                    "id": "COM002",
+                    "nombre": "Alitas de 16",
+                    "descripcion": "",
+                    "precio": 700.0,
+                    "imagen": "ordenes/alitas.png",
+                    "disponible": true
+                },
+                {
+                    "id": "COM003",
+                    "nombre": "Alitas de 20",
+                    "descripcion": "",
+                    "precio": 850.0,
+                    "imagen": "ordenes/alitas.png",
+                    "disponible": true
+                },
+                {
+                    "id": "COM004",
+                    "nombre": "Chicharrón 2 Lb",
+                    "descripcion": "",
+                    "precio": 500.0,
+                    "imagen": "ordenes/chicharron.png",
+                    "disponible": true
+                },
+                {
+                    "id": "COM005",
+                    "nombre": "Variado Puestito (4 Personas)",
+                    "descripcion": "Alitas, dedos de pollo, canastas mixtas, papas y 4 micheladas.",
+                    "precio": 1100.0,
+                    "imagen": "ordenes/variado_puestito.png",
+                    "disponible": true
+                },
+                {
+                    "id": "COM006",
+                    "nombre": "Plato 3 Carnes (2 Personas)",
+                    "descripcion": "Filete de pollo, filete de res, filete de cerdo, acompañados de papas y vegetales.",
+                    "precio": 400.0,
+                    "imagen": "ordenes/plato_3_carnes.png",
+                    "disponible": true
+                }
+            ]
+        },
+        {
+            "nombre": "Micheladas",
+            "items": [
+                {
+                    "id": "MIC001",
+                    "nombre": "Michelada Tamarindo (Ácida)",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_acida.png",
+                    "disponible": true
+                },
+                {
+                    "id": "MIC002",
+                    "nombre": "Michelada Coyolito (Ácida)",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_acida.png",
+                    "disponible": true
+                },
+                {
+                    "id": "MIC003",
+                    "nombre": "Michelada Grosella (Ácida)",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_acida.png",
+                    "disponible": true
+                },
+                {
+                    "id": "MIC004",
+                    "nombre": "Michelada Jamaica (Ácida)",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_acida.png",
+                    "disponible": true
+                },
+                {
+                    "id": "MIC005",
+                    "nombre": "Michelada Naranja (Ácida)",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_acida.png",
+                    "disponible": true
+                },
+                {
+                    "id": "MIC006",
+                    "nombre": "Michelada Mora (Ácida)",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_acida.png",
+                    "disponible": true
+                },
+                {
+                    "id": "MIC007",
+                    "nombre": "Michelada Melocotón (Ácida)",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_acida.png",
+                    "disponible": true
+                },
+                {
+                    "id": "MIC008",
+                    "nombre": "Michelada Guayabilla (Agridulce)",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_agridulce.png",
+                    "disponible": true
+                },
+                {
+                    "id": "MIC009",
+                    "nombre": "Michelada Calala (Agridulce)",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_agridulce.png",
+                    "disponible": true
+                },
+                {
+                    "id": "MIC010",
+                    "nombre": "Michelada Piña (Agridulce)",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_agridulce.png",
+                    "disponible": true
+                },
+                {
+                    "id": "MIC011",
+                    "nombre": "Michelada Fresa (Agridulce)",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_agridulce.png",
+                    "disponible": true
+                },
+                {
+                    "id": "MIC012",
+                    "nombre": "Michelada Mango (Agridulce)",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_agridulce.png",
+                    "disponible": true
+                },
+                {
+                    "id": "MIC013",
+                    "nombre": "Michelada Clásica",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_clasica.png",
+                    "disponible": true
+                },
+                {
+                    "id": "MIC014",
+                    "nombre": "Michelada Inglesa",
+                    "descripcion": "",
+                    "precio": 140.0,
+                    "imagen": "ordenes/michelada_inglesa.png",
+                    "disponible": true
+                }
+            ]
+        },
+        {
+            "nombre": "Otras Bebidas",
+            "items": [
+                {
+                    "id": "OBA001",
+                    "nombre": "Margarita",
+                    "descripcion": "",
+                    "precio": 150.0,
+                    "imagen": "ordenes/margarita.png",
+                    "disponible": true
+                },
+                {
+                    "id": "OBA002",
+                    "nombre": "Iron Naranja",
+                    "descripcion": "",
+                    "precio": 150.0,
+                    "imagen": "ordenes/iron_naranja.png",
+                    "disponible": true
+                },
+                {
+                    "id": "OBA003",
+                    "nombre": "Shots de Tequila",
+                    "descripcion": "",
+                    "precio": 90.0,
+                    "imagen": "ordenes/shot_tequila.png",
+                    "disponible": true
+                }
+            ]
+        },
+        {
+            "nombre": "Bebidas Sin Alcohol",
+            "items": [
+                {
+                    "id": "BSA001",
+                    "nombre": "Agua Pura 600ml",
+                    "descripcion": "",
+                    "precio": 30.0,
+                    "imagen": "ordenes/agua.png",
+                    "disponible": true
+                },
+                {
+                    "id": "BSA002",
+                    "nombre": "Agua Gasificada",
+                    "descripcion": "",
+                    "precio": 40.0,
+                    "imagen": "ordenes/agua_gasificada.png",
+                    "disponible": true
+                },
+                {
+                    "id": "BSA003",
+                    "nombre": "Gaseosa",
+                    "descripcion": "",
+                    "precio": 35.0,
+                    "imagen": "ordenes/gaseosa.png",
+                    "disponible": true
+                },
+                {
+                    "id": "BSA004",
+                    "nombre": "Jugo del Valle",
+                    "descripcion": "",
+                    "precio": 35.0,
+                    "imagen": "ordenes/jugo_valle.png",
+                    "disponible": true
+                },
+                {
+                    "id": "BSA005",
+                    "nombre": "Ensa",
+                    "descripcion": "",
+                    "precio": 35.0,
+                    "imagen": "ordenes/ensa.png",
+                    "disponible": true
+                },
+                {
+                    "id": "BSA006",
+                    "nombre": "Refresco Natural",
+                    "descripcion": "",
+                    "precio": 30.0,
+                    "imagen": "ordenes/refresco_natural.png",
+                    "disponible": true
+                }
+            ]
+        },
+        {
+            "nombre": "Cervezas Nacionales",
+            "items": [
+                {
+                    "id": "CER001",
+                    "nombre": "Victoria Frost",
+                    "descripcion": "",
+                    "precio": 47.0,
+                    "imagen": "ordenes/victoria_frost.png",
+                    "disponible": true
+                },
+                {
+                    "id": "CER002",
+                    "nombre": "Victoria Clásica",
+                    "descripcion": "",
+                    "precio": 55.0,
+                    "imagen": "ordenes/victoria_clasica.png",
+                    "disponible": true
+                },
+                {
+                    "id": "CER003",
+                    "nombre": "Toña",
+                    "descripcion": "",
+                    "precio": 55.0,
+                    "imagen": "ordenes/tona.png",
+                    "disponible": true
+                },
+                {
+                    "id": "CER004",
+                    "nombre": "Toña Ultra",
+                    "descripcion": "",
+                    "precio": 55.0,
+                    "imagen": "ordenes/tona_ultra.png",
+                    "disponible": true
+                },
+                {
+                    "id": "CER005",
+                    "nombre": "Toña Light",
+                    "descripcion": "",
+                    "precio": 55.0,
+                    "imagen": "ordenes/tona_light.png",
+                    "disponible": true
+                }
+            ]
+        },
+        {
+            "nombre": "Cervezas Internacionales",
+            "items": [
+                {
+                    "id": "CER006",
+                    "nombre": "Miller Lite",
+                    "descripcion": "",
+                    "precio": 60.0,
+                    "imagen": "ordenes/miller_lite.png",
+                    "disponible": true
+                },
+                {
+                    "id": "CER007",
+                    "nombre": "Sol",
+                    "descripcion": "",
+                    "precio": 74.0,
+                    "imagen": "ordenes/sol.png",
+                    "disponible": true
+                },
+                {
+                    "id": "CER008",
+                    "nombre": "Heineken",
+                    "descripcion": "",
+                    "precio": 79.0,
+                    "imagen": "ordenes/heineken.png",
+                    "disponible": true
+                },
+                {
+                    "id": "CER009",
+                    "nombre": "Otras Cervezas",
+                    "descripcion": "",
+                    "precio": 85.0,
+                    "imagen": "ordenes/cerveza_otra.png",
+                    "disponible": true
+                }
+            ]
+        },
+        {
+            "nombre": "RTD y Hard Seltzer",
+            "items": [
+                {
+                    "id": "RTD001",
+                    "nombre": "Smirnoff",
+                    "descripcion": "",
+                    "precio": 89.0,
+                    "imagen": "ordenes/smirnoff.png",
+                    "disponible": true
+                },
+                {
+                    "id": "RTD002",
+                    "nombre": "Bamboo",
+                    "descripcion": "",
+                    "precio": 64.0,
+                    "imagen": "ordenes/bamboo.png",
+                    "disponible": true
+                },
+                {
+                    "id": "RTD003",
+                    "nombre": "Spark",
+                    "descripcion": "",
+                    "precio": 59.0,
+                    "imagen": "ordenes/spark.png",
+                    "disponible": true
+                },
+                {
+                    "id": "RTD004",
+                    "nombre": "Adán y Eva",
+                    "descripcion": "",
+                    "precio": 74.0,
+                    "imagen": "ordenes/adan_eva.png",
+                    "disponible": true
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+# Python / PyQt
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Flutter
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+ios/Pods/
+ios/.symlinks/
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
+*.lock

@@ -1,0 +1,39 @@
+name: pos_waiter_app
+description: "Aplicación para meseros del sistema POS El Puestito."
+publish_to: 'none' 
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Paquetes que usaremos
+  http: ^1.2.1
+  provider: ^6.1.2
+  shared_preferences: ^2.2.3
+  mobile_scanner: ^5.1.1
+  uuid: ^4.4.0
+
+  cupertino_icons: ^1.0.2
+  socket_io_client: ^3.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+
+  # Declaramos que usaremos la carpeta 'assets'
+  assets:
+    - assets/
+
+flutter_launcher_icons:
+  android: true
+  ios: false 
+  image_path: "assets/icon/icon.png"

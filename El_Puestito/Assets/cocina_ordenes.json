@@ -1,0 +1,13 @@
+[
+    {
+        "numero_mesa": 2,
+        "items": [
+            {
+                "nombre": "Canasta de Pl\u00e1tanos Mixta",
+                "cantidad": 1,
+                "notas": "",
+                "imagen": "ordenes/canasta_mixta.png"
+            }
+        ]
+    }
+]
