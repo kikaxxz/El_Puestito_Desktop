@@ -58,9 +58,11 @@ class SocketService with ChangeNotifier {
     _socket?.on('mesas_actualizadas', (data) {
       print("SocketService: Recibido evento 'mesas_actualizadas' con datos: $data");
       try {
-        if (data is Map<String, dynamic> && data.containsKey('mesas_ocupadas')) {
+        if (data is Map<String, dynamic>) {
           final Map<String, dynamic> mesasData = Map<String, dynamic>.from(data);
-          _mesasController.add(mesasData);
+          _mesasController.add(mesasData); 
+        } else {
+          print("SocketService: Payload de 'mesas_actualizadas' no es un Map<String, dynamic>.");
         }
       } catch (e) {
         print("SocketService: Error procesando payload de 'mesas_actualizadas': $e.");

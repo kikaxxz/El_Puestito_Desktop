@@ -1526,5 +1526,755 @@
             }
         ],
         "fecha_cierre": "2025-11-12T23:48:16.210451"
+    },
+    {
+        "order_id": "59722990-9928-412f-9099-f67631c18f3b",
+        "numero_mesa": 2,
+        "mesas_enlazadas": [],
+        "mesero_id": "101",
+        "timestamp": "2025-11-12T23:50:50.889463",
+        "items": [
+            {
+                "item_id": "PIC004",
+                "nombre": "Canasta de Plátanos Mixta",
+                "cantidad": 1,
+                "precio_unitario": 290.0,
+                "imagen": "ordenes/canasta_mixta.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T01:11:45.581030"
+    },
+    {
+        "order_id": "d2009d51-accc-41d8-b542-f12d43cd3795",
+        "numero_mesa": 2,
+        "mesas_enlazadas": [],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T01:12:04.344879",
+        "items": [
+            {
+                "item_id": "PIC002",
+                "nombre": "Canastas de Plátano con Pollo",
+                "cantidad": 1,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/canasta_pollo.png",
+                "notas": ""
+            },
+            {
+                "item_id": "PIC003",
+                "nombre": "Canastas de Plátano con Carne",
+                "cantidad": 1,
+                "precio_unitario": 270.0,
+                "imagen": "ordenes/canasta_carne.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T01:12:12.844385"
+    },
+    {
+        "order_id": "f0d8014b-46a0-4690-9e7f-f975e40a5453",
+        "numero_mesa": 3,
+        "mesas_enlazadas": [
+            6,
+            9
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T01:12:32.287713",
+        "items": [
+            {
+                "item_id": "PIC008",
+                "nombre": "Alitas de 10",
+                "cantidad": 1,
+                "precio_unitario": 390.0,
+                "imagen": "ordenes/alitas.png",
+                "notas": ""
+            },
+            {
+                "item_id": "PIC009",
+                "nombre": "Dedos de Pollo",
+                "cantidad": 1,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/dedos_pollo.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T01:13:09.413101"
+    },
+    {
+        "order_id": "77f46b4d-a20a-49f1-b8d6-a79e4feaf16c",
+        "numero_mesa": 6,
+        "mesas_enlazadas": [
+            9
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T01:13:47.467368",
+        "items": [
+            {
+                "item_id": "PIC001",
+                "nombre": "Canastas de Plátano con Queso",
+                "cantidad": 1,
+                "precio_unitario": 190.0,
+                "imagen": "ordenes/canasta_queso.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T01:13:59.229644"
+    },
+    {
+        "order_id": "5115c6d6-cd9b-4977-8935-ba3c6cceff56",
+        "numero_mesa": 6,
+        "mesas_enlazadas": [
+            9
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T01:14:09.778689",
+        "items": [
+            {
+                "item_id": "PIC002",
+                "nombre": "Canastas de Plátano con Pollo",
+                "cantidad": 1,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/canasta_pollo.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T01:14:23.117572"
+    },
+    {
+        "order_id": "bc2575fd-d66e-4200-9970-5d988d96fa2c",
+        "numero_mesa": 8,
+        "mesas_enlazadas": [],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T01:14:17.350148",
+        "items": [
+            {
+                "item_id": "PIC005",
+                "nombre": "Salchipapa con Flow",
+                "cantidad": 1,
+                "precio_unitario": 190.0,
+                "imagen": "ordenes/salchipapa.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T01:14:24.450940"
+    },
+    {
+        "order_id": "0ba43056-ccb2-4012-9061-1c13465e3eb4",
+        "numero_mesa": 5,
+        "mesas_enlazadas": [
+            6
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T01:14:33.668772",
+        "items": [
+            {
+                "item_id": "PIC005",
+                "nombre": "Salchipapa con Flow",
+                "cantidad": 3,
+                "precio_unitario": 190.0,
+                "imagen": "ordenes/salchipapa.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T01:14:42.450062"
+    },
+    {
+        "order_id": "23cc8922-e69c-471d-af65-7acd63b659b4",
+        "numero_mesa": 3,
+        "mesas_enlazadas": [
+            6,
+            9
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T01:15:05.942797",
+        "items": [
+            {
+                "item_id": "PIC005",
+                "nombre": "Salchipapa con Flow",
+                "cantidad": 4,
+                "precio_unitario": 190.0,
+                "imagen": "ordenes/salchipapa.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T01:16:54.398586"
+    },
+    {
+        "order_id": "95b37bb4-dcab-41ca-8752-90f51c386a43",
+        "numero_mesa": 3,
+        "mesas_enlazadas": [
+            6,
+            9
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T01:40:50.160736",
+        "items": [
+            {
+                "item_id": "PIC006",
+                "nombre": "Nacho Pijudo",
+                "cantidad": 1,
+                "precio_unitario": 200.0,
+                "imagen": "ordenes/nacho_pijudo.png",
+                "notas": ""
+            },
+            {
+                "item_id": "PIC007",
+                "nombre": "Alitas de 6",
+                "cantidad": 1,
+                "precio_unitario": 280.0,
+                "imagen": "ordenes/alitas.png",
+                "notas": ""
+            },
+            {
+                "item_id": "PIC008",
+                "nombre": "Alitas de 10",
+                "cantidad": 1,
+                "precio_unitario": 390.0,
+                "imagen": "ordenes/alitas.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T01:45:33.007552"
+    },
+    {
+        "order_id": "3a4283da-3027-4800-9dc8-acc19baa5574",
+        "numero_mesa": 3,
+        "mesas_enlazadas": [
+            6,
+            9
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T01:45:47.845692",
+        "items": [
+            {
+                "item_id": "PIC002",
+                "nombre": "Canastas de Plátano con Pollo",
+                "cantidad": 2,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/canasta_pollo.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T01:45:53.867437"
+    },
+    {
+        "order_id": "b46b69b9-a850-4757-9178-28380cc58086",
+        "numero_mesa": 3,
+        "mesas_enlazadas": [
+            6
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T01:48:16.060660",
+        "items": [
+            {
+                "item_id": "PIC002",
+                "nombre": "Canastas de Plátano con Pollo",
+                "cantidad": 3,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/canasta_pollo.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T01:48:20.514203"
+    },
+    {
+        "order_id": "f47ec846-bd6d-4416-899f-779020d7be80",
+        "numero_mesa": 6,
+        "mesas_enlazadas": [
+            9
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T01:48:39.143917",
+        "items": [
+            {
+                "item_id": "PIC002",
+                "nombre": "Canastas de Plátano con Pollo",
+                "cantidad": 2,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/canasta_pollo.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T01:49:15.055281"
+    },
+    {
+        "order_id": "e410bd2d-947c-4dac-aeb3-7413c2693eb7",
+        "numero_mesa": 3,
+        "mesas_enlazadas": [
+            6
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T02:12:21.914892",
+        "items": [
+            {
+                "item_id": "PIC002",
+                "nombre": "Canastas de Plátano con Pollo",
+                "cantidad": 2,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/canasta_pollo.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T02:12:49.266148"
+    },
+    {
+        "order_id": "2ea934dc-a3eb-4937-b055-cbb74608e1d1",
+        "numero_mesa": 7,
+        "mesas_enlazadas": [
+            8,
+            9
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T02:12:59.690335",
+        "items": [
+            {
+                "item_id": "PIC002",
+                "nombre": "Canastas de Plátano con Pollo",
+                "cantidad": 4,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/canasta_pollo.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T02:13:08.911178"
+    },
+    {
+        "order_id": "006370ca-37dd-4a26-8c69-416ab6b703e8",
+        "numero_mesa": 5,
+        "mesas_enlazadas": [
+            6,
+            8
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T02:19:12.521292",
+        "items": [
+            {
+                "item_id": "PIC007",
+                "nombre": "Alitas de 6",
+                "cantidad": 1,
+                "precio_unitario": 280.0,
+                "imagen": "ordenes/alitas.png",
+                "notas": ""
+            },
+            {
+                "item_id": "PIC008",
+                "nombre": "Alitas de 10",
+                "cantidad": 1,
+                "precio_unitario": 390.0,
+                "imagen": "ordenes/alitas.png",
+                "notas": ""
+            },
+            {
+                "item_id": "PIC009",
+                "nombre": "Dedos de Pollo",
+                "cantidad": 1,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/dedos_pollo.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T02:19:16.636984"
+    },
+    {
+        "order_id": "715c15bc-acc2-4480-bfd3-53b88ade8a55",
+        "numero_mesa": 8,
+        "mesas_enlazadas": [
+            9
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T02:19:42.658252",
+        "items": [
+            {
+                "item_id": "PIC001",
+                "nombre": "Canastas de Plátano con Queso",
+                "cantidad": 2,
+                "precio_unitario": 190.0,
+                "imagen": "ordenes/canasta_queso.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T02:21:14.667499"
+    },
+    {
+        "order_id": "1b0dd5b3-fb69-4f51-9e32-ea3e6c51a329",
+        "numero_mesa": 5,
+        "mesas_enlazadas": [
+            6
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T02:21:27.692010",
+        "items": [
+            {
+                "item_id": "PIC002",
+                "nombre": "Canastas de Plátano con Pollo",
+                "cantidad": 1,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/canasta_pollo.png",
+                "notas": ""
+            },
+            {
+                "item_id": "PIC003",
+                "nombre": "Canastas de Plátano con Carne",
+                "cantidad": 1,
+                "precio_unitario": 270.0,
+                "imagen": "ordenes/canasta_carne.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T02:25:28.930449"
+    },
+    {
+        "order_id": "42981ee8-f8c7-48b3-bd91-129a9d7280da",
+        "numero_mesa": 3,
+        "mesas_enlazadas": [
+            6
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T02:25:42.605204",
+        "items": [
+            {
+                "item_id": "PIC002",
+                "nombre": "Canastas de Plátano con Pollo",
+                "cantidad": 1,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/canasta_pollo.png",
+                "notas": ""
+            },
+            {
+                "item_id": "PIC001",
+                "nombre": "Canastas de Plátano con Queso",
+                "cantidad": 1,
+                "precio_unitario": 190.0,
+                "imagen": "ordenes/canasta_queso.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T02:26:10.187108"
+    },
+    {
+        "order_id": "f8074dda-e6b5-4f9a-8e13-ec76ed8b56d4",
+        "numero_mesa": 6,
+        "mesas_enlazadas": [],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T02:29:42.622509",
+        "items": [
+            {
+                "item_id": "PIC002",
+                "nombre": "Canastas de Plátano con Pollo",
+                "cantidad": 1,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/canasta_pollo.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T02:31:58.333734"
+    },
+    {
+        "order_id": "6cdb81e1-457d-4a79-bd23-4648698ebc28",
+        "numero_mesa": 5,
+        "mesas_enlazadas": [
+            6,
+            8,
+            9
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T02:32:07.492281",
+        "items": [
+            {
+                "item_id": "PIC001",
+                "nombre": "Canastas de Plátano con Queso",
+                "cantidad": 3,
+                "precio_unitario": 190.0,
+                "imagen": "ordenes/canasta_queso.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T02:35:33.959897"
+    },
+    {
+        "order_id": "90bcfbfc-5bb2-43af-82ec-839712647fdd",
+        "numero_mesa": 3,
+        "mesas_enlazadas": [
+            6,
+            8,
+            9
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-13T02:36:44.371548",
+        "items": [
+            {
+                "item_id": "PIC003",
+                "nombre": "Canastas de Plátano con Carne",
+                "cantidad": 5,
+                "precio_unitario": 270.0,
+                "imagen": "ordenes/canasta_carne.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-13T02:37:22.294927"
+    },
+    {
+        "order_id": "7e770a93-8d75-402a-9997-5b4f8e9efaab",
+        "numero_mesa": 1,
+        "mesas_enlazadas": [],
+        "mesero_id": "101",
+        "timestamp": "2025-11-14T21:10:03.753716",
+        "items": [
+            {
+                "item_id": "PIC005",
+                "nombre": "Salchipapa con Flow",
+                "cantidad": 1,
+                "precio_unitario": 190.0,
+                "imagen": "ordenes/salchipapa.png",
+                "notas": ""
+            },
+            {
+                "item_id": "PIC004",
+                "nombre": "Canasta de Plátanos Mixta",
+                "cantidad": 1,
+                "precio_unitario": 290.0,
+                "imagen": "ordenes/canasta_mixta.png",
+                "notas": ""
+            },
+            {
+                "item_id": "PIC003",
+                "nombre": "Canastas de Plátano con Carne",
+                "cantidad": 1,
+                "precio_unitario": 270.0,
+                "imagen": "ordenes/canasta_carne.png",
+                "notas": ""
+            },
+            {
+                "item_id": "MIC001",
+                "nombre": "Michelada Tamarindo (Ácida)",
+                "cantidad": 1,
+                "precio_unitario": 140.0,
+                "imagen": "ordenes/michelada_acida.png",
+                "notas": ""
+            },
+            {
+                "item_id": "MIC010",
+                "nombre": "Michelada Piña (Agridulce)",
+                "cantidad": 1,
+                "precio_unitario": 140.0,
+                "imagen": "ordenes/michelada_agridulce.png",
+                "notas": ""
+            },
+            {
+                "item_id": "OBA001",
+                "nombre": "Margarita",
+                "cantidad": 1,
+                "precio_unitario": 150.0,
+                "imagen": "ordenes/margarita.png",
+                "notas": ""
+            },
+            {
+                "item_id": "OBA002",
+                "nombre": "Iron Naranja",
+                "cantidad": 1,
+                "precio_unitario": 150.0,
+                "imagen": "ordenes/iron_naranja.png",
+                "notas": ""
+            },
+            {
+                "item_id": "OBA003",
+                "nombre": "Shots de Tequila",
+                "cantidad": 1,
+                "precio_unitario": 90.0,
+                "imagen": "ordenes/shot_tequila.png",
+                "notas": ""
+            },
+            {
+                "item_id": "BSA002",
+                "nombre": "Agua Gasificada",
+                "cantidad": 1,
+                "precio_unitario": 40.0,
+                "imagen": "ordenes/agua_gasificada.png",
+                "notas": ""
+            },
+            {
+                "item_id": "BSA001",
+                "nombre": "Agua Pura 600ml",
+                "cantidad": 1,
+                "precio_unitario": 30.0,
+                "imagen": "ordenes/agua.png",
+                "notas": ""
+            },
+            {
+                "item_id": "BSA006",
+                "nombre": "Refresco Natural",
+                "cantidad": 1,
+                "precio_unitario": 30.0,
+                "imagen": "ordenes/refresco_natural.png",
+                "notas": ""
+            },
+            {
+                "item_id": "CER002",
+                "nombre": "Victoria Clásica",
+                "cantidad": 1,
+                "precio_unitario": 55.0,
+                "imagen": "ordenes/victoria_clasica.png",
+                "notas": ""
+            },
+            {
+                "item_id": "CER006",
+                "nombre": "Miller Lite",
+                "cantidad": 1,
+                "precio_unitario": 60.0,
+                "imagen": "ordenes/miller_lite.png",
+                "notas": ""
+            },
+            {
+                "item_id": "CER007",
+                "nombre": "Sol",
+                "cantidad": 1,
+                "precio_unitario": 74.0,
+                "imagen": "ordenes/sol.png",
+                "notas": ""
+            },
+            {
+                "item_id": "RTD001",
+                "nombre": "Smirnoff",
+                "cantidad": 1,
+                "precio_unitario": 89.0,
+                "imagen": "ordenes/smirnoff.png",
+                "notas": ""
+            },
+            {
+                "item_id": "RTD003",
+                "nombre": "Spark",
+                "cantidad": 1,
+                "precio_unitario": 59.0,
+                "imagen": "ordenes/spark.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-14T21:10:30.392887"
+    },
+    {
+        "order_id": "f7516fe0-8c39-4161-b0ae-fe31b02785e9",
+        "numero_mesa": 2,
+        "mesas_enlazadas": [
+            3
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-14T21:10:48.062282",
+        "items": [
+            {
+                "item_id": "PIC001",
+                "nombre": "Canastas de Plátano con Queso",
+                "cantidad": 1,
+                "precio_unitario": 190.0,
+                "imagen": "ordenes/canasta_queso.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-14T21:25:56.413255"
+    },
+    {
+        "order_id": "ce838bda-7b37-4397-b19a-291a97729545",
+        "numero_mesa": 1,
+        "mesas_enlazadas": [],
+        "mesero_id": "101",
+        "timestamp": "2025-11-14T21:25:39.622530",
+        "items": [
+            {
+                "item_id": "PIC001",
+                "nombre": "Canastas de Plátano con Queso",
+                "cantidad": 1,
+                "precio_unitario": 190.0,
+                "imagen": "ordenes/canasta_queso.png",
+                "notas": ""
+            },
+            {
+                "item_id": "MIC012",
+                "nombre": "Michelada Mango (Agridulce)",
+                "cantidad": 1,
+                "precio_unitario": 140.0,
+                "imagen": "ordenes/michelada_agridulce.png",
+                "notas": ""
+            },
+            {
+                "item_id": "MIC011",
+                "nombre": "Michelada Fresa (Agridulce)",
+                "cantidad": 1,
+                "precio_unitario": 140.0,
+                "imagen": "ordenes/michelada_agridulce.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-14T21:25:57.979876"
+    },
+    {
+        "order_id": "1e86352e-cc2e-4d82-b3d3-db51d982b857",
+        "numero_mesa": 1,
+        "mesas_enlazadas": [],
+        "mesero_id": "101",
+        "timestamp": "2025-11-14T21:26:12.829875",
+        "items": [
+            {
+                "item_id": "PIC001",
+                "nombre": "Canastas de Plátano con Queso",
+                "cantidad": 1,
+                "precio_unitario": 190.0,
+                "imagen": "ordenes/canasta_queso.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-14T21:26:15.074228"
+    },
+    {
+        "order_id": "72832f1c-df5e-4dc4-9fe3-57585401c37b",
+        "numero_mesa": 2,
+        "mesas_enlazadas": [],
+        "mesero_id": "101",
+        "timestamp": "2025-11-14T21:26:37.581279",
+        "items": [
+            {
+                "item_id": "PIC002",
+                "nombre": "Canastas de Plátano con Pollo",
+                "cantidad": 1,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/canasta_pollo.png",
+                "notas": ""
+            },
+            {
+                "item_id": "PIC003",
+                "nombre": "Canastas de Plátano con Carne",
+                "cantidad": 1,
+                "precio_unitario": 270.0,
+                "imagen": "ordenes/canasta_carne.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-14T21:27:11.985800"
+    },
+    {
+        "order_id": "a1e1d25e-8d49-4c5a-b3ff-5022006b541a",
+        "numero_mesa": 3,
+        "mesas_enlazadas": [
+            6
+        ],
+        "mesero_id": "101",
+        "timestamp": "2025-11-14T21:27:38.732750",
+        "items": [
+            {
+                "item_id": "PIC002",
+                "nombre": "Canastas de Plátano con Pollo",
+                "cantidad": 1,
+                "precio_unitario": 250.0,
+                "imagen": "ordenes/canasta_pollo.png",
+                "notas": ""
+            },
+            {
+                "item_id": "PIC003",
+                "nombre": "Canastas de Plátano con Carne",
+                "cantidad": 1,
+                "precio_unitario": 270.0,
+                "imagen": "ordenes/canasta_carne.png",
+                "notas": ""
+            }
+        ],
+        "fecha_cierre": "2025-11-14T21:27:42.642145"
     }
 ]

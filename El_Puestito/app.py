@@ -31,6 +31,13 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QListWidget, QListWidgetItem
 from flask_socketio import SocketIO
 import requests
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
+try:
+    from data_model import DataManager, DB_PATH
+except ImportError:
+    print("Error: No se pudo encontrar 'data_model.py'.")
+    print("Asegúrate de que exista en la carpeta 'src/'.")
+    sys.exit(1)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -171,23 +178,13 @@ class ServerWorker(QObject):
         except Exception as e:
             print(f"[Servidor] Greenlet: Error al llamar a self.socketio.stop(): {e}")
 
-    def __init__(self):
+    def __init__(self, data_manager):
         super().__init__()
+        self.data_manager = data_manager
         self.app = Flask(__name__)
         
         self.socketio = SocketIO(self.app, cors_allowed_origins="*", async_mode='eventlet')
-        self.asistencia_file_path = os.path.join(BASE_DIR, "assets", "asistencia.json")
-        self.asistencia_historico_path = os.path.join(BASE_DIR, "assets", "asistencia_historico.json")
-        self.ids_file_path = os.path.join(BASE_DIR, "assets", "processed_orders.json")
-        self.ids_file_path = os.path.join(BASE_DIR, "assets", "processed_orders.json")
-        try:
-            with open(self.ids_file_path, "r") as f:
-                self.processed_order_ids = json.load(f)
-            print(f"✅ IDs de órdenes prevas cargados desde {self.ids_file_path}")
-        except (FileNotFoundError, json.JSONDecodeError):
-            print("⚠️ No se encontró archivo de IDs de órdenes, iniciando lista vacía.")
-            self.processed_order_ids = []
-            self.server_instance = None
+        self.server_instance = None
         worker_self = self
 
         @self.app.route('/shutdown', methods=['POST'])
@@ -202,6 +199,7 @@ class ServerWorker(QObject):
             print("[Servidor] Respondiendo 200 OK y programando apagado.")
             return jsonify({"status": "shutdown_initiated"})
 
+
         @self.app.route('/registrar', methods=['POST'])
         def registrar_asistencia_movil():
             data = request.json
@@ -214,78 +212,59 @@ class ServerWorker(QObject):
 
             employee_id = data['employee_id']
             device_id = data['deviceId']
-
-            employees = worker_self._load_employee_data()
             
-            if employees is None:
-                print("[Asistencia Móvil] Error: No se pudo cargar el archivo de empleados.")
-                return jsonify({"error": "Error interno del servidor (BD)"}), 500
+            empleado_con_dispositivo = self.data_manager.get_employee_by_device(device_id)
+            if empleado_con_dispositivo and empleado_con_dispositivo['id_empleado'] != employee_id:
+                print(f"[Asistencia Móvil] ⚠️ Dispositivo {device_id} ya vinculado a {empleado_con_dispositivo.get('nombre')}, ignorando duplicado.")
+                return jsonify({
+                    "error": "device_in_use",
+                    "message": f"Este dispositivo ya fue usado por {empleado_con_dispositivo.get('nombre')}. Cada dispositivo puede registrar solo a una persona."
+                }), 403
 
-            empleado_encontrado = None
+            empleado_encontrado = self.data_manager.get_employee_by_id(employee_id)
 
-            for emp in employees:
-                # Solo impedir si el mismo dispositivo intenta registrar otro empleado distinto
-                if emp.get("deviceId") == device_id and emp.get("id") != employee_id:
-                    print(f"[Asistencia Móvil] ⚠️ Dispositivo {device_id} ya vinculado a {emp.get('nombre')}, ignorando duplicado.")
-                    return jsonify({
-                        "error": "device_in_use",
-                        "message": f"Este dispositivo ya fue usado por {emp.get('nombre')}. Cada dispositivo puede registrar solo a una persona."
-                    }), 403
-
-
-                if emp.get("id") == employee_id:
-                    empleado_encontrado = emp
             if not empleado_encontrado:
                 print(f"[Asistencia Móvil] Error: Empleado con ID {employee_id} no encontrado.")
                 return jsonify({"error": "not_found", "message": "Empleado no encontrado en la base de datos."}), 404
             
-            if empleado_encontrado.get("deviceId") is None:
+            timestamp_actual = datetime.datetime.now().isoformat(timespec='seconds')
+            
+            if not empleado_encontrado.get("deviceId"):
                 print(f"[Asistencia Móvil] Vinculando dispositivo {device_id} a {empleado_encontrado['nombre']}...")
-                empleado_encontrado["deviceId"] = device_id
-                timestamp_actual = datetime.datetime.now().isoformat(timespec='seconds') 
-                empleado_encontrado["entrada"] = timestamp_actual 
-                empleado_encontrado["salida"] = "-" 
-                empleado_encontrado["estado"] = "Presente"
-
-                worker_self._log_attendance_event(employee_id, "entrada")
-                if not worker_self._save_employee_data(employees):
-                    return jsonify({"error": "Error interno al guardar"}), 500
                 
-                worker_self.asistencia_recibida.emit({"employee_id": employee_id}) 
+                self.data_manager.link_device_to_employee(employee_id, device_id)
+                event_type = "entrada"
+                self.data_manager.add_attendance_event(employee_id, event_type, timestamp_actual)
+
+                self.asistencia_recibida.emit({
+                    "employee_id": employee_id,
+                    "event_type": event_type,
+                    "timestamp": timestamp_actual
+                }) 
 
                 print("[Asistencia Móvil] Dispositivo vinculado y asistencia registrada.")
                 return jsonify({
                     "status": "success",
                     "message": f"Dispositivo registrado a {empleado_encontrado['nombre']}. Asistencia marcada."
-                }), 201 # Creado
+                }), 201 
 
             elif empleado_encontrado.get("deviceId") == device_id:
-                
                 print(f"[Asistencia Móvil] Asistencia normal para {empleado_encontrado['nombre']}.")
 
-                timestamp_actual = datetime.datetime.now().isoformat(timespec='seconds') 
-                entrada_actual = empleado_encontrado.get("entrada", "-")
-                salida_actual = empleado_encontrado.get("salida", "-") 
-                event_type = ""
-                if entrada_actual == "-" or not entrada_actual or (salida_actual != "-" and salida_actual):
-                    empleado_encontrado["entrada"] = timestamp_actual
-                    empleado_encontrado["salida"] = "-" 
-                    empleado_encontrado["estado"] = "Presente"
-                    event_type = "entrada" # Guardamos el tipo de evento
-                    print(f"----> Marcando ENTRADA: {timestamp_actual}")
-                else: 
-                    empleado_encontrado["salida"] = timestamp_actual
-                    empleado_encontrado["estado"] = "Ausente"
-                    event_type = "salida" # Guardamos el tipo de evento
-                    print(f"----> Marcando SALIDA: {timestamp_actual}")
+                last_event = self.data_manager.get_last_attendance_event(employee_id)
+                event_type = "salida" if last_event and last_event['tipo'] == 'entrada' else 'entrada'
+                
+                if event_type == "entrada":
+                    print(f"----> Marcando ENTRADA (BD): {timestamp_actual}")
+                else:
+                    print(f"----> Marcando SALIDA (BD): {timestamp_actual}")
 
-                if event_type: # Solo si hubo un evento válido
-                    worker_self._log_attendance_event(employee_id, event_type)
-
-                if not worker_self._save_employee_data(employees):
-                    return jsonify({"error": "Error interno al guardar"}), 500
-
-                worker_self.asistencia_recibida.emit({"employee_id": employee_id})
+                self.data_manager.add_attendance_event(employee_id, event_type, timestamp_actual)
+                self.asistencia_recibida.emit({
+                    "employee_id": employee_id,
+                    "event_type": event_type,
+                    "timestamp": timestamp_actual
+                })
 
                 return jsonify({
                     "status": "success",
@@ -293,12 +272,11 @@ class ServerWorker(QObject):
                 }), 200
 
             else:
-                
                 print(f"[Asistencia Móvil] Error de Fraude: ID {employee_id} ({empleado_encontrado['nombre']}) intentó registrarse con dispositivo diferente.")
                 return jsonify({
                     "error": "device_mismatch",
                     "message": "Este dispositivo no coincide con el registrado para este empleado. Contacte al administrador."
-                }), 403 # 
+                }), 403
         
         @self.app.route('/configuracion', methods=['GET'])
 
@@ -326,29 +304,34 @@ class ServerWorker(QObject):
                 return jsonify({"error": "Image not found"}), 404
             
         @self.app.route('/menu', methods=['GET'])
-
         def get_menu():
-            """Lee el archivo menu.json, filtra los no disponibles y lo devuelve."""
+            """Lee el menú desde la BD, filtra los no disponibles y lo devuelve."""
             try:
-                menu_path = os.path.join(BASE_DIR, "assets", "menu.json")
-                with open(menu_path, 'r', encoding='utf-8') as f:
-                    menu_data = json.load(f)
+                menu_data = worker_self.data_manager.get_menu_with_categories()
+                
                 menu_filtrado = {"categorias": []}
                 
                 for categoria_original in menu_data.get("categorias", []):
                     items_disponibles = [
                         item for item in categoria_original.get("items", [])
-                        if item.get("disponible", True) # Si no existe la llave, es True
+                        if item.get("disponible", True) 
                     ]
                     
                     if items_disponibles:
-                        nueva_categoria = categoria_original.copy() # Copia superficial
-                        nueva_categoria["items"] = items_disponibles
+                        nueva_categoria = categoria_original.copy()
+                        
+                        items_app_format = []
+                        for item in items_disponibles:
+                            item_copy = item.copy()
+                            item_copy['id'] = item_copy.pop('id_item', item_copy.get('id'))
+                            items_app_format.append(item_copy)
+                        
+                        nueva_categoria["items"] = items_app_format
                         menu_filtrado["categorias"].append(nueva_categoria)
                 
                 return jsonify(menu_filtrado)
             except Exception as e:
-                print(f"❌ Error al leer o filtrar menu.json: {e}")
+                print(f"❌ Error al leer o filtrar menú desde la BD: {e}")
                 return jsonify({"error": "No se pudo cargar el menú"}), 500
             
         @self.app.route('/nueva-orden', methods=['POST'])
@@ -357,6 +340,7 @@ class ServerWorker(QObject):
             mesas_enlazadas = orden.get('mesas_enlazadas')
             if mesas_enlazadas:
                 print(f"🔗 Orden para Mesa {orden.get('numero_mesa')} incluye grupo: {mesas_enlazadas}")
+            
             is_valid, error_msg = worker_self._validate_order_items(orden)
             if not is_valid:
                 print(f"❌ Orden Rechazada: {error_msg}")
@@ -365,55 +349,35 @@ class ServerWorker(QObject):
                     "mensaje": error_msg
                 }), 400
             order_id = orden.get("order_id")
-            if order_id in worker_self.processed_order_ids:
+            if worker_self.data_manager.check_duplicate_order_id(order_id):
                 print(f"📦 Ignorando orden duplicada con ID: {order_id}")
                 return jsonify({"status": "ok_duplicate"}), 200
-            worker_self.processed_order_ids.append(order_id)
-            if len(worker_self.processed_order_ids) > 200:
-                worker_self.processed_order_ids.pop(0)
-            print(f"📦 Nueva orden recibida con ID: {order_id}")
             
+            print(f"📦 Nueva orden recibida con ID: {order_id}. Pasando al hilo principal...")
             worker_self.nueva_orden_recibida.emit(orden) 
-            
-            eventlet.sleep(0.1) 
-            
-            table_state_payload = worker_self._get_table_state()
-            worker_self.socketio.emit('mesas_actualizadas', table_state_payload)
-            print(f"📣 Emitiendo 'mesas_actualizadas' a los clientes...")
-            
             return jsonify({"status": "ok_new"}), 200
         
         @self.app.route('/employees', methods=['GET'])
-
         def get_employees():
-
-            employees_full = worker_self._load_employee_data()
+            employees_full = worker_self.data_manager.get_employees() 
             if employees_full is None:
                 return jsonify({"error": "No se pudo cargar la lista de empleados"}), 500
-            employee_list = [
-                {"id": emp.get("id"), "nombre": emp.get("nombre")}
-                for emp in employees_full
-                if emp.get("id") and emp.get("nombre") 
-            ]
             
+            employee_list = [
+                {"id": emp.get("id_empleado"), "nombre": emp.get("nombre")}
+                for emp in employees_full
+                if emp.get("id_empleado") and emp.get("nombre") 
+            ]
             return jsonify(employee_list)
         
         @self.app.route('/estado-mesas', methods=['GET'])
-
         def get_estado_mesas():
             try:
-                caja_path = os.path.join(BASE_DIR, "assets", "caja_ordenes.json")
-                with open(caja_path, 'r', encoding='utf-8') as f:
-                    caja_data = json.load(f)
-                
-                mesas_ocupadas = list(caja_data.keys())
-                print(f"📊 Estado de mesas solicitado. Enviando objeto de caja completo.")
+                caja_data = worker_self.data_manager.get_active_orders_caja()
+                print(f"📊 Estado de mesas solicitado. Enviando objeto de caja desde la BD.")
                 return jsonify(caja_data)
-            except FileNotFoundError:
-                print("📊 Estado de mesas solicitado. No se encontró caja_ordenes.json, devolviendo vacío.")
-                return jsonify({})
             except Exception as e:
-                print(f"❌ Error al leer caja_ordenes.json: {e}")
+                print(f"❌ Error al leer estado de mesas desde la BD: {e}")
                 return jsonify({"error": "No se pudo cargar el estado de las mesas"}), 500
             
 
@@ -439,75 +403,27 @@ class ServerWorker(QObject):
             return jsonify({"status": "emitted"}), 200
             
     def _get_table_state(self):
-        """Lee el JSON de caja y devuelve el objeto completo de órdenes activas."""
+        """Lee el estado de caja desde la BD y devuelve el objeto de órdenes activas."""
         try:
-            caja_path = os.path.join(BASE_DIR, "assets", "caja_ordenes.json")
-            with open(caja_path, 'r', encoding='utf-8') as f:
-                caja_data = json.load(f)
+            # REFACTORIZADO: Leer desde la BD
+            caja_data = self.data_manager.get_active_orders_caja()
             return caja_data 
         except Exception as e:
-            print(f"❌ Error al leer caja_ordenes.json para socket: {e}")
-            return {} 
-
-    def _load_employee_data(self):
-        """Carga los datos de los empleados desde el JSON."""
-        if not os.path.exists(self.asistencia_file_path):
-            print(f"Error CRÍTICO: No se encuentra el archivo en: {self.asistencia_file_path}")
-            return None
-        try:
-            with open(self.asistencia_file_path, "r", encoding='utf-8') as f:
-                return json.load(f)
-        except (IOError, json.JSONDecodeError) as e:
-            print(f"Error al leer el JSON de asistencia: {e}")
-            return None
-
-    def _save_employee_data(self, data):
-        """Guarda los datos de los empleados en el JSON."""
-        try:
-            with open(self.asistencia_file_path, "w", encoding='utf-8') as f:
-                json.dump(data, f, indent=4, ensure_ascii=False)
-            print(f"💾 Datos de asistencia guardados en {self.asistencia_file_path}")
-            return True
-        except IOError as e:
-            print(f"Error al guardar el archivo de asistencia: {e}")
-            return False
+            print(f"❌ Error al leer estado de caja desde BD para socket: {e}")
+            return {}
         
-    def _log_attendance_event(self, employee_id, event_type):
-        """Añade un registro al archivo de historial de asistencia."""
-        log_entry = {
-            "employee_id": employee_id,
-            "timestamp": datetime.datetime.now().isoformat(timespec='seconds'),
-            "type": event_type # Será "entrada" o "salida"
-        }
-        
-        history = []
-        try:
-            with open(self.asistencia_historico_path, "r", encoding='utf-8') as f:
-                history = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            history = [] 
-            
-        history.append(log_entry)
-        
-        try:
-            with open(self.asistencia_historico_path, "w", encoding='utf-8') as f:
-                json.dump(history, f, indent=4, ensure_ascii=False)
-            print(f"🕒 Evento '{event_type}' guardado en historial para ID {employee_id}.")
-            return True
-        except IOError as e:
-            print(f"❌ Error al guardar en historial de asistencia: {e}")
-            return False    
 
     def _validate_order_items(self, orden):
+        """Valida los IDs de una orden contra los items disponibles en la BD."""
         try:
-            menu_path = os.path.join(BASE_DIR, "assets", "menu.json")
-            with open(menu_path, 'r', encoding='utf-8') as f:
-                menu_data = json.load(f)
+            menu_data = self.data_manager.get_menu_with_categories()
+            
             available_ids = set()
             for categoria in menu_data.get("categorias", []):
                 for item in categoria.get("items", []):
-                    if item.get("disponible", True) and item.get("id"):
-                        available_ids.add(item.get("id"))
+                    if item.get("disponible", True) and item.get("id_item"):
+                        available_ids.add(item.get("id_item"))
+            
             items_en_orden = orden.get("items", [])
             for item_in_order in items_en_orden:
                 item_id = item_in_order.get("item_id") 
@@ -516,7 +432,7 @@ class ServerWorker(QObject):
                     return False, f"El platillo '{item_nombre}' ya no está disponible."
             return True, ""
         except Exception as e:
-            print(f"❌ Error al validar la orden: {e}")
+            print(f"❌ Error al validar la orden contra la BD: {e}")
             return False, "Error interno al validar el menú."
         
     def start_server(self):
@@ -537,34 +453,7 @@ class ServerWorker(QObject):
         finally:
             print("🛑 El método start_server() del worker ha finalizado.")
 
-    def save_ids_to_file(self):
-        try:
-            with open(self.ids_file_path, "w") as f:
-                json.dump(self.processed_order_ids, f)
-                print(f"💾 IDs de órdenes guardados en {self.ids_file_path}")
-        except IOError:
-            print("❌ Error al guardar los IDs de las órdenes.")
             
-    def _validate_order_items(self, orden):
-        try:
-            menu_path = os.path.join(BASE_DIR, "assets", "menu.json")
-            with open(menu_path, 'r', encoding='utf-8') as f:
-                menu_data = json.load(f)
-            available_ids = set()
-            for categoria in menu_data.get("categorias", []):
-                for item in categoria.get("items", []):
-                    if item.get("disponible", True) and item.get("id"):
-                        available_ids.add(item.get("id"))
-            items_en_orden = orden.get("items", [])
-            for item_in_order in items_en_orden:
-                item_id = item_in_order.get("item_id") 
-                if item_id not in available_ids:
-                    item_nombre = item_in_order.get("nombre", "Desconocido")
-                    return False, f"El platillo '{item_nombre}' ya no está disponible."
-            return True, ""
-        except Exception as e:
-            print(f"❌ Error al validar la orden: {e}")
-            return False, "Error interno al validar el menú."
         
 class ServerThread(QThread):
         def __init__(self, worker_instance, parent=None):
@@ -578,61 +467,31 @@ class ServerThread(QThread):
             self.worker.start_server() # Esta es la llamada bloqueante
             print("[ServerThread] worker.start_server() ha terminado. Hilo finalizando.")        
 
-
 class AttendancePage(QWidget):
-    """La vista de control de asistencia que ya teníamos."""
 
-    def __init__(self, parent=None):
+    def __init__(self, data_manager, parent=None):
         super().__init__(parent)
+        self.data_manager = data_manager
+        
+        self.employee_row_map = {} 
+
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(25, 15, 25, 25)
         main_layout.setSpacing(20)
+        
         controls_layout = self.create_controls_bar()
         table_title = QLabel("Lista de Empleados")
         table_title.setObjectName("section_title")
+        
         self.employee_table = self.create_employee_table()
+        
         main_layout.addLayout(controls_layout)
         self.btn_limpiar.clicked.connect(self.limpiar_registros)
         main_layout.addWidget(table_title)
-        main_layout.addWidget(self.employee_table) # Usamos la variable de instancia
-
-    def refresh_attendance_table(self, employee_data_list):
-        """Limpia y vuelve a llenar la tabla de asistencia con los datos proporcionados."""
-        self.employee_table.setRowCount(0) # Limpiamos la tabla
-        self.employee_table.setRowCount(len(employee_data_list))
-        for row, employee_data in enumerate(employee_data_list):
-            item_nombre = QTableWidgetItem(employee_data["nombre"])
-            item_nombre.setData(Qt.ItemDataRole.UserRole, employee_data["id"])
-            self.employee_table.setItem(row, 0, item_nombre)
-            self.employee_table.setItem(row, 1, QTableWidgetItem(employee_data["entrada"]))
-            self.employee_table.setItem(row, 2, QTableWidgetItem(employee_data["salida"]))
-            status_txt = employee_data["estado"]
-            cell_widget = QWidget()
-            h_layout = QHBoxLayout(cell_widget)
-            h_layout.setContentsMargins(8, 0, 0, 0)
-            h_layout.setSpacing(10)
-            h_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-            dot = QLabel()
-            dot.setObjectName("status_indicator")
-            dot.setFixedSize(14, 14)
-            dot.setProperty("status", "present" if status_txt.lower().startswith("pres") else "absent")
-            text = QLabel(status_txt)
-            text.setObjectName("status_text")
-            h_layout.addWidget(dot)
-            h_layout.addWidget(text)
-            self.employee_table.setCellWidget(row, 3, cell_widget)
-
-    def update_employee_data(self, new_data):
-        """Actualiza la lista interna de datos y refresca la tabla."""
-        try:
-            with open(self.data_file, "w") as f:
-                json.dump(new_data, f, indent=4)
-                print(f"💾 Datos de asistencia actualizados y guardados desde Admin.")
-            self.refresh_attendance_table(new_data) # Llama a la función de refresco
-        except IOError:
-            print(f"❌ Error: No se pudo guardar el archivo de datos actualizado.")
-        except AttributeError:
-            print("❌ Error: data_file no está definido.")
+        main_layout.addWidget(self.employee_table)
+        
+        # Carga los datos iniciales
+        self.load_and_refresh_table()
 
     def create_controls_bar(self):
         controls_layout = QHBoxLayout()
@@ -646,214 +505,182 @@ class AttendancePage(QWidget):
         controls_layout.addStretch()
         controls_layout.addWidget(self.btn_limpiar) 
         return controls_layout
-    
-    def registrar_asistencia(self, datos):
-        id_empleado_recibido = datos.get("employee_id")
-        if not id_empleado_recibido:
-            return
-        
-        for fila in range(self.employee_table.rowCount()):
-            item_nombre = self.employee_table.item(fila, 0)
-            id_guardado = item_nombre.data(Qt.ItemDataRole.UserRole)
-            
-            if id_guardado == id_empleado_recibido:
-                hora_actual = datetime.datetime.now().strftime("%I:%M %p")
-                new_status_text = ""
-                new_status_property = ""
-                
-                celda_entrada_item = self.employee_table.item(fila, 1)
-                entrada_esta_vacia = (celda_entrada_item is None) or \
-                                    (celda_entrada_item.text() == "-") or \
-                                    (not celda_entrada_item.text())
-                
-                # Leemos el estado actual *antes* de cambiarlo
-                celda_salida_item = self.employee_table.item(fila, 2)
-                salida_esta_llena = (celda_salida_item is not None) and \
-                                (celda_salida_item.text() != "-") and \
-                                (celda_salida_item.text())
-
-                if entrada_esta_vacia or salida_esta_llena:
-                    self.employee_table.setItem(fila, 1, QTableWidgetItem(hora_actual))
-                    self.employee_table.setItem(fila, 2, QTableWidgetItem("-")) # Limpiamos salida por si acaso
-                    new_status_text = "Presente"
-                    new_status_property = "present" # Esto pondrá el punto verde
-                    self.employees_data[fila]["entrada"] = hora_actual
-                    self.employees_data[fila]["salida"] = "-" # Aseguramos limpiar salida
-                    self.employees_data[fila]["estado"] = "Presente"
-                else:
-                    self.employee_table.setItem(fila, 2, QTableWidgetItem(hora_actual))
-                    new_status_text = "Ausente"
-                    new_status_property = "absent" # Esto pondrá el punto rojo
-                    self.employees_data[fila]["salida"] = hora_actual
-                    self.employees_data[fila]["estado"] = "Ausente"
-
-                widget_estado = self.employee_table.cellWidget(fila, 3)
-                
-                if widget_estado:
-                    dot = widget_estado.findChild(QLabel, "status_indicator")
-                    text = widget_estado.findChild(QLabel, "status_text")
-                    if dot:
-                        dot.setProperty("status", new_status_property)
-                        dot.style().polish(dot) # Actualiza el estilo del widget
-                    if text:
-                        text.setText(new_status_text)
-                
-                print(f"✅ Tabla actualizada para empleado con ID {id_empleado_recibido}. Nuevo estado: {new_status_text}")
-                
-                break
 
     def create_employee_table(self):
-        self.data_file = os.path.join(BASE_DIR,"assets", "asistencia.json")
-        self.employees_data = []
-        try:
-            with open(self.data_file, "r") as f:
-                self.employees_data= json.load(f)
-            print(f"✅ Datos de asistencia cargados desde {self.data_file}")
-        except (FileNotFoundError, json.JSONDecodeError):
-            print(f"⚠️ No se encontró el archivo de datos o está corrupto. Creando datos por defecto.")
-            self.employees_data = [
-                {"id": "1", "nombre": "Enrique Mauricio Cáceres Paladino", "entrada": "-", "salida": "-", "estado": "Ausente"},
-                {"id": "2", "nombre": "Leonardo Miguel Rojas Valdivia", "entrada": "-", "salida": "-", "estado": "Ausente"},
-                {"id": "3", "nombre": "Justin David Escoto valle", "entrada": "-", "salida": "-", "estado": "Ausente"},
-                {"id": "4", "nombre": "César Alberto Paredes Canales", "entrada": "-", "salida": "-", "estado": "Ausente"},
-            ]
+        """Configura la estructura de la QTableWidget."""
         table = QTableWidget()
         table.setObjectName("employee_table")
         table.setColumnCount(4)
         table.setHorizontalHeaderLabels(["Nombre", "Hora de Entrada", "Hora de Salida", "Estado"])
         header = table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch) # Columna Nombre
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch) # Columna Entrada
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch) # Columna Salida
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch) # Columna Estado
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         table.verticalHeader().setVisible(False)
         table.verticalHeader().setDefaultSectionSize(44)
-        table.setRowCount(len(self.employees_data))
-        for row, employee_data in enumerate(self.employees_data):
-            item_nombre = QTableWidgetItem(employee_data["nombre"])
-            item_nombre.setData(Qt.ItemDataRole.UserRole, employee_data["id"])
-            table.setItem(row, 0, item_nombre)
-            table.setItem(row, 1, QTableWidgetItem(employee_data["entrada"]))
-            table.setItem(row, 2, QTableWidgetItem(employee_data["salida"]))
-            status_txt = employee_data["estado"]
-            cell_widget = QWidget()
-            h_layout = QHBoxLayout(cell_widget)
-            h_layout.setContentsMargins(8, 0, 0, 0)
-            h_layout.setSpacing(10)
-            h_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-            dot = QLabel()
-            dot.setObjectName("status_indicator")
-            dot.setFixedSize(14, 14)
-            dot.setProperty("status", "present" if status_txt.lower().startswith("pres") else "absent")
-            text = QLabel(status_txt)
-            text.setObjectName("status_text")
-            h_layout.addWidget(dot)
-            h_layout.addWidget(text)
-            table.setCellWidget(row, 3, cell_widget)
         return table
-    
-    def save_data_to_file(self):
-        if not hasattr(self, 'employees_data'):
-            print("❌ Error: self.employees_data no existe. No se puede guardar.")
+
+    def load_and_refresh_table(self):
+        print("Refrescando tabla de asistencia desde la BD...")
+        self.employee_table.setRowCount(0)
+        self.employee_row_map.clear()
+
+        # 1. Obtener todos los empleados de la BD
+        all_employees = self.data_manager.get_employees()
+        
+        # 2. Obtener todos los eventos de "hoy"
+        today_events = self.data_manager.get_events_for_today()
+
+        # 3. Procesar los eventos para encontrar el estado de cada empleado
+        employee_states = {}
+        for event in today_events:
+            emp_id = event['id_empleado']
+            if emp_id not in employee_states:
+                employee_states[emp_id] = {"entrada": "-", "salida": "-", "estado": "Ausente"}
+
+            event_time = datetime.datetime.fromisoformat(event['last_timestamp']).strftime("%I:%M %p")
+            
+            if event['tipo'] == 'entrada':
+                employee_states[emp_id]['entrada'] = event_time
+                employee_states[emp_id]['estado'] = "Presente"
+                employee_states[emp_id]['salida'] = "-" # Resetea salida por si acaso
+            
+            elif event['tipo'] == 'salida':
+                employee_states[emp_id]['salida'] = event_time
+                employee_states[emp_id]['estado'] = "Ausente"
+
+        # 4. Poblar la tabla
+        self.employee_table.setRowCount(len(all_employees))
+        for row, emp in enumerate(all_employees):
+            emp_id = emp['id_empleado']
+            
+            # Obtener el estado de hoy, o usar valores por defecto si no hay eventos
+            state = employee_states.get(emp_id, {"entrada": "-", "salida": "-", "estado": "Ausente"})
+            
+            item_nombre = QTableWidgetItem(emp["nombre"])
+            item_nombre.setData(Qt.ItemDataRole.UserRole, emp_id)
+            
+            self.employee_table.setItem(row, 0, item_nombre)
+            self.employee_table.setItem(row, 1, QTableWidgetItem(state["entrada"]))
+            self.employee_table.setItem(row, 2, QTableWidgetItem(state["salida"]))
+            
+            cell_widget = self.create_status_widget(state["estado"])
+            self.employee_table.setCellWidget(row, 3, cell_widget)
+            
+            # Guardamos la fila para futuras actualizaciones rápidas
+            self.employee_row_map[emp_id] = row
+
+    def create_status_widget(self, status_txt):
+        """Crea el widget de "círculo y texto" para la celda de estado."""
+        cell_widget = QWidget()
+        h_layout = QHBoxLayout(cell_widget)
+        h_layout.setContentsMargins(8, 0, 0, 0)
+        h_layout.setSpacing(10)
+        h_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        dot = QLabel()
+        dot.setObjectName("status_indicator")
+        dot.setFixedSize(14, 14)
+        dot.setProperty("status", "present" if status_txt.lower().startswith("pres") else "absent")
+        text = QLabel(status_txt)
+        text.setObjectName("status_text")
+        h_layout.addWidget(dot)
+        h_layout.addWidget(text)
+        return cell_widget
+
+    @pyqtSlot(dict)
+    def registrar_asistencia(self, datos):
+
+        employee_id = datos.get("employee_id")
+        if not employee_id:
             return
-        if not hasattr(self, 'data_file'):
-            print("❌ Error: self.data_file no está definido. No se puede guardar.")
+
+        if employee_id not in self.employee_row_map:
+            print(f"⚠️  Se recibió asistencia para {employee_id} pero no está en la tabla. Refrescando todo.")
+            self.load_and_refresh_table()
             return
-        try:
-            with open(self.data_file, "w", encoding='utf-8') as f:
-                json.dump(self.employees_data, f, indent=4, ensure_ascii=False)
-            print(f"💾 Datos de asistencia guardados en {self.data_file}")
-        except IOError:
-            print(f"❌ Error: No se pudo guardar el archivo de datos.")
+            
+        fila = self.employee_row_map[employee_id]
+        
+        hora_actual = datetime.datetime.fromisoformat(datos['timestamp']).strftime("%I:%M %p")
+        event_type = datos['event_type']
+        
+        new_status_text = ""
+        new_status_property = ""
+        
+        if event_type == "entrada":
+            self.employee_table.setItem(fila, 1, QTableWidgetItem(hora_actual))
+            self.employee_table.setItem(fila, 2, QTableWidgetItem("-")) # Limpiamos salida
+            new_status_text = "Presente"
+            new_status_property = "present"
+        else: # "salida"
+            self.employee_table.setItem(fila, 2, QTableWidgetItem(hora_actual))
+            new_status_text = "Ausente"
+            new_status_property = "absent"
+
+        # Actualizar el widget de estado
+        widget_estado = self.employee_table.cellWidget(fila, 3)
+        if widget_estado:
+            dot = widget_estado.findChild(QLabel, "status_indicator")
+            text = widget_estado.findChild(QLabel, "status_text")
+            if dot:
+                dot.setProperty("status", new_status_property)
+                dot.style().polish(dot) # Actualiza el estilo del widget
+            if text:
+                text.setText(new_status_text)
+        
+        print(f"✅ Tabla de Asistencia actualizada para ID {employee_id}. Nuevo estado: {new_status_text}")
+
+    @pyqtSlot(list)
+    def refresh_on_admin_update(self, employee_data_list):
+        print("🔄 Recibida actualización de Admin, refrescando tabla de asistencia...")
+        self.load_and_refresh_table()
 
     def limpiar_registros(self):
-        """Resetea las horas en asistencia.json Y BORRA TODO el historial en asistencia_historico.json."""
-
-        confirm = QMessageBox.question(self, "Confirmar Limpieza TOTAL",
-                                    "¿Está seguro de que desea limpiar todos los registros de asistencia?\n\n"
-                                    "Esto reseteará las horas en la tabla diaria Y **BORRARÁ PERMANENTEMENTE TODO EL HISTORIAL** usado para la nómina.\n\n"
-                                    "¡Esta acción no se puede deshacer!", # Mensaje de advertencia más fuerte
-                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                    QMessageBox.StandardButton.No) # Por defecto NO
+        texto_advertencia = ("¿Está seguro de que desea limpiar todos los registros?\n\n"
+                            "Esto borrará PERMANENTEMENTE todo el historial de asistencia de la base de datos.\n\n"
+                            "¡Esta acción no se puede deshacer!")
+        
+        confirm = QMessageBox.question(self, 
+                                    "Confirmar Limpieza TOTAL", 
+                                    texto_advertencia,
+                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, 
+                                    QMessageBox.StandardButton.No)
+        
         if confirm == QMessageBox.StandardButton.No:
             return
 
-        print("🧹🧹 Limpiando registros actuales Y TODO el historial...")
+        print("🧹🧹 Limpiando TODO el historial de la base de datos...")
+        
+        self.data_manager.clear_all_attendance_history()
+        
+        self.load_and_refresh_table()
+        
+        print("✅ Registros de historial limpiados. Tabla de asistencia reseteada.")
+        QMessageBox.information(self,"Limpieza Completa", "Se ha borrado todo el historial de asistencia.")
 
-        asistencia_historico_path = os.path.join(BASE_DIR, "assets", "asistencia_historico.json")
-        try:
-            with open(asistencia_historico_path, "w", encoding='utf-8') as f:
-                json.dump([], f, indent=4, ensure_ascii=False)
-            print(f"🧹🧹 ¡TODO el historial en {asistencia_historico_path} ha sido eliminado!")
-
-        except IOError as e:
-            print(f"❌ Error al borrar el historial de asistencia: {e}")
-            QMessageBox.critical(self, "Error al Borrar Historial", f"No se pudo borrar el archivo de historial:\n{e}")
-            return
-
-        if not hasattr(self, 'employee_table'):
-            return
-        for row in range(self.employee_table.rowCount()):
-            self.employee_table.setItem(row, 1, QTableWidgetItem("-"))
-            self.employee_table.setItem(row, 2, QTableWidgetItem("-"))
-
-            widget_estado = self.employee_table.cellWidget(row, 3)
-            if widget_estado:
-                dot = widget_estado.findChild(QLabel, "status_indicator")
-                text = widget_estado.findChild(QLabel, "status_text")
-                if dot:
-                    dot.setProperty("status", "absent")
-                    dot.style().polish(dot)
-                if text:
-                    text.setText("Ausente")
-
-            if row < len(self.employees_data):
-                self.employees_data[row]["entrada"] = "-"
-                self.employees_data[row]["salida"] = "-"
-                self.employees_data[row]["estado"] = "Ausente"
-
-        self.save_data_to_file()
-        print("✅ Registros actuales limpiados y guardados.")
-        QMessageBox.information(self,"Limpieza Completa", "Se han limpiado los registros diarios y todo el historial de asistencia.")
-            
-
-    def get_employees_data(self):
-        """Devuelve los datos de los empleados cargados desde el archivo."""
-        table_data = []
-        try:
-            if not hasattr(self, 'data_file'):
-                self.data_file = os.path.join(BASE_DIR,"assets", "asistencia.json")
-            with open(self.data_file, "r") as f:
-                table_data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            print("⚠️ No se pudo cargar el archivo de datos para la página de Admin.")
-        return table_data
-    
 class CocinaPage(QWidget):
     
     def load_active_orders(self):
-        """Carga las órdenes activas desde el archivo JSON y las muestra."""
-        self.orders_file_path = os.path.join(BASE_DIR, "assets", "cocina_ordenes.json")
+        """Carga las órdenes de cocina activas desde la BD y las muestra."""
+        
+        while self.ticket_container_layout.count():
+            item = self.ticket_container_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        
         self.active_orders_data = [] 
         try:
-            with open(self.orders_file_path, "r") as f:
-                self.active_orders_data = json.load(f)
-            print(f"🍳 Órdenes de cocina cargadas desde {self.orders_file_path}")
+            self.active_orders_data = self.data_manager.get_active_cocina_orders()
+            print(f"🍳 Órdenes de cocina cargadas desde la BD")
             for orden_data in self.active_orders_data:
                 self._display_order_ticket(orden_data)
-        except (FileNotFoundError, json.JSONDecodeError):
-            print("⚠️ No se encontró archivo de órdenes de cocina o está corrupto. Iniciando vacío.")
+        except Exception as e:
+            print(f"❌ Error al cargar órdenes de cocina desde la BD: {e}")
             self.active_orders_data = []
 
-    def save_active_orders(self):
-        """Guarda la lista actual de órdenes activas en el archivo JSON."""
-        try:
-            with open(self.orders_file_path, "w") as f:
-                json.dump(self.active_orders_data, f, indent=4)
-            print(f"💾 Órdenes de cocina guardadas en {self.orders_file_path}")
-        except IOError:
-            print("❌ Error al guardar las órdenes de cocina.")
 
     def _display_order_ticket(self, orden_data):
         """Función auxiliar para crear y mostrar un ticket (evita duplicar código)."""
@@ -861,8 +688,9 @@ class CocinaPage(QWidget):
         nuevo_ticket.orden_lista.connect(self.remover_orden)
         self.ticket_container_layout.addWidget(nuevo_ticket)
 
-    def __init__(self, parent=None):
+    def __init__(self, data_manager, parent=None):
         super().__init__(parent)
+        self.data_manager = data_manager
         main_layout = QVBoxLayout(self)
         title = QLabel("Órdenes Entrantes")
         title.setObjectName("section_title")
@@ -876,63 +704,104 @@ class CocinaPage(QWidget):
         scroll_area.setWidget(container_widget)
         self.load_active_orders()
 
-    def agregar_orden(self, datos_cocina):
-        """Añade la orden a la lista de datos y a la vista, luego guarda."""
-        print("🍳 Añadiendo nueva orden a Cocina...")
-        self.active_orders_data.append(datos_cocina)
-        self._display_order_ticket(datos_cocina)
-        self.save_active_orders()
-
     def remover_orden(self, ticket_widget):
-        print("✅ Orden marcada como lista. Removiendo ticket.")
+        print("✅ Orden de cocina marcada como lista. Actualizando BD...")
         mesa_label_text = ticket_widget.findChild(QLabel, "ticket_title").text() 
         mesa_num_str = mesa_label_text.split(": ")[1]
         
-        orden_a_eliminar = None
-        for orden in self.active_orders_data:
-            if str(orden.get("numero_mesa")) == mesa_num_str:
-                orden_a_eliminar = orden
-                break
-        
-        if orden_a_eliminar:
-            self.active_orders_data.remove(orden_a_eliminar)
-            self.save_active_orders()
-            self.ticket_container_layout.removeWidget(ticket_widget)
-            ticket_widget.deleteLater()
-        else:
-            print(f"⚠️ No se encontró la orden de la mesa {mesa_num_str} para eliminar en los datos guardados.")
+        try:
+            self.data_manager.mark_cocina_order_ready(mesa_num_str)
+            
+            self.load_active_orders()
+        except Exception as e:
+            print(f"❌ Error al marcar orden de cocina como lista: {e}")
             self.ticket_container_layout.removeWidget(ticket_widget)
             ticket_widget.deleteLater()
 
+class BarraPage(QWidget):
+    
+    def load_active_orders(self):
+        """Carga las órdenes de barra activas desde la BD y las muestra."""
+        
+        while self.ticket_container_layout.count():
+            item = self.ticket_container_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        self.active_orders_data = [] 
+        try:
+            self.active_orders_data = self.data_manager.get_active_barra_orders()
+            print(f"🍹 Órdenes de barra cargadas desde la BD")
+            for orden_data in self.active_orders_data:
+                self._display_order_ticket(orden_data)
+        except Exception as e:
+            print(f"❌ Error al cargar órdenes de barra desde la BD: {e}")
+            self.active_orders_data = []
+
+    def _display_order_ticket(self, orden_data):
+        """Función auxiliar para crear y mostrar un ticket (evita duplicar código)."""
+        nuevo_ticket = OrderTicketWidget(orden_data)
+        nuevo_ticket.orden_lista.connect(self.remover_orden)
+        self.ticket_container_layout.addWidget(nuevo_ticket)
+
+    def __init__(self, data_manager, parent=None):
+        super().__init__(parent)
+        self.data_manager = data_manager
+        main_layout = QVBoxLayout(self)
+        title = QLabel("Órdenes de Barra")
+        title.setObjectName("section_title")
+        main_layout.addWidget(title)
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True) 
+        main_layout.addWidget(scroll_area)
+        container_widget = QWidget()
+        self.ticket_container_layout = QVBoxLayout(container_widget)
+        self.ticket_container_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        scroll_area.setWidget(container_widget)
+        self.load_active_orders()
+
+
+    def remover_orden(self, ticket_widget):
+        print("✅ Orden de barra marcada como lista. Actualizando BD...")
+        mesa_label_text = ticket_widget.findChild(QLabel, "ticket_title").text() 
+        mesa_num_str = mesa_label_text.split(": ")[1]
+        
+        try:
+            self.data_manager.mark_barra_order_ready(mesa_num_str)
+            
+            self.load_active_orders()
+        except Exception as e:
+            print(f"❌ Error al marcar orden de barra como lista: {e}")
+            self.ticket_container_layout.removeWidget(ticket_widget)
+            ticket_widget.deleteLater()
 
 class CajaPage(QWidget):
 
     def load_active_orders(self):
-        """Carga las órdenes activas desde el archivo JSON y actualiza la vista."""
-        self.orders_file_path = os.path.join(BASE_DIR, "assets", "caja_ordenes.json")
+        """Carga las órdenes de caja activas desde la BD y actualiza la vista."""
         self.ordenes_activas = {} 
         self.lista_mesas.clear() 
         try:
-            with open(self.orders_file_path, "r") as f:
-                self.ordenes_activas = json.load(f)
-            print(f"💰 Órdenes de caja cargadas desde {self.orders_file_path}")
-            for mesa_num in self.ordenes_activas.keys():
-                self.lista_mesas.addItem(QListWidgetItem(f"Mesa {mesa_num}"))
-        except (FileNotFoundError, json.JSONDecodeError):
-            print("⚠️ No se encontró archivo de órdenes de caja o está corrupto. Iniciando vacío.")
+            self.ordenes_activas = self.data_manager.get_active_orders_caja()
+            print(f"💰 Órdenes de caja cargadas desde la BD")
+            
+            for mesa_key in self.ordenes_activas.keys():
+                mesa_display_text = ""
+                if "+" in mesa_key:
+                    mesa_display_text = f"Mesas {mesa_key}"
+                else:
+                    mesa_display_text = f"Mesa {mesa_key}"
+                
+                self.lista_mesas.addItem(QListWidgetItem(mesa_display_text))
+        except Exception as e:
+            print(f"❌ Error al cargar órdenes de caja desde la BD: {e}")
             self.ordenes_activas = {}
 
-    def save_active_orders(self):
-        """Guarda el diccionario actual de órdenes activas en el archivo JSON."""
-        try:
-            with open(self.orders_file_path, "w") as f:
-                json.dump(self.ordenes_activas, f, indent=4)
-            print(f"💾 Órdenes de caja guardadas en {self.orders_file_path}")
-        except IOError:
-            print("❌ Error al guardar las órdenes de caja.")
 
-    def __init__(self, parent=None):
+    def __init__(self, data_manager, parent=None):
         super().__init__(parent)
+        self.data_manager = data_manager
         self.ordenes_activas = {}
         self.ventas_file_path = os.path.join(BASE_DIR, "assets", "ventas_completadas.json")
         main_layout = QHBoxLayout(self)
@@ -972,38 +841,6 @@ class CajaPage(QWidget):
         self.cobrar_button.clicked.connect(self.cobrar_cuenta)
         self.load_active_orders()
 
-    def agregar_orden(self, orden_completa):
-        """Añade una nueva orden o actualiza una existente."""
-        mesa_num = str(orden_completa['numero_mesa'])
-        
-        item_de_mesa = None
-        item_es_nuevo = False
-
-        items_en_lista = self.lista_mesas.findItems(f"Mesa {mesa_num}", Qt.MatchFlag.MatchExactly)
-
-        if items_en_lista:
-            item_de_mesa = items_en_lista[0]
-            self.ordenes_activas[mesa_num]['items'].extend(orden_completa['items'])
-        else:
-            self.ordenes_activas[mesa_num] = orden_completa
-            item_de_mesa = QListWidgetItem(f"Mesa {mesa_num}")
-            # --- INICIO DE LA CORRECCIÓN ---
-            self.lista_mesas.addItem(item_de_mesa) # ¡CORREGIDO! Usar la variable
-            # --- FIN DE LA CORRECCIÓN ---
-            item_es_nuevo = True
-        
-        item_actual_seleccionado = self.lista_mesas.currentItem()
-        
-        if item_actual_seleccionado and item_actual_seleccionado.text().split(" ")[1] == mesa_num:
-            self.refrescar_vista_actual()
-        elif not item_actual_seleccionado and item_es_nuevo:
-            self.lista_mesas.setCurrentItem(item_de_mesa) 
-            self.refrescar_vista_actual() 
-
-        
-        self.refrescar_vista_actual() 
-        print(f"💰 Orden para la mesa {mesa_num} recibida/actualizada en Caja.") #
-        self.save_active_orders() 
 
     def mostrar_cuenta_de_mesa(self, item):
         
@@ -1012,10 +849,16 @@ class CajaPage(QWidget):
             self.total_label.setText("Total: C$ 0.00")
             return
 
-        mesa_num = item.text().split(" ")[1]
+        texto_item = item.text() 
         
-        if mesa_num in self.ordenes_activas:
-            orden = self.ordenes_activas[mesa_num]
+        mesa_key = ""
+        if texto_item.startswith("Mesas "):
+            mesa_key = texto_item.split(" ")[1] 
+        elif texto_item.startswith("Mesa "):
+            mesa_key = texto_item.split(" ")[1] 
+        
+        if mesa_key and mesa_key in self.ordenes_activas:
+            orden = self.ordenes_activas[mesa_key]
             self.tabla_cuenta.setRowCount(len(orden['items']))
             
             total = 0.0
@@ -1034,69 +877,78 @@ class CajaPage(QWidget):
 
 
         else:
-            print(f"Error: Mesa {mesa_num} no encontrada en ordenes_activas. Limpiando vista.")
+            print(f"Error: Clave {mesa_key} no encontrada en ordenes_activas. Limpiando vista.")
             self.tabla_cuenta.setRowCount(0)
-            self.total_label.setText("Total: C$ 0.00")    
+            self.total_label.setText("Total: C$ 0.00")   
 
     def cobrar_cuenta(self):
-        """Cierra la cuenta, la guarda como venta completada y actualiza la vista."""
         item_seleccionado = self.lista_mesas.currentItem()
         if not item_seleccionado: 
             QMessageBox.warning(self, "Acción no válida", "Por favor, seleccione una mesa para cobrar.")
             return
         
-        mesa_num = item_seleccionado.text().split(" ")[1]
+        texto_item = item_seleccionado.text()
         
-        if mesa_num in self.ordenes_activas:
-
-            orden_a_guardar = self.ordenes_activas.pop(mesa_num)
-            orden_a_guardar["fecha_cierre"] = datetime.datetime.now().isoformat()
-            self.guardar_venta_completada(orden_a_guardar)
-            self.save_active_orders()
-
+        mesa_key = ""
+        if texto_item.startswith("Mesas "):
+            mesa_key = texto_item.split(" ")[1]
+        elif texto_item.startswith("Mesa "):
+            mesa_key = texto_item.split(" ")[1]
+        
+        if mesa_key and mesa_key in self.ordenes_activas:
             try:
-                
-                requests.post('http://127.0.0.1:5000/trigger_update', json={'event': 'mesas_actualizadas'})
-            except requests.exceptions.RequestException as e:
-                print(f"⚠️ No se pudo notificar a los clientes (trigger_update): {e}")
+                orden_guardada = self.data_manager.complete_order(mesa_key)
+                if orden_guardada is None:
+                    raise Exception(f"DataManager no pudo completar la orden {mesa_key}")
 
-        self.lista_mesas.takeItem(self.lista_mesas.row(item_seleccionado))
-        self.tabla_cuenta.setRowCount(0)
-        self.total_label.setText("Total: C$ 0.00")
-        print(f"✅ Cuenta de la mesa {mesa_num} cerrada y guardada en ventas.")
+                try:
+                    requests.post('http://127.0.0.1:5000/trigger_update', json={'event': 'mesas_actualizadas'})
+                except requests.exceptions.RequestException as e:
+                    print(f"⚠️ No se pudo notificar a los clientes (trigger_update): {e}")
+
+                # Actualiza la UI
+                self.lista_mesas.takeItem(self.lista_mesas.row(item_seleccionado))
+                self.tabla_cuenta.setRowCount(0)
+                self.total_label.setText("Total: C$ 0.00")
+                print(f"✅ Cuenta de la {texto_item} cerrada y guardada en la BD.")
+                
+            except Exception as e:
+                print(f"❌ Error al procesar el cobro en la BD: {e}")
+                QMessageBox.critical(self, "Error de Base de Datos", f"No se pudo cobrar la mesa:\n{e}")
+        else:
+            QMessageBox.warning(self, "Error", f"No se encontró la clave '{mesa_key}' en las órdenes activas.")
 
     def refrescar_vista_actual(self):
         item_actual = self.lista_mesas.currentItem()
         if item_actual:
             self.mostrar_cuenta_de_mesa(item_actual)
 
-    def guardar_venta_completada(self, orden_completada):
-        ventas_lista = []
-        try:
-            with open(self.ventas_file_path, "r", encoding='utf-8') as f:
-                ventas_lista = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            ventas_lista = []
-        ventas_lista.append(orden_completada)
-        try:
-            with open(self.ventas_file_path, "w", encoding='utf-8') as f:
-                json.dump(ventas_lista, f, indent=4, ensure_ascii=False)
-        except IOError as e:
-            print(f"❌ Error al guardar venta completada: {e}")    
 
 def QSpacerItem(arg1, arg2, arg3, arg4):
     raise NotImplementedError
+
+# --- REEMPLAZA TODA TU CLASE AdminPage CON ESTO ---
 
 class AdminPage(QWidget):
     employees_updated = pyqtSignal(list)
     config_updated = pyqtSignal(dict)
 
-    def __init__(self, employees_data, initial_config, parent=None):
+    # --- REFACTORIZADO ---
+    # __init__ ahora acepta data_manager y no 'employees_data'
+    def __init__(self, data_manager, initial_config, parent=None):
         super().__init__(parent)
-        self.employees_data = employees_data
+        
+        # Guardamos la referencia al DataManager
+        self.data_manager = data_manager 
+        self.employees_data = [] # Se cargará en _load_initial_data
+        
         self.current_config = initial_config
-        self.menu_file_path = os.path.join(BASE_DIR, "assets", "menu.json")
+        
+        # --- Rutas de archivos JSON que aún no hemos migrado ---
+        # (Migrar ventas y menú es el siguiente gran paso)
         self.ventas_file_path = os.path.join(BASE_DIR, "assets", "ventas_completadas.json")
+        self.menu_file_path = os.path.join(BASE_DIR, "assets", "menu.json") # Solo como referencia, ya no se usa para leer/escribir
+
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(25, 15, 25, 25)
@@ -1109,6 +961,7 @@ class AdminPage(QWidget):
         self.tab_widget = QTabWidget()
         main_layout.addWidget(self.tab_widget)
 
+        # --- Pestaña 1: Empleados ---
         employee_tab = QWidget()
         employee_layout = QVBoxLayout(employee_tab)
         employee_layout.setContentsMargins(15, 15, 15, 15)
@@ -1143,6 +996,7 @@ class AdminPage(QWidget):
         employee_layout.addWidget(self.employee_table)
         self.tab_widget.addTab(employee_tab, "Empleados")
 
+        # Cargamos los roles desde el config (esto está bien, es config, no datos transaccionales)
         self.available_roles = []
         try:
             config_path = os.path.join(BASE_DIR, "assets", "config.json")
@@ -1156,7 +1010,7 @@ class AdminPage(QWidget):
             print("⚠️ No se encontró config.json. Usando lista de roles por defecto.")
             self.available_roles = ["Mesero", "Cajera", "Jefe de Cocina", "Michelero"]
 
-
+        # --- Pestaña 2: Mesas ---
         tables_tab = QWidget()
         tables_layout = QVBoxLayout(tables_tab)
         tables_layout.setContentsMargins(15, 15, 15, 15)
@@ -1191,37 +1045,40 @@ class AdminPage(QWidget):
             self.table_grid_layout.setColumnStretch(col, 1)
         scroll_area_tables.setWidget(self.table_cards_container)
         self.tab_widget.addTab(tables_tab, "Mesas")
+        
+        # --- Pestaña 3: Menú ---
         menu_tab = QWidget()
         menu_layout = QVBoxLayout(menu_tab)
         menu_layout.setContentsMargins(15, 15, 15, 15)
         menu_layout.setSpacing(15)
-        # Botón para guardar cambios en el menú
+        
         self.btn_save_menu = QPushButton("Guardar Estado del Menú")
         self.btn_save_menu.setObjectName("orange_button")
         
         menu_layout.addWidget(self.btn_save_menu)
-        # Árbol para mostrar el menú jerárquico
+        
         self.menu_tree = QTreeWidget()
         self.menu_tree.setObjectName("menu_tree")
-        self.menu_tree.setColumnCount(1) # <-- CAMBIO: Solo 1 columna
+        self.menu_tree.setColumnCount(1) 
         self.menu_tree.setHeaderLabels(["Platillo / Categoría"])
-        # Ajustes de estilo para mejorar la apariencia
+        
         menu_header = self.menu_tree.header()
         menu_header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.menu_tree.setStyleSheet("QTreeWidget::item { height: 60px; }") 
-        # Agrega el árbol al layout
+        
         menu_layout.addWidget(self.menu_tree)
         self.tab_widget.addTab(menu_tab, "Gestión de Menú")
-        # Pestaña de Reportes
+        
+        # --- Pestaña 4: Reportes ---
         reportes_tab = QWidget()
         reportes_layout = QHBoxLayout(reportes_tab) # Layout horizontal
         reportes_tab.setLayout(reportes_layout)
         reportes_layout.setContentsMargins(15, 15, 15, 15)
-        # Espacio izquierdo para el calendario
+        
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
-        left_panel.setFixedWidth(400) # Tamaño fijo para el calendario
-        # Añade el calendario
+        left_panel.setFixedWidth(400) 
+        
         left_layout.addWidget(QLabel("Seleccione un día:"))
         self.calendar = QCalendarWidget()
         self.calendar.setObjectName("report_calendar")
@@ -1231,24 +1088,24 @@ class AdminPage(QWidget):
         right_layout = QVBoxLayout(right_panel)
         
         self.report_total_label = QLabel("Total de Ventas: C$ 0.00")
-        self.report_total_label.setObjectName("section_title") # Reutilizamos el estilo
+        self.report_total_label.setObjectName("section_title") 
         
         right_layout.addWidget(QLabel("Platillos más vendidos de ese día:"))
         self.report_table = QTableWidget()
-        self.report_table.setObjectName("employee_table") # Reutilizamos el estilo
+        self.report_table.setObjectName("employee_table") 
         self.report_table.setColumnCount(2)
         self.report_table.setHorizontalHeaderLabels(["Platillo", "Cantidad Vendida"])
         self.report_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.report_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         self.report_table.setColumnWidth(1, 150)
-        # Añade los widgets al layout derecho
+        
         right_layout.addWidget(self.report_total_label)
         right_layout.addWidget(self.report_table)
         reportes_layout.addWidget(left_panel)
         reportes_layout.addWidget(right_panel)
         self.tab_widget.addTab(reportes_tab, "Reportes")
-
-
+        
+        # --- Pestaña 5: Nómina ---
         payroll_tab = QWidget()
         payroll_layout = QVBoxLayout(payroll_tab) # Layout vertical principal
         payroll_tab.setLayout(payroll_layout)
@@ -1258,45 +1115,41 @@ class AdminPage(QWidget):
         controls_hbox = QHBoxLayout()
         payroll_layout.addLayout(controls_hbox)
 
-        # Selectores de Fecha
         controls_hbox.addWidget(QLabel("Desde:"))
         self.payroll_start_date = QDateEdit()
         self.payroll_start_date.setCalendarPopup(True)
-        self.payroll_start_date.setDate(QDate.currentDate().addMonths(-1)) # Por defecto, un mes atrás
+        self.payroll_start_date.setDate(QDate.currentDate().addMonths(-1))
         controls_hbox.addWidget(self.payroll_start_date)
 
         controls_hbox.addWidget(QLabel("Hasta:"))
         self.payroll_end_date = QDateEdit()
         self.payroll_end_date.setCalendarPopup(True)
-        self.payroll_end_date.setDate(QDate.currentDate()) # Por defecto, hoy
+        self.payroll_end_date.setDate(QDate.currentDate())
         controls_hbox.addWidget(self.payroll_end_date)
 
-        # Botón Calcular
         self.btn_calculate_payroll = QPushButton("Calcular Nómina")
         self.btn_calculate_payroll.setObjectName("orange_button")
         controls_hbox.addWidget(self.btn_calculate_payroll)
 
-        controls_hbox.addStretch() # Empuja todo a la izquierda
+        controls_hbox.addStretch() 
 
         self.btn_export_pdf = QPushButton("Exportar PDF Seleccionado")
         self.btn_export_pdf.setObjectName("orange_button")
-        self.btn_export_pdf.setEnabled(False) # Empieza deshabilitado
+        self.btn_export_pdf.setEnabled(False) 
         controls_hbox.addWidget(self.btn_export_pdf)
         
-
         self.btn_generate_random = QPushButton("Generar Datos Aleatorios (Test)")
         controls_hbox.addWidget(self.btn_generate_random)
-
-
         
         payroll_layout.addWidget(QLabel("Resultados de Nómina:"))
         self.payroll_table = QTableWidget()
-        self.payroll_table.setObjectName("employee_table") # Reutilizamos estilo
-        self.payroll_table.setColumnCount(7) # 7 columnas
+        self.payroll_table.setObjectName("employee_table")
+        self.payroll_table.setColumnCount(7) 
         self.payroll_table.setHorizontalHeaderLabels([
             "Empleado", "Rol", "Hrs Reg.", "Hrs Ext.",
             "Pago Reg. (C$)", "Pago Ext. (C$)", "Pago Total (C$)"
         ])
+        # (El resto de la configuración de la tabla de nómina es UI, está bien)
         payroll_header = self.payroll_table.horizontalHeader()
         payroll_header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch) # Nombre
         payroll_header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents) # Rol
@@ -1306,33 +1159,48 @@ class AdminPage(QWidget):
         payroll_header.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch) # Pago Ext
         payroll_header.setSectionResizeMode(6, QHeaderView.ResizeMode.Stretch) # Pago Total
         
-        
         self.payroll_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.payroll_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
 
         payroll_layout.addWidget(self.payroll_table)
-
         self.tab_widget.addTab(payroll_tab, "Nómina")
-        # Fin pestaña 5
 
-        self.load_table_data()
-        self.populate_table_cards()  # Llena la cuadrícula de mesas
-        self.load_menu_data()     # Llena la tabla de menú
+        # --- Conexiones y Carga Inicial ---
+        
+        # Conexiones Pestaña Empleados
         self.btn_add_employee.clicked.connect(self.add_employee)
         self.btn_edit_employee.clicked.connect(self.edit_employee)
         self.btn_delete_employee.clicked.connect(self.delete_employee)
-        self.btn_add_table.clicked.connect(self.add_table)  # Conecta nuevo botón
-        self.btn_remove_table.clicked.connect(self.remove_table)  # Conecta nuevo botón
-        self.btn_save_menu.clicked.connect(self.save_menu_data)  # Conecta botón de guardar menú
+        
+        # Conexiones Pestaña Mesas
+        self.btn_add_table.clicked.connect(self.add_table)
+        self.btn_remove_table.clicked.connect(self.remove_table)
+        
+        # Conexiones Pestaña Menú
+        self.btn_save_menu.clicked.connect(self.save_menu_data)
+        
+        # Conexiones Pestaña Reportes
         self.calendar.selectionChanged.connect(self.mostrar_reporte_del_dia)
-        self.mostrar_reporte_del_dia()
-
+        
+        # Conexiones Pestaña Nómina
         self.btn_calculate_payroll.clicked.connect(self.calculate_payroll)
         self.btn_export_pdf.clicked.connect(self.export_payroll_pdf)
         self.btn_generate_random.clicked.connect(self.generate_random_attendance)
-        
         self.payroll_table.itemSelectionChanged.connect(self.update_export_button_state)
 
+        # Carga todos los datos iniciales
+        self._load_initial_data()
+
+    # --- NUEVA FUNCIÓN DE CARGA ---
+    def _load_initial_data(self):
+        """Carga todos los datos iniciales para todas las pestañas."""
+        print("Cargando datos iniciales de AdminPage desde la BD...")
+        self.refresh_employee_table() 
+        self.populate_table_cards()   
+        self.load_menu_data()         
+        self.mostrar_reporte_del_dia() 
+        
+    
     def populate_table_cards(self):
         """Limpia y vuelve a crear las tarjetas de mesa en la cuadrícula."""
         while self.table_grid_layout.count():
@@ -1341,7 +1209,7 @@ class AdminPage(QWidget):
             if widget is not None:
                 widget.deleteLater()
         total_mesas = self.current_config.get("total_mesas", 10)
-        cols = 5  # Número de columnas deseadas en la cuadrícula
+        cols = 5
         for i in range(total_mesas):
             table_number = i + 1
             card = TableCardWidget(table_number)
@@ -1358,8 +1226,8 @@ class AdminPage(QWidget):
         current_total = self.current_config.get("total_mesas", 10)
         if current_total < 100:
             self.current_config["total_mesas"] = current_total + 1
-            self.populate_table_cards()  # Redibuja las tarjetas
-            self.config_updated.emit(self.current_config)  # Notifica a MainWindow
+            self.populate_table_cards()
+            self.config_updated.emit(self.current_config)
             print(f"⚙️ Mesa añadida. Total: {self.current_config['total_mesas']}")
         else:
             QMessageBox.information(self, "Límite Alcanzado", "Se ha alcanzado el número máximo de mesas (100).")
@@ -1367,23 +1235,34 @@ class AdminPage(QWidget):
     def remove_table(self):
         """Decrementa el número de mesas y refresca la vista."""
         current_total = self.current_config.get("total_mesas", 10)
-        if current_total > 1:  # Asegura que siempre quede al menos 1 mesa
+        if current_total > 1:
             self.current_config["total_mesas"] = current_total - 1
-            self.populate_table_cards()  # Redibuja las tarjetas
-            self.config_updated.emit(self.current_config)  # Notifica a MainWindow
+            self.populate_table_cards()
+            self.config_updated.emit(self.current_config)
             print(f"⚙️ Mesa eliminada. Total: {self.current_config['total_mesas']}")
         else:
             QMessageBox.warning(self, "Acción no permitida", "Debe haber al menos una mesa.")
 
-    def load_table_data(self):
-        """Limpia y vuelve a llenar la tabla con los datos de los empleados."""
-        self.employee_table.setRowCount(0)
+    # --- MÉTODOS PESTAÑA EMPLEADOS (REFACTORIZADOS) ---
+    
+    def refresh_employee_table(self):
+        """
+        Obtiene los empleados MÁS RECIENTES de la BD
+        y actualiza la tabla visual.
+        """
+        print("Refrescando tabla de empleados desde la BD...")
+        # 1. Obtiene datos frescos de la BD
+        self.employees_data = self.data_manager.get_employees()
+        
+        # 2. Actualiza la UI
+        self.employee_table.setRowCount(0) # Limpia la tabla
         self.employee_table.setRowCount(len(self.employees_data))
         for row, employee in enumerate(self.employees_data):
-            id_item = QTableWidgetItem(employee.get("id"))
+            # Usamos los nombres de columna de la BD (ej: 'id_empleado')
+            id_item = QTableWidgetItem(employee.get("id_empleado"))
             name_item = QTableWidgetItem(employee.get("nombre"))
             rol_item = QTableWidgetItem(employee.get("rol", "No asignado"))
-
+            
             id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             rol_item.setFlags(rol_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -1392,67 +1271,47 @@ class AdminPage(QWidget):
             self.employee_table.setItem(row, 1, name_item)
             self.employee_table.setItem(row, 2, rol_item)
 
-    def delete_employee(self):
-        """Elimina el empleado seleccionado de la tabla y de la lista de datos."""
-        
-        current_row = self.employee_table.currentRow()
-        
-        if current_row < 0:
-            QMessageBox.warning(self, "Selección Requerida", "Por favor, seleccione un empleado de la tabla para eliminar.")
-            return
-        id_item = self.employee_table.item(current_row, 0)
-        name_item = self.employee_table.item(current_row, 1)
-        employee_id = id_item.text()
-        employee_name = name_item.text()
-        confirm = QMessageBox.question(self, "Confirmar Eliminación", 
-                                    f"¿Está seguro de que desea eliminar a '{employee_name}' (ID: {employee_id})?",
-                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if confirm == QMessageBox.StandardButton.Yes:
-            self.employees_data[:] = [emp for emp in self.employees_data if emp.get("id") != employee_id]
-            self.load_table_data()
-            
-            print(f"✅ Empleado '{employee_name}' (ID: {employee_id}) eliminado.")
-            self.employees_updated.emit(self.employees_data)
-        else:
-            print("Operación cancelada.")
-
     def add_employee(self):
-        """Muestra diálogos para añadir un nuevo empleado."""
+        """Muestra diálogos para añadir un nuevo empleado a la BD."""
         
         new_id, ok1 = QInputDialog.getText(self, 'Añadir Empleado', 'Ingrese el ID del nuevo empleado:')
-        
         if not ok1 or not new_id.strip():
             print("Operación cancelada.")
             return
-        new_id = new_id.strip() # Limpiamos espacios
-        for employee in self.employees_data:
-            if employee.get("id") == new_id:
-                from PyQt6.QtWidgets import QMessageBox
-                QMessageBox.warning(self, "Error", f"El ID '{new_id}' ya existe.")
-                return
+
+        new_id = new_id.strip()
+        
+        # Verificación en la BD (mucho más fiable)
+        if self.data_manager.get_employee_by_id(new_id):
+            QMessageBox.warning(self, "Error", f"El ID '{new_id}' ya existe en la base de datos.")
+            return
+
         new_name, ok2 = QInputDialog.getText(self, 'Añadir Empleado', 'Ingrese el nombre completo del nuevo empleado:')
         if not ok2 or not new_name.strip():
             print("Operación cancelada (Nombre).")
             return
-
+        
         new_rol, ok3 = QInputDialog.getItem(self, "Añadir Empleado", "Seleccione el rol:", self.available_roles, 0, False)
         if not ok3 or not new_rol:
             print("Operación cancelada (Rol).")
             return
+            
         new_name = new_name.strip()
-        new_employee_data = {
-            "id": new_id,
-            "nombre": new_name,
-            "entrada": "-",
-            "salida": "-",
-            "estado": "Ausente",
-            "deviceId": None, 
-            "rol": new_rol
-        }
-        self.employees_data.append(new_employee_data)
-        self.load_table_data()
         
-        print(f"✅ Empleado '{new_name}' (ID: {new_id}) añadido.")
+        # --- LÓGICA DE BD ---
+        # 1. Guardar en la base de datos
+        result = self.data_manager.add_employee(new_id, new_name, new_rol)
+        
+        if result is None:
+            QMessageBox.critical(self, "Error", f"No se pudo añadir el empleado {new_name} a la base de datos.")
+            return
+            
+        print(f"✅ Empleado '{new_name}' (ID: {new_id}) añadido a la BD.")
+        
+        # 2. Refrescar la tabla desde la BD
+        self.refresh_employee_table()
+        
+        # 3. Emitir la señal con los datos FRESCOS
         self.employees_updated.emit(self.employees_data)
 
     def edit_employee(self):
@@ -1461,20 +1320,26 @@ class AdminPage(QWidget):
             QMessageBox.warning(self, "Selección Requerida", "Seleccione un empleado para editar.")
             return
         
-        original_employee = self.employees_data[current_row]
-        original_id = original_employee.get("id", "")
+        original_id_item = self.employee_table.item(current_row, 0)
+        original_id = original_id_item.text()
+        
+        original_employee = self.data_manager.get_employee_by_id(original_id)
+        if not original_employee:
+            QMessageBox.critical(self, "Error", "No se pudo encontrar al empleado en la base de datos.")
+            self.refresh_employee_table()
+            return
+            
         original_name = original_employee.get("nombre", "")
         original_rol = original_employee.get("rol", "")
-
+        
         new_id, ok1 = QInputDialog.getText(self, 'Editar Empleado', 'ID:', QLineEdit.EchoMode.Normal, original_id)
         if not ok1 or not new_id.strip(): return
         new_id = new_id.strip()
-        if not new_id:
-            QMessageBox.warning(self, "Error", "El ID no puede estar vacío.")
-            return
-        if any(emp.get("id") == new_id for i, emp in enumerate(self.employees_data) if i != current_row):
-            QMessageBox.warning(self, "Error", f"El ID '{new_id}' ya está en uso.")
-            return
+
+        if new_id != original_id:
+            if self.data_manager.get_employee_by_id(new_id):
+                QMessageBox.warning(self, "Error", f"El ID '{new_id}' ya está en uso.")
+                return
 
         new_name, ok2 = QInputDialog.getText(self, 'Editar Empleado', 'Nombre Completo:', QLineEdit.EchoMode.Normal, original_name)
         if not ok2 or not new_name.strip(): return
@@ -1489,133 +1354,150 @@ class AdminPage(QWidget):
         if not ok3 or not new_rol:
             print("Edición cancelada (Rol).")
             return
-
-        self.employees_data[current_row]["id"] = new_id
-        self.employees_data[current_row]["nombre"] = new_name
-        self.employees_data[current_row]["rol"] = new_rol 
-
-        self.load_table_data() # Refrescar la tabla visual
         
-        print(f"✅ Empleado (ID original: {original_id}) actualizado a ID: {new_id}, Nombre: {new_name}, Rol: {new_rol}.")
-        self.employees_updated.emit(self.employees_data) # Notificar cambios
+        # --- LÓGICA DE BD ---
+        self.data_manager.update_employee(original_id, new_id, new_name, new_rol)
+        
+        print(f"✅ Empleado (ID original: {original_id}) actualizado en la BD.")
+        
+        self.refresh_employee_table()
+        self.employees_updated.emit(self.employees_data)
 
+    def delete_employee(self):
+        """Elimina el empleado seleccionado de la base de datos."""
+        
+        current_row = self.employee_table.currentRow()
+        if current_row < 0:
+            QMessageBox.warning(self, "Selección Requerida", "Por favor, seleccione un empleado de la tabla para eliminar.")
+            return
+
+        id_item = self.employee_table.item(current_row, 0)
+        name_item = self.employee_table.item(current_row, 1)
+        employee_id = id_item.text()
+        employee_name = name_item.text()
+        
+        confirm = QMessageBox.question(self, "Confirmar Eliminación", 
+                                    f"¿Está seguro de que desea eliminar a '{employee_name}' (ID: {employee_id})?\n\n¡CUIDADO! Esto puede fallar si el empleado tiene un historial de asistencia.",
+                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        
+        if confirm == QMessageBox.StandardButton.Yes:
+            
+            # --- LÓGICA DE BD ---
+            result = self.data_manager.delete_employee(employee_id)
+            
+            if result is None:
+                QMessageBox.critical(self, "Error de Borrado", f"No se pudo eliminar a '{employee_name}'.\nEs probable que tenga un historial de asistencia vinculado.")
+                return
+                
+            print(f"✅ Empleado '{employee_name}' (ID: {employee_id}) eliminado de la BD.")
+            
+            self.refresh_employee_table()
+            self.employees_updated.emit(self.employees_data)
+        else:
+            print("Operación cancelada.")
+            
+    
     def load_menu_data(self):
         """Carga el menu.json y lo muestra en el QTreeWidget usando widgets personalizados."""
         self.menu_tree.clear() 
         
         try:
-            with open(self.menu_file_path, "r", encoding='utf-8') as f:
-                menu_data = json.load(f)
+            menu_data = self.data_manager.get_menu_with_categories()
+            
             for categoria_data in menu_data.get("categorias", []):
                 categoria_nombre = categoria_data.get("nombre", "Sin Categoría")
                 parent_item = QTreeWidgetItem(self.menu_tree)
                 parent_item.setText(0, categoria_nombre)
                 parent_item.setData(0, Qt.ItemDataRole.UserRole, "categoria")
                 parent_item.setFlags(parent_item.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+                
                 for item_data in categoria_data.get("items", []):
                     child_item = QTreeWidgetItem(parent_item)
                     
-                    platillo_widget = PlatilloItemWidget(item_data)
+                    item_data_bool = item_data.copy()
+                    item_data_bool['id'] = item_data_bool.get('id_item') # Renombramos para el widget
+                    item_data_bool['disponible'] = bool(item_data.get('disponible', True))
+                    
+                    platillo_widget = PlatilloItemWidget(item_data_bool)
                     
                     self.menu_tree.setItemWidget(child_item, 0, platillo_widget)
+                    
             self.menu_tree.expandAll()
-        except (FileNotFoundError, json.JSONDecodeError):
-            print(f"❌ Error: No se pudo cargar el archivo {self.menu_file_path}.")
-            QMessageBox.critical(self, "Error de Menú", "No se pudo cargar el archivo 'menu.json'. Verifica que exista en la carpeta 'assets'.")
+            
         except Exception as e:
-            print(f"❌ Error inesperado al cargar menú: {e}")
+            print(f"❌ Error inesperado al cargar menú desde BD: {e}")
+            QMessageBox.critical(self, "Error de Menú", f"No se pudo cargar el menú desde la base de datos:\n{e}")
 
     def save_menu_data(self):
-        """Lee el estado de todos los PlatilloItemWidget y sobrescribe el menu.json."""
-        menu_data = {}
-        try:
-            with open(self.menu_file_path, "r", encoding='utf-8') as f:
-                menu_data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            QMessageBox.critical(self, "Error al Guardar", "No se pudo leer el 'menu.json' original para guardar.")
-            return
-        updates = {}
-        iterator = QTreeWidgetItemIterator(self.menu_tree)
+        """Lee el estado de todos los PlatilloItemWidget y actualiza la BD."""
         
+        print("Guardando estado del menú en la base de datos...")
+        
+        updates_to_make = [] # Lista para guardar los cambios
+        
+        iterator = QTreeWidgetItemIterator(self.menu_tree)
         while iterator.value():
             item = iterator.value()
             widget = self.menu_tree.itemWidget(item, 0)
             if isinstance(widget, PlatilloItemWidget):
-                updates[widget.item_id] = widget.disponible
+                # Recolectamos (item_id, disponible_bool)
+                updates_to_make.append((widget.item_id, widget.disponible))
             
             iterator += 1
-        for categoria in menu_data.get("categorias", []):
-            for item in categoria.get("items", []):
-                item_id = item.get("id") 
-                if item_id in updates:
-                    item["disponible"] = updates[item_id]
-        try:
-            with open(self.menu_file_path, "w", encoding='utf-8') as f:
-                json.dump(menu_data, f, indent=4, ensure_ascii=False)
             
-            print(f"💾 Menú guardado exitosamente en {self.menu_file_path}")
+        try:
+            for item_id, disponible in updates_to_make:
+                self.data_manager.update_menu_item_availability(item_id, disponible)
+            
+            print(f"💾 Menú guardado exitosamente en la BD ({len(updates_to_make)} items actualizados)")
             QMessageBox.information(self, "Éxito", "El estado del menú se ha guardado correctamente.")
 
+            # Notificamos al servidor (esto sigue igual y está bien)
             try:
                     requests.post('http://127.0.0.1:5000/trigger_update', json={'event': 'menu_actualizado'})
             except requests.exceptions.RequestException as e:
                     print(f"⚠️ No se pudo notificar a los clientes (trigger_update): {e}")
 
-        except IOError:
-            print(f"❌ Error: No se pudo escribir en {self.menu_file_path}")
-            QMessageBox.critical(self, "Error al Guardar", "No se pudo escribir en el archivo 'menu.json'.")
+        except Exception as e:
+            print(f"❌ Error: No se pudo escribir en la BD: {e}")
+            QMessageBox.critical(self, "Error al Guardar", f"No se pudo actualizar la base de datos:\n{e}")
 
+    
     def mostrar_reporte_del_dia(self):
-        """Lee el archivo de ventas y genera el reporte para el día seleccionado."""
+        """Lee la BD y genera el reporte para el día seleccionado."""
         
         selected_date = self.calendar.selectedDate().toPyDate()
         selected_date_str = selected_date.isoformat() # Ej: "2025-10-27"
         
-        all_ventas = []
-        try:
-            with open(self.ventas_file_path, "r", encoding='utf-8') as f:
-                all_ventas = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            all_ventas = [] 
-        ventas_del_dia = []
-        for orden in all_ventas:
-            fecha_cierre_str = orden.get("fecha_cierre", "")
-            if fecha_cierre_str.startswith(selected_date_str):
-                ventas_del_dia.append(orden)
+        print(f"📊 Generando reporte desde BD para {selected_date_str}...")
+
+
+        total_ventas, items_vendidos = self.data_manager.get_sales_report(selected_date_str)
         
-        
-        total_ventas = 0.0
-        items_vendidos = {} 
-        for orden in ventas_del_dia:
-            for item in orden.get("items", []):
-                total_ventas += item.get("cantidad", 0) * item.get("precio_unitario", 0)
-                item_id = item.get("item_id")
-                if item_id:
-                    if item_id not in items_vendidos:
-                        items_vendidos[item_id] = {
-                            "nombre": item.get("nombre", "Desconocido"),
-                            "cantidad": 0
-                        }
-                    items_vendidos[item_id]["cantidad"] += item.get("cantidad", 0)
+        # Actualizamos la UI
         self.report_total_label.setText(f"Total de Ventas: C$ {total_ventas:.2f}")
-        sorted_items = sorted(items_vendidos.values(), key=lambda x: x["cantidad"], reverse=True)
-        self.report_table.setRowCount(len(sorted_items))
-        for row, item in enumerate(sorted_items):
+        
+        # `items_vendidos` ya viene agregado y ordenado desde la BD
+        self.report_table.setRowCount(len(items_vendidos))
+        for row, item in enumerate(items_vendidos):
             item_nombre = QTableWidgetItem(item["nombre"])
-            item_cantidad = QTableWidgetItem(str(item["cantidad"]))
+            item_cantidad = QTableWidgetItem(str(item["cantidad_total"]))
             item_cantidad.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            
             self.report_table.setItem(row, 0, item_nombre)
             self.report_table.setItem(row, 1, item_cantidad)
             
         print(f"📊 Reporte generado para {selected_date_str}. Total: C${total_ventas:.2f}")
 
+
     def calculate_payroll(self):
-        """Calcula la nómina, muestra totales y guarda detalles diarios para PDF."""
+        """Calcula la nómina leyendo desde la BD, muestra totales y guarda detalles."""
         start_date_q = self.payroll_start_date.date()
         end_date_q = self.payroll_end_date.date()
 
         start_date = start_date_q.toPyDate()
         end_date_inclusive = end_date_q.toPyDate()
+        # El rango de BD es exclusivo en el límite superior, así que sumamos 1 día
         end_date_exclusive = end_date_q.toPyDate() + datetime.timedelta(days=1)
 
         print(f"💰 Calculando nómina desde {start_date} hasta {end_date_inclusive}...")
@@ -1626,28 +1508,36 @@ class AdminPage(QWidget):
             QMessageBox.critical(self, "Error de Configuración", "No se encontraron tarifas de pago.")
             return
 
-        employees_dict = {emp['id']: emp for emp in self.employees_data}
+        # Obtenemos empleados frescos de la BD
+        self.employees_data = self.data_manager.get_employees()
+        employees_dict = {emp['id_empleado']: emp for emp in self.employees_data}
 
-        attendance_history = []
-        asistencia_historico_path = os.path.join(BASE_DIR, "assets", "asistencia_historico.json")
-        try:
-            with open(asistencia_historico_path, "r", encoding='utf-8') as f:
-                attendance_history = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            print("⚠️ No se encontró historial de asistencia.")
+        attendance_history_rows = self.data_manager.get_attendance_history_range(
+            start_date.isoformat(), 
+            end_date_exclusive.isoformat()
+        )
+        
+        if not attendance_history_rows:
+            print("⚠️ No se encontró historial de asistencia en ese rango.")
+            # Limpiamos la tabla por si acaso
+            self.payroll_table.setRowCount(0)
+            return
 
         payroll_results = {}
-        self.payroll_daily_details = {}
+        self.payroll_daily_details = {} # Esto se usa para el PDF
 
+        # Procesamos los datos de la BD
         valid_entries = []
-        for entry in attendance_history:
+        for entry in attendance_history_rows:
             try:
                 ts = datetime.datetime.fromisoformat(entry['timestamp'])
-                if start_date <= ts.date() < end_date_exclusive:
-                    valid_entries.append({
-                        "employee_id": entry['employee_id'], "timestamp": ts, "type": entry['type']
-                    })
-            except (ValueError, KeyError): continue
+                valid_entries.append({
+                    "employee_id": entry['id_empleado'], # Clave de BD
+                    "timestamp": ts, 
+                    "type": entry['tipo']                # Clave de BD
+                })
+            except (ValueError, KeyError): 
+                continue
             
         valid_entries.sort(key=lambda x: (x['employee_id'], x['timestamp']))
 
@@ -1670,18 +1560,18 @@ class AdminPage(QWidget):
             if entry_type == "entrada":
                 if self.payroll_daily_details[emp_id][day_str]["first_entry"] is None:
                     self.payroll_daily_details[emp_id][day_str]["first_entry"] = ts
-                last_entry_time = ts # Guardamos la hora REAL de entrada
+                last_entry_time = ts 
 
             elif entry_type == "salida" and last_entry_time is not None and last_entry_time.date() == ts.date():
 
                 jornada_start_time = last_entry_time.replace(hour=12, minute=0, second=0, microsecond=0)
 
                 start_time_for_calc = max(last_entry_time, jornada_start_time)
-                if ts > start_time_for_calc: # Asegurarse que la salida es después del inicio calculado
+                if ts > start_time_for_calc: 
                     duration = ts - start_time_for_calc
                     total_minutes_shift = duration.total_seconds() / 60
                 else:
-                    total_minutes_shift = 0 # No hay tiempo pagable si sale antes de las 12 PM
+                    total_minutes_shift = 0 
 
                 employee_info = employees_dict.get(emp_id)
                 rol = employee_info.get("rol") if employee_info else None
@@ -1701,10 +1591,9 @@ class AdminPage(QWidget):
                         regular_minutes_shift = regular_duration.total_seconds() / 60
                         overtime_duration = ts - overtime_start_time
                         overtime_minutes_shift = overtime_duration.total_seconds() / 60
-                    else: # start_time_for_calc >= overtime_start_time
+                    else: 
                         overtime_minutes_shift = total_minutes_shift
 
-                    # Calcular pago del turno
                     reg_pay_shift = regular_minutes_shift * rate_per_minute
                     ot_pay_shift = overtime_minutes_shift * rate_per_minute * 2
                     shift_pay = reg_pay_shift + ot_pay_shift
@@ -1720,19 +1609,19 @@ class AdminPage(QWidget):
                     self.payroll_daily_details[emp_id][day_str]["pay"] += shift_pay
                     self.payroll_daily_details[emp_id][day_str]["last_exit"] = ts 
 
-                    last_entry_time = None # Resetear entrada
-                else: # Si no hay tarifa, rol o no hubo tiempo pagable
+                    last_entry_time = None 
+                else: 
                     if total_minutes_shift <= 0:
                         print(f"Info: No se calculó tiempo pagable para {emp_id} el {day_str} (salida antes/igual a 12PM).")
                     else:
                         print(f"Advertencia: No se pudo calcular pago para {emp_id} el {day_str} (rol '{rol}' o tarifa inválida).")
-                    self.payroll_daily_details[emp_id][day_str]["last_exit"] = ts # Guardar salida aunque no haya pago
+                    self.payroll_daily_details[emp_id][day_str]["last_exit"] = ts 
                     last_entry_time = None
 
             elif last_entry_time is not None and last_entry_time.date() != ts.date():
                 last_entry_time = None
-                if entry_type == "entrada": # Si el nuevo día empieza con entrada, procesarlo
-                    if day_str not in self.payroll_daily_details[emp_id]: # Asegurar inicialización día
+                if entry_type == "entrada": 
+                    if day_str not in self.payroll_daily_details[emp_id]: 
                         self.payroll_daily_details[emp_id][day_str] = {"first_entry": None, "last_exit": None, "reg_mins": 0, "ot_mins": 0, "pay": 0.0}
                     if self.payroll_daily_details[emp_id][day_str]["first_entry"] is None:
                         self.payroll_daily_details[emp_id][day_str]["first_entry"] = ts
@@ -1744,7 +1633,6 @@ class AdminPage(QWidget):
 
         row = 0
         for emp_id, results in payroll_results.items():
-
             employee_info = employees_dict.get(emp_id)
             if not employee_info: continue
 
@@ -1757,12 +1645,11 @@ class AdminPage(QWidget):
             item_rol = QTableWidgetItem(employee_info.get("rol", "N/A"))
             item_hrs_reg = QTableWidgetItem(f"{reg_hours:02d}:{reg_mins:02d}")
             item_hrs_ot = QTableWidgetItem(f"{ot_hours:02d}:{ot_mins:02d}")
-            item_pay_reg = QTableWidgetItem(f"C$ {results['total_reg_pay']:.2f}") # Usar total_reg_pay
-            item_pay_ot = QTableWidgetItem(f"C$ {results['total_ot_pay']:.2f}")   # Usar total_ot_pay
+            item_pay_reg = QTableWidgetItem(f"C$ {results['total_reg_pay']:.2f}") 
+            item_pay_ot = QTableWidgetItem(f"C$ {results['total_ot_pay']:.2f}")   
             item_pay_total = QTableWidgetItem(f"C$ {results['total_pay']:.2f}")
 
             item_name.setData(Qt.ItemDataRole.UserRole, emp_id)
-
             item_hrs_reg.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             item_hrs_ot.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             item_pay_reg.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -1776,14 +1663,19 @@ class AdminPage(QWidget):
             self.payroll_table.setItem(row, 4, item_pay_reg)
             self.payroll_table.setItem(row, 5, item_pay_ot)
             self.payroll_table.setItem(row, 6, item_pay_total)
-
             row += 1
+            
         self.update_export_button_state()
         print(f"✅ Nómina calculada y mostrada para {len(payroll_results)} empleados. Detalles diarios guardados para PDF.")
 
 
     def export_payroll_pdf(self):
         """Exporta el detalle de nómina del empleado seleccionado a PDF."""
+        # --- SIN CAMBIOS ---
+        # Esta función solo usa 'self.payroll_daily_details', 
+        # que es llenado por 'calculate_payroll'.
+        # Debería funcionar perfectamente.
+        
         selected_rows = self.payroll_table.selectionModel().selectedRows()
         if not selected_rows:
             QMessageBox.warning(self, "Selección Requerida", "Seleccione un empleado de la tabla para exportar.")
@@ -1810,10 +1702,6 @@ class AdminPage(QWidget):
         print(f"📄 Preparando PDF para {employee_name} (ID: {employee_id}) del {start_date} al {end_date}...")
 
         employee_daily_details = self.payroll_daily_details.get(employee_id, {})
-
-        if not employee_daily_details:
-            QMessageBox.information(self, "Sin Datos", ...)
-            return
 
         if not employee_daily_details:
             QMessageBox.information(self, "Sin Datos", f"No se encontraron registros de asistencia calculados para {employee_name} en el período seleccionado.")
@@ -1916,54 +1804,46 @@ class AdminPage(QWidget):
             print(f"❌ Error al generar el PDF: {e}")
             QMessageBox.critical(self, "Error de PDF", f"Ocurrió un error al generar el archivo PDF:\n{e}")
 
-
     def generate_random_attendance(self):
-        """Genera datos de asistencia aleatorios en asistencia_historico.json para pruebas."""
+        """Genera datos de asistencia aleatorios en la BD para pruebas."""
         start_date_q = self.payroll_start_date.date()
         end_date_q = self.payroll_end_date.date()
         
-        
         start_date = start_date_q.toPyDate()
         end_date = end_date_q.toPyDate()
-
         
         if start_date > end_date:
             QMessageBox.warning(self, "Fechas Inválidas", "La fecha de inicio no puede ser posterior a la fecha de fin.")
             return
             
         print(f"🎲 Preparando para generar datos aleatorios desde {start_date} hasta {end_date}...")
-
         
         confirm = QMessageBox.warning(self, "Confirmar Generación de Datos", 
-                                    "Esto añadirá registros de entrada/salida aleatorios al archivo 'asistencia_historico.json' "
+                                    "Esto añadirá registros de entrada/salida aleatorios a la base de datos "
                                     "para el período seleccionado. Esto es útil para probar la nómina.\n\n"
                                     "NO afectará el estado actual mostrado en la pestaña 'Control de Asistencia'.\n\n"
                                     "¿Está seguro de que desea continuar?",
                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                    QMessageBox.StandardButton.No) # Por defecto NO
+                                    QMessageBox.StandardButton.No)
         
         if confirm == QMessageBox.StandardButton.No:
             print("Operación cancelada.")
             return
 
-        if not self.employees_data:
-            QMessageBox.critical(self, "Error", "No se pudieron cargar los datos de empleados.")
+        # Obtenemos empleados frescos de la BD
+        current_employees = self.data_manager.get_employees()
+        if not current_employees:
+            QMessageBox.critical(self, "Error", "No se pudieron cargar los datos de empleados desde la BD.")
             return
             
-        asistencia_historico_path = os.path.join(BASE_DIR, "assets", "asistencia_historico.json")
-        history = []
-        try:
-            with open(asistencia_historico_path, "r", encoding='utf-8') as f:
-                history = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            history = [] 
-
-        new_entries = []
+        # --- REFACTORIZADO ---
+        new_entries_batch = [] # Lista de tuplas para el batch insert
+        
         current_date = start_date
         while current_date <= end_date:
             if current_date.weekday() < 5: # De Lunes a Viernes
-                for employee in self.employees_data:
-                    emp_id = employee.get("id")
+                for employee in current_employees:
+                    emp_id = employee.get("id_empleado")
                     if not emp_id: continue
                     
                     if random.random() < 0.9: 
@@ -1973,45 +1853,47 @@ class AdminPage(QWidget):
                             entry_time = datetime.datetime(current_date.year, current_date.month, current_date.day, 
                                                         entry_hour, 0, 0) + datetime.timedelta(minutes=entry_minute)
                             
-                            exit_hour = 22 # Centrado a las 10 PM
-                            exit_minute = random.randint(-15, 60) # -15 min a +60 min
+                            exit_hour = 22
+                            exit_minute = random.randint(-15, 60)
                             exit_time = datetime.datetime(current_date.year, current_date.month, current_date.day,
                                                         exit_hour, 0, 0) + datetime.timedelta(minutes=exit_minute)
 
                             if exit_time > entry_time:
-                                new_entries.append({
-                                    "employee_id": emp_id,
-                                    "timestamp": entry_time.isoformat(timespec='seconds'),
-                                    "type": "entrada"
-                                })
-                                new_entries.append({
-                                    "employee_id": emp_id,
-                                    "timestamp": exit_time.isoformat(timespec='seconds'),
-                                    "type": "salida"
-                                })
+                                # Añadimos tuplas (id, timestamp, tipo)
+                                new_entries_batch.append((
+                                    emp_id,
+                                    entry_time.isoformat(timespec='seconds'),
+                                    "entrada"
+                                ))
+                                new_entries_batch.append((
+                                    emp_id,
+                                    exit_time.isoformat(timespec='seconds'),
+                                    "salida"
+                                ))
                         except ValueError: 
                             print(f"Error generando fecha para {emp_id} en {current_date}")
 
-            current_date += datetime.timedelta(days=1) # Siguiente día
+            current_date += datetime.timedelta(days=1)
 
-        history.extend(new_entries)
+        # Insertamos todos los eventos en una sola transacción
+        if not new_entries_batch:
+            print("No se generaron nuevos eventos.")
+            QMessageBox.information(self, "Éxito", "No se generaron nuevos datos (posiblemente solo eran fines de semana).")
+            return
+
+        success = self.data_manager.add_attendance_events_batch(new_entries_batch)
         
-        try:
-            with open(asistencia_historico_path, "w", encoding='utf-8') as f:
-                json.dump(history, f, indent=4, ensure_ascii=False)
-            print(f"✅ {len(new_entries)} registros aleatorios añadidos a {asistencia_historico_path}")
-            QMessageBox.information(self, "Éxito", f"Se generaron y añadieron {len(new_entries)//2} días de trabajo aleatorios al historial.")
-            
-            # Opcional: Recalcular la nómina automáticamente después de generar
-            self.calculate_payroll() 
-            
-        except IOError as e:
-            print(f"❌ Error al guardar el historial de asistencia: {e}")
+        if success:
+            print(f"✅ {len(new_entries_batch)} registros aleatorios añadidos a la BD")
+            QMessageBox.information(self, "Éxito", f"Se generaron y añadieron {len(new_entries_batch)//2} días de trabajo aleatorios al historial.")
+            self.calculate_payroll() # Recalculamos
+        else:
+            print(f"❌ Error al guardar el historial de asistencia en la BD.")
             QMessageBox.critical(self, "Error", "No se pudo guardar el archivo de historial de asistencia.")
-
 
     def update_export_button_state(self):
         """Habilita el botón de exportar PDF solo si hay una fila seleccionada."""
+        # --- SIN CAMBIOS ---
         has_selection = bool(self.payroll_table.selectionModel().selectedRows())
         self.btn_export_pdf.setEnabled(has_selection)
 
@@ -2128,18 +2010,21 @@ class RoleSelectionPage(QWidget):
         cashier_icon_path = os.path.join(BASE_DIR,"Assets", "icon_cashier.png")
         admin_icon_path = os.path.join(BASE_DIR, "Assets", "icon_admin.png")
         cook_icon_path = os.path.join(BASE_DIR,"Assets",  "icon_cook.png")
-    
+        bar_icon_path = os.path.join(BASE_DIR, "Assets", "icon_bar.png")
+
         self.card_cashier = RoleCard(cashier_icon_path, "Cajero", "Cajero", parent=self.cards_container)
         self.card_admin = RoleCard(admin_icon_path, "Administrador", "Administrador", parent=self.cards_container)
         self.card_cook = RoleCard(cook_icon_path, "Cocinero", "Cocinero", parent=self.cards_container)
-        
-        self.all_cards = [self.card_cashier, self.card_admin, self.card_cook]
+        self.card_bar = RoleCard(bar_icon_path, "Barra", "Barra", parent=self.cards_container)
+
+        self.all_cards = [self.card_cashier, self.card_admin, self.card_cook, self.card_bar]
         self.initial_geometries = {}
         self._initial_setup_done = False
         self.card_cashier.clicked.connect(lambda: self.start_animation(self.card_cashier))
         self.card_admin.clicked.connect(lambda: self.start_animation(self.card_admin))
         self.card_cook.clicked.connect(lambda: self.start_animation(self.card_cook))
-        
+        self.card_bar.clicked.connect(lambda: self.start_animation(self.card_bar))
+
         self.current_animation_group = None
 
     def showEvent(self, event):
@@ -2157,11 +2042,11 @@ class RoleSelectionPage(QWidget):
     def setup_initial_positions(self):
         card_width = self.card_cashier.width()
         spacing = 30
-        positions = [0, card_width + spacing, 2 * (card_width + spacing)]
+        positions = [0, card_width + spacing, 2 * (card_width + spacing), 3 * (card_width + spacing)]
         for card, pos_x in zip(self.all_cards, positions):
             card.move(pos_x, 0)
             self.initial_geometries[card] = card.geometry()
-        total_width = 3 * card_width + 2 * spacing
+        total_width = 4 * card_width + 3 * spacing
         self.cards_container.setFixedSize(total_width, self.card_cashier.height())
         QTimer.singleShot(0, self.recenter_elements)
         
@@ -2291,35 +2176,44 @@ class MainWindow(QMainWindow):
         except IOError:
             print("❌ Error al guardar la configuración.")
     
-    def sync_employee_data(self, updated_data):
-        print("🔄 Sincronizando datos de empleados entre Admin y Asistencia...")
-        self.page_attendance.update_employee_data(updated_data)
+    
 
     def actualizar_tabla_asistencia(self, datos):
         print(f"🔄 Señal recibida en MainWindow, pasando datos a la tabla: {datos}")
         self.page_attendance.registrar_asistencia(datos)
     
+
     def distribuir_orden(self, orden_completa):
-        print("🧠 Distribuyendo orden a Cocina y Caja...")
-        datos_cocina = {
-            "numero_mesa": orden_completa.get("numero_mesa"),
-            "items": [
-                {
-                    "nombre": item.get("nombre"), 
-                    "cantidad": item.get("cantidad"), 
-                    "notas": item.get("notas"),
-                    "imagen": item.get("imagen") 
-                }
-                for item in orden_completa.get("items", [])
-            ]
-        }
-        self.page_cocina.agregar_orden(datos_cocina)
-        
-        self.page_caja.agregar_orden(orden_completa)
+        print("🧠 Distribuyendo orden y guardando en BD...")
+
+        try:
+            nuevo_id_orden = self.data_manager.create_new_order(orden_completa)
+            if nuevo_id_orden is None:
+                raise Exception("create_new_order falló y no devolvió ID.")
+                
+            print(f"  -> Orden {nuevo_id_orden} guardada en la base de datos.")
+
+            self.page_caja.load_active_orders()
+            self.page_cocina.load_active_orders()
+            self.page_barra.load_active_orders()
+            print("  -> Vistas de Caja, Cocina y Barra refrescadas.")
+            
+            try:
+                requests.post('http://127.0.0.1:5000/trigger_update', json={'event': 'mesas_actualizadas'})
+                print("  -> Notificación 'mesas_actualizadas' enviada a las apps móviles.")
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️ No se pudo notificar a los clientes (trigger_update): {e}")
+
+        except Exception as e:
+            print(f"❌❌ CRÍTICO: Error al guardar orden en la BD: {e}")
+            QMessageBox.critical(self, "Error Crítico", f"No se pudo guardar la orden en la base de datos:\n{e}")
 
     def __init__(self):
         super().__init__()
         self.load_app_config()
+        self.data_manager = DataManager(DB_PATH)
+        self.data_manager.create_tables()
+        self.data_manager.run_migration_if_needed()
         self.setWindowTitle("El Puestito - Sistema de Gestión")
         self.setMinimumSize(1200, 800)
         self.current_role = None
@@ -2331,18 +2225,22 @@ class MainWindow(QMainWindow):
         self.sidebar = self.create_sidebar()
         self.btn_qr.clicked.connect(self.show_qr_dialog)
         self.stacked_widget = QStackedWidget()
-        self.page_attendance = AttendancePage()
-        employee_data = self.page_attendance.get_employees_data()
+
+        print("Creando páginas de la interfaz...")
+        self.page_attendance = AttendancePage(self.data_manager)
         self.page_role_selection = RoleSelectionPage()
-        self.page_cocina = CocinaPage()
-        self.page_caja = CajaPage()
-        self.page_admin = AdminPage(employee_data, self.app_config)
-        self.page_admin.employees_updated.connect(self.sync_employee_data)
+        self.page_cocina = CocinaPage(self.data_manager)
+        self.page_caja = CajaPage(self.data_manager)
+        self.page_barra = BarraPage(self.data_manager) 
+        self.page_admin = AdminPage(self.data_manager, self.app_config)
+
+        self.page_admin.employees_updated.connect(self.page_attendance.refresh_on_admin_update)
         self.page_admin.config_updated.connect(self.update_and_save_config)
         self.stacked_widget.addWidget(self.page_attendance)
         self.stacked_widget.addWidget(self.page_role_selection)
         self.stacked_widget.addWidget(self.page_cocina)
         self.stacked_widget.addWidget(self.page_caja)
+        self.stacked_widget.addWidget(self.page_barra)
         self.stacked_widget.addWidget(self.page_admin)
         main_layout.addWidget(self.sidebar)
         main_layout.addWidget(self.stacked_widget)
@@ -2351,7 +2249,7 @@ class MainWindow(QMainWindow):
 
         # --- INICIO DE LA LÓGICA DE HILO CORREGIDA ---
         print("Creando ServerWorker en Hilo Principal...")
-        self.server_worker = ServerWorker() 
+        self.server_worker = ServerWorker(self.data_manager) 
 
         print("Creando ServerThread...")
 
@@ -2423,6 +2321,8 @@ class MainWindow(QMainWindow):
             self.stacked_widget.setCurrentWidget(self.page_cocina)
         elif role_name == "Cajero":
             self.stacked_widget.setCurrentWidget(self.page_caja)
+        elif role_name == "Barra":
+            self.stacked_widget.setCurrentWidget(self.page_barra)
         elif role_name == "Administrador":
             self.stacked_widget.setCurrentWidget(self.page_admin)
     
@@ -2439,7 +2339,7 @@ class MainWindow(QMainWindow):
             print(f"ADVERTENCIA: No se encontró el archivo de estilos '{filename}' en la ruta calculada.")
 
     def closeEvent(self, event):
-        print("Cerrando la aplicación, guardando datos...")
+        print("Cerrando la aplicación...")
 
         if hasattr(self, 'thread') and self.thread.isRunning():
             print("[MainThread] Deteniendo el hilo del servidor...")
@@ -2454,17 +2354,8 @@ class MainWindow(QMainWindow):
             else:
                 print("✅ [MainThread] Hilo del servidor detenido limpiamente.")
         
-        if hasattr(self, 'page_attendance'):
-            self.page_attendance.save_data_to_file() 
-        if hasattr(self, 'server_worker'):
-            self.server_worker.save_ids_to_file() 
-        if hasattr(self, 'page_cocina'):
-            self.page_cocina.save_active_orders() 
-        if hasattr(self, 'page_caja'):
-            self.page_caja.save_active_orders() 
-            
-        self.save_app_config()   
-        super().closeEvent(event) 
+        self.save_app_config() 
+        super().closeEvent(event)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
