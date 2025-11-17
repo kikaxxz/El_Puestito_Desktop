@@ -1,5 +1,5 @@
 {
-    "total_mesas": 10,
+    "total_mesas": 12,
     "roles_pago": {
         "Mesero": {
             "hora": 31.25,
