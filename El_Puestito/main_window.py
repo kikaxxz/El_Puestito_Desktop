@@ -62,9 +62,9 @@ class MainWindow(QMainWindow):
         print("Creando páginas de la interfaz...")
         self.page_attendance = AttendancePage(self.app_controller)
         self.page_role_selection = RoleSelectionPage() 
-        self.page_cocina = CocinaPage(self.app_controller)
+        self.page_cocina = CocinaPage(self.app_controller,self)
         self.page_caja = CajaPage(self.app_controller)
-        self.page_barra = BarraPage(self.app_controller) 
+        self.page_barra = BarraPage(self.app_controller,self) 
         self.page_admin = AdminPage(self.app_controller, self.app_config)
 
         self.stacked_widget.addWidget(self.page_attendance)
@@ -73,6 +73,11 @@ class MainWindow(QMainWindow):
         self.stacked_widget.addWidget(self.page_caja)
         self.stacked_widget.addWidget(self.page_barra)
         self.stacked_widget.addWidget(self.page_admin)
+
+        self.app_controller.ordenes_actualizadas.connect(self.page_caja.load_active_orders)
+        self.app_controller.ordenes_actualizadas.connect(self.page_cocina.load_active_orders)
+        self.app_controller.ordenes_actualizadas.connect(self.page_barra.load_active_orders)
+        self.app_controller.lista_empleados_actualizada.connect(self.page_attendance.load_and_refresh_table)
         
         main_layout.addWidget(self.sidebar)
         main_layout.addWidget(self.stacked_widget)
@@ -92,6 +97,8 @@ class MainWindow(QMainWindow):
         
         self.server_worker.asistencia_recibida.connect(self.actualizar_tabla_asistencia)
         self.server_worker.nueva_orden_recibida.connect(self.app_controller.procesar_nueva_orden)
+
+        self.server_worker.kds_estado_cambiado.connect(self.on_kds_externo_update)
 
         self.thread.start()
         print("🚀 Servidor de asistencia iniciado en segundo plano.")
@@ -218,3 +225,15 @@ class MainWindow(QMainWindow):
         
         self.save_app_config() 
         super().closeEvent(event)
+
+    def on_kds_externo_update(self, destino):
+        """Se ejecuta cuando alguien toca 'LISTO' en la página web"""
+        print(f"🔄 Actualizando vista de escritorio por cambio en Web ({destino})")
+        
+        if destino == 'cocina' or destino == 'all':
+            if hasattr(self, 'page_cocina'):
+                self.page_cocina.load_active_orders() 
+
+        if destino == 'barra' or destino == 'all':
+            if hasattr(self, 'page_barra'):
+                self.page_barra.load_active_orders()

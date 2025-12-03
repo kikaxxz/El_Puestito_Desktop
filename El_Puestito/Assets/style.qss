@@ -2,9 +2,27 @@ QMainWindow {
     background-color: #0f0f10;
 }
 
-/* Status dot (ring) - Estilo Dona */
+
+QScrollArea {
+    background-color: #0f0f10;
+    border: none;
+}
+
+
+QWidget#tickets_container {
+    background-color: #0f0f10;
+}
+
+
+QWidget#qt_scrollarea_viewport {
+    background-color: #0f0f10;
+}
+QScrollArea > QWidget > QWidget {
+    background-color: #0f0f10;
+}
+
 QLabel#status_indicator {
-    background-color: #1b1c1f; 
+    background-color: #1b1c1f;
     border: 3px solid transparent;
     border-radius: 7px;
 }
@@ -18,7 +36,6 @@ QLabel#status_indicator[status="absent"] {
     color: #d7d9dd;
 }
 
-/* Section title */
 #section_title {
     color: #f3f4f6;
     font-size: 20px;
@@ -26,7 +43,6 @@ QLabel#status_indicator[status="absent"] {
     margin: 8px 0 4px 4px;
 }
 
-/* Search bar */
 #search_bar {
     background-color: #1b1c1f;
     color: #e5e7eb;
@@ -39,31 +55,29 @@ QLabel#status_indicator[status="absent"] {
     color: #8f949c;
 }
 
-/* Orange Buttons */
 #orange_button {
-    background-color: #E67E22; /* Naranja */
+    background-color: #E67E22;
     color: white;
     padding: 12px 20px;
     border: none;
     border-radius: 5px;
     font-size: 16px;
     font-weight: bold;
-    min-height: 40px; /* Asegura altura mínima consistente */
+    min-height: 40px;
 }
 
 #orange_button:hover {
-    background-color: #D35400; /* Naranja más oscuro al pasar el mouse */
+    background-color: #D35400;
 }
 
 #orange_button:pressed {
-    background-color: #A04000; /* Naranja aún más oscuro al presionar */
+    background-color: #A04000;
 }
 
-/* Table (Usada en Asistencia) */
 #employee_table {
     background-color: #1b1c1f;
     color: #e5e7eb;
-    gridline-color: #2b2d33; /* <-- CORREGIDO */
+    gridline-color: #2b2d33;
     border: 1px solid #202125;
     border-radius: 12px;
 }
@@ -82,13 +96,11 @@ QTableWidget::item:selected {
     color: #ffffff;
 }
 
-/* Sidebar (Menú Lateral) */
 #sidebar {
     background-color: #141416;
     border-right: 1px solid #2b2d33;
 }
 
-/* Botones de Navegación */
 #nav_button {
     background-color: transparent;
     color: #bfc2c7;
@@ -108,7 +120,6 @@ QTableWidget::item:selected {
     color: #f3f4f6;
 }
 
-/* Página de Selección de Rol */
 #role_selection_page {
     background-color: #0f0f10;
 }
@@ -119,7 +130,6 @@ QTableWidget::item:selected {
     font-weight: 800;
 }
 
-/* Tarjetas de Rol (Cajero, Mesero, etc.) */
 #role_card {
     background-color: #f76606;
     border-radius: 20px;
@@ -135,7 +145,6 @@ QTableWidget::item:selected {
     font-weight: 700;
 }
 
-/* ----- Botón de Regreso (Usado en Cocina/Caja/Admin) ----- */
 #back_button {
     background-color: #2a2c32; 
     color: #bfc2c7; 
@@ -153,9 +162,8 @@ QTableWidget::item:selected {
     background-color: #1e1f22;
 }
 
-/* --- Estilos Página de Caja --- */
 #lista_mesas_caja {
-    border: 1px solid #444; 
+    border: 1px solid #444;
     background-color: #333; 
     outline: none; 
 }
@@ -163,7 +171,7 @@ QTableWidget::item:selected {
     padding: 12px 15px; 
     border-bottom: 1px solid #444; 
     color: #FFF; 
-    font-size: 16px; 
+    font-size: 16px;
 }
 #lista_mesas_caja::item:hover {
     background-color: #555; 
@@ -171,23 +179,22 @@ QTableWidget::item:selected {
 #lista_mesas_caja::item:selected {
     background-color: #E67E22; 
     color: #FFF; 
-    border-left: 5px solid #D35400; 
+    border-left: 5px solid #D35400;
 }
 
 #tabla_cuenta_caja {
-    gridline-color: #555; /* <-- CORREGIDO */
+    gridline-color: #555;
     background-color: #333;
-    /* -webkit-background-composite: #3A3A3A; <-- ELIMINADO */
     border: 1px solid #444;
     outline: none; 
-    color: #FFF; 
+    color: #FFF;
 }
 #tabla_cuenta_caja QHeaderView::section {
     background-color: #444; 
     color: #EEE;
     padding: 8px;
     border: 1px solid #555;
-    font-weight: bold; 
+    font-weight: bold;
 }
 #tabla_cuenta_caja::item {
     padding: 10px; 
@@ -207,7 +214,6 @@ QTableWidget::item:selected {
     border-radius: 5px;
 }
 
-/* --- Estilos Página Admin (Tarjetas de Mesa) --- */
 QFrame#table_card {
     background-color: #3d3d3d;
     border-radius: 12px;
@@ -226,7 +232,6 @@ QLabel#table_card_number {
     background-color: transparent;
 }
 
-/* --- Estilos Página Admin (Árbol de Menú) --- */
 QTreeWidget#menu_tree {
     border: 1px solid #444;
     font-size: 14px;
@@ -245,13 +250,12 @@ QTreeWidget#menu_tree::item {
 QTreeWidget#menu_tree::item[data-userrole="categoria"] {
     font-weight: bold;
     font-size: 16px;
-    color: #e67e22; /* Naranja */
+    color: #e67e22;
     padding: 10px 5px;
     height: 40px;
     background-color: #2a2a2a;
 }
 
-/* --- Estilos para el Widget de Platillo (PlatilloItemWidget) --- */
 QLabel#menu_item_label {
     font-size: 14px;
     color: #eee;

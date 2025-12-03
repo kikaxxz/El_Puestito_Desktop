@@ -1,28 +1,43 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import '../services/api_service.dart';
 
 class SocketService with ChangeNotifier {
   IO.Socket? _socket;
   bool _isConnected = false;
+  Map<String, dynamic> _mesasState = {}; 
+  final ApiService _apiService = ApiService();
 
-  final StreamController<Map<String, dynamic>> _mesasController = StreamController<Map<String, dynamic>>.broadcast();
-  final StreamController<void> _menuController =
-      StreamController<void>.broadcast();
 
-  Stream<Map<String, dynamic>> get mesasActualizadasStream => _mesasController.stream;
-  Stream<void> get menuActualizadoStream => _menuController.stream;
   bool get isConnected => _isConnected;
+  Map<String, dynamic> get mesas => _mesasState;
 
-  Future<void> initSocket() async {
-    final prefs = await SharedPreferences.getInstance();
-    final serverUrl = prefs.getString('server_url');
-    
-    if (serverUrl == null || serverUrl.isEmpty) {
-      print("SocketService: No hay URL de servidor, no se puede conectar.");
-      return;
+  final StreamController<void> _menuController = StreamController<void>.broadcast();
+  Stream<void> get menuActualizadoStream => _menuController.stream;
+
+  Future<void> initService() async {
+    await _fetchInitialData(); 
+    await _connectSocket();    
+  }
+
+
+  Future<void> refreshTables() async {
+    print("SocketService: Refrescando mesas vía HTTP...");
+    await _fetchInitialData();
+  }
+
+  Future<void> _fetchInitialData() async {
+    final data = await _apiService.getEstadoMesas();
+    if (data != null) {
+      _mesasState = data;
+      notifyListeners(); 
     }
+  }
+
+  Future<void> _connectSocket() async {
+    final serverUrl = await _apiService.getServerUrl();
+    if (serverUrl == null) return;
 
     if (_socket != null) {
       _socket!.disconnect();
@@ -33,61 +48,42 @@ class SocketService with ChangeNotifier {
       _socket = IO.io(serverUrl, <String, dynamic>{
         'transports': ['websocket'],
         'autoConnect': true,
+        'extraHeaders': {
+          'X-API-KEY': ApiService.apiKey 
+        }
       });
 
       _socket!.onConnect((_) {
-        print('SocketService: Conectado al servidor $serverUrl');
+        print('Socket: Conectado');
         _isConnected = true;
         notifyListeners();
-        _setupSocketListeners();
       });
 
       _socket!.onDisconnect((_) {
-        print('SocketService: Desconectado');
+        print('Socket: Desconectado');
         _isConnected = false;
         notifyListeners();
       });
 
-      _socket!.onError((data) => print('SocketService: Error - $data'));
-    } catch (e) {
-      print("SocketService: Error al inicializar - ${e.toString()}");
-    }
-  }
-
-  void _setupSocketListeners() {
-    _socket?.on('mesas_actualizadas', (data) {
-      print("SocketService: Recibido evento 'mesas_actualizadas' con datos: $data");
-      try {
+      _socket!.on('mesas_actualizadas', (data) {
+        print("Socket: Evento 'mesas_actualizadas' recibido.");
         if (data is Map<String, dynamic>) {
-          final Map<String, dynamic> mesasData = Map<String, dynamic>.from(data);
-          _mesasController.add(mesasData); 
-        } else {
-          print("SocketService: Payload de 'mesas_actualizadas' no es un Map<String, dynamic>.");
+          _mesasState = data;
+          notifyListeners(); 
         }
-      } catch (e) {
-        print("SocketService: Error procesando payload de 'mesas_actualizadas': $e.");
-      }
-    });
+      });
 
-    _socket?.on('menu_actualizado', (data) {
-      print("SocketService: Recibido evento 'menu_actualizado'.");
-      _menuController.add(null);
-    });
-  }
+      _socket!.on('menu_actualizado', (_) => _menuController.add(null));
 
-  void disconnect() {
-    _socket?.disconnect();
-    _socket?.dispose();
-    _socket = null;
-    _isConnected = false;
-    notifyListeners();
+    } catch (e) {
+      print("Socket Error: $e");
+    }
   }
 
   @override
   void dispose() {
-    _mesasController.close();
+    _socket?.dispose();
     _menuController.close();
-    disconnect();
     super.dispose();
   }
 }

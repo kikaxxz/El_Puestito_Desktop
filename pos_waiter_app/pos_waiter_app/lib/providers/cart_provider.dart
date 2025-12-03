@@ -1,10 +1,6 @@
-// lib/providers/cart_provider.dart
-
 import 'package:flutter/material.dart';
 import '../models/menu_models.dart';
 
-// Clase para representar un ítem dentro del carrito.
-// Necesitamos guardar el platillo, la cantidad y la imagen.
 class CartItem {
   final String id;
   final String nombre;
@@ -22,21 +18,17 @@ class CartItem {
 }
 
 class CartProvider with ChangeNotifier {
-  // Usamos un Map para guardar los ítems del carrito.
-  // La clave (String) será el ID del platillo para un acceso rápido.
+
   Map<String, CartItem> _items = {};
 
-  // Getter para acceder a los ítems de forma segura.
   Map<String, CartItem> get items {
     return {..._items};
   }
 
-  // Getter para saber la cantidad total de productos en el carrito.
   int get itemCount {
     return _items.values.fold(0, (sum, item) => sum + item.cantidad);
   }
 
-  // Getter que calcula el total de la orden.
   double get totalAmount {
     var total = 0.0;
     _items.forEach((key, cartItem) {
@@ -45,10 +37,8 @@ class CartProvider with ChangeNotifier {
     return total;
   }
 
-  // Método para AÑADIR un platillo al carrito.
   void addItem(Platillo platillo) {
     if (_items.containsKey(platillo.id)) {
-      // Si el platillo ya está, solo aumentamos la cantidad.
       _items.update(
         platillo.id,
         (existingCartItem) => CartItem(
@@ -60,7 +50,6 @@ class CartProvider with ChangeNotifier {
         ),
       );
     } else {
-      // Si es un platillo nuevo, lo añadimos.
       _items.putIfAbsent(
         platillo.id,
         () => CartItem(
@@ -72,17 +61,14 @@ class CartProvider with ChangeNotifier {
         ),
       );
     }
-    // ¡Avisamos a los widgets que estén escuchando que hubo un cambio!
     notifyListeners();
   }
   
-  // Método para RESTAR una unidad de un platillo.
   void removeSingleItem(String platilloId) {
     if (!_items.containsKey(platilloId)) {
       return;
     }
     if (_items[platilloId]!.cantidad > 1) {
-      // Si hay más de uno, restamos la cantidad.
        _items.update(
         platilloId,
         (existingCartItem) => CartItem(
@@ -94,19 +80,16 @@ class CartProvider with ChangeNotifier {
         ),
       );
     } else {
-      // Si solo queda uno, lo eliminamos del todo.
       _items.remove(platilloId);
     }
     notifyListeners();
   }
 
-  // Método para ELIMINAR un platillo del carrito por completo.
   void removeItem(String platilloId) {
     _items.remove(platilloId);
     notifyListeners();
   }
 
-  // Método para VACIAR el carrito por completo.
   void clearCart() {
     _items = {};
     notifyListeners();

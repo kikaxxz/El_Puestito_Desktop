@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KDS - {{ destino|upper }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <header class="kds-header">
+        <div class="header-left">
+            <h1>
+                El Puestito 
+                <span class="tag-area">{{ destino }}</span>
+            </h1>
+        </div>
+        <button onclick="window.location.href='/'" class="logout-btn">Cerrar Sesión</button>
+    </header>
+    
+    <div id="orders-container" class="kds-grid">
+        </div>
+
+    <script>
+        const DESTINO = "{{ destino }}";
+        const API_KEY = "{{ api_key }}";
+    </script>
+    <script src="/static/kds_logic.js"></script>
+</body>
+</html>

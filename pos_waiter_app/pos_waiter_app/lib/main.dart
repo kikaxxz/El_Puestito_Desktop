@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import './providers/cart_provider.dart';
-import './services/socket_service.dart'; // <-- NUEVO
+import './services/socket_service.dart'; 
 import './screens/table_map_screen.dart';
 import './screens/menu_screen.dart';
 import './screens/cart_screen.dart';
@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (ctx) => CartProvider()),
-        ChangeNotifierProvider(create: (ctx) => SocketService()), // <-- NUEVO
+        ChangeNotifierProvider(create: (ctx) => SocketService()), 
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

@@ -1,11 +1,7 @@
-// lib/models/menu_models.dart
-
 import 'dart:convert';
 
-// Función para decodificar el JSON principal
 Menu menuFromJson(String str) => Menu.fromJson(json.decode(str));
 
-// Clase principal que contiene toda la estructura del menú
 class Menu {
     final List<Categoria> categorias;
 
@@ -18,7 +14,6 @@ class Menu {
     );
 }
 
-// Clase para cada categoría (ej: "Para Picar", "Bebidas")
 class Categoria {
     final String nombre;
     final List<Platillo> items;
@@ -34,7 +29,6 @@ class Categoria {
     );
 }
 
-// Clase para cada platillo o bebida individual
 class Platillo {
     final String id;
     final String nombre;

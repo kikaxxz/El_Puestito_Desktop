@@ -1,68 +1,109 @@
 import os
 from PyQt6.QtWidgets import (
-    QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget
+    QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
+    QWidget
 )
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
-class OrderTicketWidget(QFrame):
-    orden_lista = pyqtSignal(QWidget)
-
+class OrderTicket(QFrame):
     def __init__(self, orden_data, parent=None):
         super().__init__(parent)
         self.setObjectName("order_ticket")
         self.setFixedWidth(300)
-        self.ticket_widget = self 
+        self.setFrameShape(QFrame.Shape.StyledPanel)
+        self.setFrameShadow(QFrame.Shadow.Raised)
         
-        layout = QVBoxLayout(self)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
         
-        mesa_label = QLabel(f"Mesa: {orden_data['numero_mesa']}")
-        mesa_label.setObjectName("ticket_title")
-        layout.addWidget(mesa_label)
+        header_layout = QHBoxLayout()
+        mesa_str = str(orden_data.get('numero_mesa', '?'))
+        mesa_label = QLabel(f"Mesa {mesa_str}")
+        mesa_label.setObjectName("ticket_header")
+        mesa_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        mesa_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #ffffff;")
+        header_layout.addWidget(mesa_label)
+        main_layout.addLayout(header_layout)
         
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
         line.setFrameShadow(QFrame.Shadow.Sunken)
-        layout.addWidget(line)
+        line.setStyleSheet("color: #ccc;")
+        main_layout.addWidget(line)
         
-        for item in orden_data['items']:
-            item_layout = QHBoxLayout()
-            img_label = QLabel()
-            img_label.setFixedSize(64, 64)
-            imagen_nombre = item.get("imagen", "")
-            if imagen_nombre:
-                imagen_path = os.path.join(BASE_DIR, "assets", imagen_nombre)
-                pixmap = QPixmap(imagen_path)
-                img_label.setPixmap(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-            item_layout.addWidget(img_label)
+        items_container = QWidget()
+        items_layout = QVBoxLayout(items_container)
+        items_layout.setContentsMargins(0, 0, 0, 0)
+        items_layout.setSpacing(8)
+        
+        for item in orden_data.get('items', []):
+            self._add_item_row(items_layout, item)
             
-            text_layout = QVBoxLayout()
-            cantidad = item['cantidad']
-            nombre = item['nombre']
-            notas = f"({item['notas']})" if item['notas'] else ""
-            
-            nombre_label = QLabel(f"{cantidad}x {nombre}")
-            nombre_label.setObjectName("ticket_item_title")
-            nombre_label.setWordWrap(True)
-            
-            notas_label = QLabel(notas)
-            notas_label.setObjectName("ticket_item_notes")
-            notas_label.setWordWrap(True)
-            
-            text_layout.addWidget(nombre_label)
-            if notas:
-                text_layout.addWidget(notas_label)
-            
-            item_layout.addLayout(text_layout)
-            layout.addLayout(item_layout)
-            
-        listo_button = QPushButton("Listo")
-        listo_button.setObjectName("orange_button")
-        listo_button.clicked.connect(self.marcar_como_lista)
-        layout.addWidget(listo_button)
+        main_layout.addWidget(items_container)
+        main_layout.addStretch()
+        
+        self.btn_listo = QPushButton("Marcar Listo")
+        self.btn_listo.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_listo.setObjectName("btn_listo")
+        self.btn_listo.setFixedHeight(40)
+        self.btn_listo.setStyleSheet("""
+            QPushButton {
+                background-color: #28a745; 
+                color: white; 
+                font-weight: bold; 
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #218838;
+            }
+        """)
+        main_layout.addWidget(self.btn_listo)
 
-    def marcar_como_lista(self):
-        """ Emite la señal con una referencia a este mismo widget para que pueda ser eliminado """
-        self.orden_lista.emit(self.ticket_widget)
+    def _add_item_row(self, layout, item):
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(10)
+        
+        img_label = QLabel()
+        img_label.setFixedSize(50, 50)
+        img_label.setStyleSheet("background-color: #eee; border-radius: 5px; border: 1px solid #ddd;")
+        img_name = item.get("imagen")
+        
+        if img_name:
+            img_path = os.path.join(BASE_DIR, "assets", img_name)
+            if os.path.exists(img_path):
+                pix = QPixmap(img_path)
+                img_label.setPixmap(pix.scaled(
+                    50, 50, 
+                    Qt.AspectRatioMode.KeepAspectRatioByExpanding, 
+                    Qt.TransformationMode.SmoothTransformation
+                ))
+        row_layout.addWidget(img_label)
+        
+        info_layout = QVBoxLayout()
+        info_layout.setSpacing(2)
+        
+        qty = item.get('cantidad', 1)
+        name = item.get('nombre', 'Item')
+        
+        title = QLabel(f"{qty}x  {name}")
+        title.setObjectName("ticket_item_name")
+        title.setWordWrap(True)
+        title.setStyleSheet("font-weight: bold; font-size: 14px;")
+        info_layout.addWidget(title)
+        
+        notas = item.get('notas', '')
+        if notas:
+            lbl_notas = QLabel(f"{notas}")
+            lbl_notas.setObjectName("ticket_item_notes")
+            lbl_notas.setWordWrap(True)
+            lbl_notas.setStyleSheet("color: #d9534f; font-style: italic; font-size: 12px;")
+            info_layout.addWidget(lbl_notas)
+            
+        row_layout.addLayout(info_layout)
+        layout.addWidget(row_widget)
