@@ -49,7 +49,7 @@ class DataManager:
             conn.commit()
             return cursor.lastrowid
         except sqlite3.Error as e:
-            print(f"❌ Error en DataManager.execute: {e}\nQuery: {query}")
+            print(f"Error en DataManager.execute: {e}\nQuery: {query}")
             return None
 
     def fetchone(self, query, params=()):
@@ -61,7 +61,7 @@ class DataManager:
             row = cursor.fetchone()
             return dict(row) if row else None
         except sqlite3.Error as e:
-            print(f"❌ Error en DataManager.fetchone: {e}\nQuery: {query}")
+            print(f"Error en DataManager.fetchone: {e}\nQuery: {query}")
             return None
 
     def fetchall(self, query, params=()):
@@ -73,7 +73,7 @@ class DataManager:
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
         except sqlite3.Error as e:
-            print(f"❌ Error en DataManager.fetchall: {e}\nQuery: {query}")
+            print(f"Error en DataManager.fetchall: {e}\nQuery: {query}")
             return []
 
     def create_tables(self):
@@ -88,7 +88,6 @@ class DataManager:
         );
         """)
 
-        # Incluimos 'destino' por defecto para nuevas instalaciones
         self.execute("""
         CREATE TABLE IF NOT EXISTS menu_categorias (
             id_categoria INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -157,7 +156,6 @@ class DataManager:
             conn = self.get_conn()
             cursor = conn.cursor()
             
-            # Verificar si la columna 'destino' existe en 'menu_categorias'
             cursor.execute("PRAGMA table_info(menu_categorias)")
             columns = [info[1] for info in cursor.fetchall()]
             
@@ -165,16 +163,14 @@ class DataManager:
                 print("⚠️ Esquema desactualizado detectado: Falta columna 'destino' en menu_categorias.")
                 print("🛠️ Aplicando migración de esquema...")
                 
-                # 1. Agregar la columna
                 self.execute("ALTER TABLE menu_categorias ADD COLUMN destino TEXT DEFAULT 'cocina';")
                 
-                # 2. Migrar la lógica antigua (Prefijos) a la BD
                 self._migrate_hardcoded_destinations_to_db()
                 
                 print("✅ Esquema actualizado y destinos migrados exitosamente.")
                 
         except Exception as e:
-            print(f"❌ Error verificando/actualizando esquema: {e}")
+            print(f"Error verificando/actualizando esquema: {e}")
 
     def _migrate_hardcoded_destinations_to_db(self):
         """
@@ -216,7 +212,6 @@ class DataManager:
         else:
             print("Base de datos ya poblada. No se requiere migración.")
 
-    # --- MÉTODOS DE MIGRACIÓN (Restaurados Completos) ---
 
     def _migrate_employees(self):
         json_path = os.path.join(JSON_ASSETS_DIR, "asistencia.json")
@@ -231,9 +226,9 @@ class DataManager:
                 )
             print(f"Migrados {len(data)} empleados desde {json_path}")
         except FileNotFoundError:
-            print(f"⚠️ No se encontró {json_path} para migrar empleados.")
+            print(f"No se encontró {json_path} para migrar empleados.")
         except Exception as e:
-            print(f"❌ Error migrando empleados: {e}")
+            print(f"Error migrando empleados: {e}")
 
     def _migrate_attendance_history(self):
         json_path = os.path.join(JSON_ASSETS_DIR, "asistencia_historico.json")
@@ -248,9 +243,9 @@ class DataManager:
                 )
             print(f"Migrados {len(data)} eventos de asistencia desde {json_path}")
         except FileNotFoundError:
-            print(f"⚠️ No se encontró {json_path} para migrar historial.")
+            print(f"No se encontró {json_path} para migrar historial.")
         except Exception as e:
-            print(f"❌ Error migrando historial de asistencia: {e}")
+            print(f"Error migrando historial de asistencia: {e}")
 
     def _migrate_menu(self):
         """Importa datos desde menu.json, asignando destino por defecto."""
@@ -263,7 +258,6 @@ class DataManager:
             for cat in data.get('categorias', []):
                 cat_nombre = cat.get('nombre')
                 
-                # Insertamos la categoría (Por defecto cocina si no se especifica otra cosa)
                 self.execute("INSERT OR IGNORE INTO menu_categorias (nombre, destino) VALUES (?, 'cocina')", (cat_nombre,))
                 cat_db = self.fetchone("SELECT id_categoria FROM menu_categorias WHERE nombre = ?", (cat_nombre,))
                 cat_id = cat_db['id_categoria']
@@ -284,8 +278,6 @@ class DataManager:
                     )
                     item_count += 1
             
-            # Una vez importado todo el JSON, ejecutamos la lógica de detección de "Barra"
-            # para asignar correctamente el destino basándonos en los prefijos antiguos.
             self._migrate_hardcoded_destinations_to_db()
 
             print(f"Migrados {item_count} items de menú desde {json_path}")
@@ -294,7 +286,6 @@ class DataManager:
         except Exception as e:
             print(f"❌ Error migrando menú: {e}")
 
-    # --- MÉTODOS DE NEGOCIO (Gestión de Datos) ---
 
     def get_employees(self):
         return self.fetchall("SELECT * FROM empleados ORDER BY nombre;")
@@ -464,18 +455,16 @@ class DataManager:
             )
             id_orden = cursor.lastrowid
             
-            # --- NUEVA LÓGICA DE DESTINOS ---
             items_data = orden_completa.get('items', [])
             item_ids = [item.get('item_id') for item in items_data]
             
-            # Consultamos destinos en bloque
             destinos_map = self._get_destinations_map(item_ids)
 
             detalle_batch = []
             for item in items_data:
                 item_id = item.get('item_id')
                 
-                # Buscamos el destino, fallback a 'cocina'
+                
                 destino = destinos_map.get(item_id, 'cocina')
                 
                 detalle_batch.append((
@@ -486,7 +475,7 @@ class DataManager:
                     item.get('nombre'),
                     item.get('imagen'),
                     item.get('notas', ''),
-                    destino # <-- Usamos el valor de la BD
+                    destino 
                 ))
             
             cursor.executemany(
@@ -505,13 +494,14 @@ class DataManager:
             
         except sqlite3.Error as e:
             conn.rollback()
-            print(f"❌ Error en create_new_order: {e}")
+            print(f"Error en create_new_order: {e}")
             return None
 
     def get_active_orders_caja(self):
         query = """
         SELECT
             o.id_orden, o.mesa_key, o.fecha_apertura,
+            d.id_detalle,  -- <--- AGREGADO
             d.cantidad, d.precio_unitario_congelado AS precio_unitario,
             d.nombre_congelado AS nombre, d.imagen_congelada AS imagen,
             d.notas, d.id_item_menu AS item_id
@@ -532,6 +522,7 @@ class DataManager:
                     'items': []
                 }
             item_dict = {
+                'id_detalle': row['id_detalle'],
                 'item_id': row['item_id'],
                 'nombre': row['nombre'],
                 'cantidad': row['cantidad'],
@@ -541,9 +532,144 @@ class DataManager:
             }
             caja_data[mesa_key]['items'].append(item_dict)
         return caja_data
+    
+    def split_order(self, original_mesa_key, items_to_split):
+        """
+        Mueve ítems de una orden activa a una nueva orden derivada.
+        items_to_split: lista de dicts {'id_detalle': int, 'cantidad': int}
+        """
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        
+        try:
+            orden_orig = self.fetchone("SELECT id_orden, client_uuid FROM ordenes WHERE mesa_key = ? AND estado = 'activa'", (original_mesa_key,))
+            if not orden_orig: return False
+            
+            id_orden_origen = orden_orig['id_orden']
+            
+            rows = self.fetchall("SELECT mesa_key FROM ordenes WHERE mesa_key LIKE ? AND estado = 'activa'", (f"{original_mesa_key}-%",))
+            existing_indexes = []
+            for r in rows:
+                parts = r['mesa_key'].split('-')
+                if len(parts) > 1 and parts[-1].isdigit():
+                    existing_indexes.append(int(parts[-1]))
+            
+            next_index = max(existing_indexes) + 1 if existing_indexes else 2
+            new_mesa_key = f"{original_mesa_key}-{next_index}"
+            
+            new_uuid = f"{orden_orig['client_uuid']}_split_{datetime.datetime.now().timestamp()}"
+            cursor.execute(
+                "INSERT INTO ordenes (mesa_key, estado, fecha_apertura, client_uuid) VALUES (?, 'activa', ?, ?)",
+                (new_mesa_key, datetime.datetime.now().isoformat(), new_uuid)
+            )
+            id_nueva_orden = cursor.lastrowid
+            
+            for item in items_to_split:
+                id_detalle = item['id_detalle']
+                qty_split = item['cantidad']
+                
+                row = self.fetchone("SELECT * FROM orden_detalle WHERE id_detalle = ?", (id_detalle,))
+                if not row or row['cantidad'] < qty_split: continue
+                
+                if row['cantidad'] == qty_split:
+                    
+                    cursor.execute("UPDATE orden_detalle SET id_orden = ? WHERE id_detalle = ?", (id_nueva_orden, id_detalle))
+                else:
+                    
+                    cursor.execute("UPDATE orden_detalle SET cantidad = cantidad - ? WHERE id_detalle = ?", (qty_split, id_detalle))
+                    cursor.execute("""
+                        INSERT INTO orden_detalle (id_orden, id_item_menu, cantidad, precio_unitario_congelado, nombre_congelado, imagen_congelada, notas, destino, estado_item)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (id_nueva_orden, row['id_item_menu'], qty_split, row['precio_unitario_congelado'], row['nombre_congelado'], row['imagen_congelada'], row['notas'], row['destino'], row['estado_item']))
+            
+            conn.commit()
+            print(f"Cuenta separada creada: {new_mesa_key}")
+            return True
+            
+        except sqlite3.Error as e:
+            conn.rollback()
+            print(f"Error splitting order: {e}")
+            return False
+        
+    def separar_cuenta_en_mesas_unidas(self, mesa_origen_key, items_a_mover):
+        """
+        Versión SQLITE NATIVA para separar cuentas manteniendo la integridad de mesas unidas.
+        """
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        
+        try:
+            orden_orig = self.fetchone("SELECT id_orden, client_uuid FROM ordenes WHERE mesa_key = ? AND estado = 'activa'", (mesa_origen_key,))
+            if not orden_orig:
+                print("No se encontró orden activa para separar.")
+                return False
+            
+            id_orden_origen = orden_orig['id_orden']
+            
+            rows = self.fetchall("SELECT mesa_key FROM ordenes WHERE mesa_key LIKE ? AND estado = 'activa'", (f"{mesa_origen_key}-%",))
+            existing_indexes = []
+            for r in rows:
+                parts = r['mesa_key'].split('-')
+                if len(parts) > 1 and parts[-1].isdigit():
+                    existing_indexes.append(int(parts[-1]))
+            
+            next_index = max(existing_indexes) + 1 if existing_indexes else 2
+            new_mesa_key = f"{mesa_origen_key}-{next_index}"
+            
+            new_uuid = f"{orden_orig['client_uuid']}_split_{datetime.datetime.now().timestamp()}"
+            
+            cursor.execute(
+                "INSERT INTO ordenes (mesa_key, estado, fecha_apertura, client_uuid) VALUES (?, 'activa', ?, ?)",
+                (new_mesa_key, datetime.datetime.now().isoformat(), new_uuid)
+            )
+            id_nueva_orden = cursor.lastrowid
+            
+            total_movido = 0
+            
+            for item_data in items_a_mover:
+                id_detalle = item_data.get('id') or item_data.get('id_detalle')
+                cantidad_a_mover = int(item_data['cantidad'])
+                
+                row = self.fetchone("SELECT * FROM orden_detalle WHERE id_detalle = ?", (id_detalle,))
+                
+                if not row:
+                    continue
+                    
+                cantidad_actual = row['cantidad']
+                
+                if cantidad_actual == cantidad_a_mover:
+                    cursor.execute("UPDATE orden_detalle SET id_orden = ? WHERE id_detalle = ?", (id_nueva_orden, id_detalle))
+                    
+                elif cantidad_actual > cantidad_a_mover:
+                    cursor.execute("UPDATE orden_detalle SET cantidad = cantidad - ? WHERE id_detalle = ?", (cantidad_a_mover, id_detalle))
+                    
+                    cursor.execute("""
+                        INSERT INTO orden_detalle 
+                        (id_orden, id_item_menu, cantidad, precio_unitario_congelado, nombre_congelado, imagen_congelada, notas, destino, estado_item)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        id_nueva_orden, 
+                        row['id_item_menu'], 
+                        cantidad_a_mover, 
+                        row['precio_unitario_congelado'], 
+                        row['nombre_congelado'], 
+                        row['imagen_congelada'], 
+                        row.get('notas', ''), 
+                        row['destino'], 
+                        row['estado_item']
+                    ))
 
+            conn.commit()
+            print(f"Cuenta separada exitosamente: {new_mesa_key} (Derivada de {mesa_origen_key})")
+            
+            return id_nueva_orden
+            
+        except sqlite3.Error as e:
+            conn.rollback()
+            print(f"Error al separar cuenta: {e}")
+            return False
+    
     def _get_active_orders_by_destino(self, destino_busqueda):
-        # AGREGAMOS o.fecha_apertura AL SELECT
         query = """
         SELECT
             o.mesa_key,

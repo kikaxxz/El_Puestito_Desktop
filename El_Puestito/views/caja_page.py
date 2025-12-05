@@ -13,18 +13,42 @@ class CajaPage(QWidget):
         self.lista_mesas.clear() 
         try:
             self.ordenes_activas = self.app_controller.data_manager.get_active_orders_caja()
-            print(f"Órdenes de caja cargadas desde la BD")
             
-            for mesa_key in self.ordenes_activas.keys():
+            sorted_keys = sorted(self.ordenes_activas.keys())
+
+            for mesa_key in sorted_keys:
                 mesa_display_text = ""
-                if "+" in mesa_key:
-                    mesa_display_text = f"Mesas {mesa_key}"
-                else:
-                    mesa_display_text = f"Mesa {mesa_key}"
                 
-                self.lista_mesas.addItem(QListWidgetItem(mesa_display_text))
+                base_key = mesa_key
+                es_subcuenta = False
+                numero_subcuenta = 0
+                
+                if "-" in mesa_key:
+                    try:
+                        partes = mesa_key.rsplit('-', 1)
+                        if len(partes) == 2 and partes[1].isdigit():
+                            base_key = partes[0]
+                            numero_subcuenta = int(partes[1]) - 1 
+                            es_subcuenta = True
+                    except:
+                        pass 
+
+                if "+" in base_key:
+                    texto_mesa = f"Grupo {base_key}"
+                else:
+                    texto_mesa = f"Mesa {base_key}"
+
+                if es_subcuenta and numero_subcuenta > 0:
+                    mesa_display_text = f"{texto_mesa}: Sub Cuenta {numero_subcuenta}"
+                else:
+                    mesa_display_text = texto_mesa
+                
+                item = QListWidgetItem(mesa_display_text)
+                item.setData(100, mesa_key) 
+                self.lista_mesas.addItem(item)
+                
         except Exception as e:
-            print(f"Error al cargar órdenes de caja desde la BD: {e}")
+            print(f"Error: {e}")
             self.ordenes_activas = {}
 
     def __init__(self, app_controller, parent=None):
@@ -83,8 +107,7 @@ class CajaPage(QWidget):
             self._limpiar_tabla()
             return
 
-        texto_item = item.text() 
-        mesa_key = self._extraer_mesa_key(texto_item)
+        mesa_key = item.data(100) 
         
         if mesa_key and mesa_key in self.ordenes_activas:
             orden = self.ordenes_activas[mesa_key]
@@ -113,10 +136,9 @@ class CajaPage(QWidget):
             return
         
         texto_item = item_seleccionado.text()
-        mesa_key = self._extraer_mesa_key(texto_item)
+        mesa_key = item_seleccionado.data(100)
         
         if mesa_key:
-
             exito = self.app_controller.cobrar_cuenta(mesa_key)
             
             if exito:

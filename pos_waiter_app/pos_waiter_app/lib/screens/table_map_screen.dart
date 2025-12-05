@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/socket_service.dart';
 import '../services/api_service.dart';
+import 'order_detail_screen.dart'; 
 
 class TableMapScreen extends StatefulWidget {
   const TableMapScreen({super.key});
@@ -68,9 +69,15 @@ class _TableMapScreenState extends State<TableMapScreen> {
         }
         groupIndex++;
       } else {
-        // Mesa individual ocupada
-        final m = int.tryParse(key);
-        if (m != null) ocupadas.add(m);
+        String mesaRealStr = key;
+        if (key.contains('-')) {
+          mesaRealStr = key.split('-')[0];
+        }
+
+        final m = int.tryParse(mesaRealStr);
+        if (m != null) {
+          ocupadas.add(m);
+        }
       }
     }
 
@@ -123,7 +130,6 @@ class _TableMapScreenState extends State<TableMapScreen> {
     bool selected = _selectedTables.contains(numMesa);
     bool enlazada = groupColors.containsKey(numMesa);
 
-    
     Color bgColor = Colors.green.shade50;
     Color borderColor = Colors.green;
     IconData icon = Icons.table_restaurant;
@@ -133,7 +139,6 @@ class _TableMapScreenState extends State<TableMapScreen> {
 
     if (ocupada) {
       if (enlazada) {
-
         final groupColor = groupColors[numMesa]!;
         final groupId = groupIds[numMesa]!;
         
@@ -154,7 +159,6 @@ class _TableMapScreenState extends State<TableMapScreen> {
         );
 
       } else {
-        // Ocupada Individual (Rojo)
         bgColor = Colors.red.shade50;
         borderColor = Colors.red;
         icon = Icons.restaurant_menu;
@@ -176,7 +180,26 @@ class _TableMapScreenState extends State<TableMapScreen> {
         if (_isJoiningMode) {
           if (!ocupada) setState(() => selected ? _selectedTables.remove(numMesa) : _selectedTables.add(numMesa));
         } else {
-          Navigator.of(context).pushNamed('/menu', arguments: {'mesa_padre': numMesa, 'mesas_hijas': []});
+          if (ocupada) {
+            String keyToSend = "$numMesa";
+            
+            if (enlazada) {
+                final socketService = Provider.of<SocketService>(context, listen: false);
+                for (var k in socketService.mesas.keys) {
+                  if (k.contains('+') && k.split('+').contains("$numMesa")) {
+                    keyToSend = k;
+                    break;
+                  }
+                }
+            }
+
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => OrderDetailScreen(mesaKey: keyToSend)
+            ));
+
+          } else {
+            Navigator.of(context).pushNamed('/menu', arguments: {'mesa_padre': numMesa, 'mesas_hijas': []});
+          }
         }
       },
       onLongPress: () {

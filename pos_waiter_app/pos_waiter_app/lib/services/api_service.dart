@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  // Debe coincidir con el servidor Python
   static const String apiKey = "puestito_seguro_2025"; 
 
   Future<String?> getServerUrl() async {
@@ -11,14 +10,33 @@ class ApiService {
     return prefs.getString('server_url');
   }
 
+  Future<bool> splitOrder(String mesaKey, List<Map<String, dynamic>> items) async {
+    final baseUrl = await getServerUrl();
+    if (baseUrl == null) return false;
+    
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/split-order'),
+        headers: _getHeaders(),
+        body: json.encode({
+          'mesa_key': mesaKey,
+          'items': items,
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Split Order: $e");
+      return false;
+    }
+  }
+
   Map<String, String> _getHeaders() {
     return {
       'Content-Type': 'application/json',
-      'X-API-KEY': apiKey, // <--- LLAVE DE SEGURIDAD
+      'X-API-KEY': apiKey, 
     };
   }
 
-  // --- MENU ---
   Future<Map<String, dynamic>?> getMenu() async {
     final baseUrl = await getServerUrl();
     if (baseUrl == null) return null;
@@ -31,7 +49,6 @@ class ApiService {
     }
   }
 
-  // --- ORDENES ---
   Future<Map<String, dynamic>> enviarOrden(Map<String, dynamic> ordenData) async {
     final baseUrl = await getServerUrl();
     if (baseUrl == null) return {'exito': false, 'msg': 'URL no configurada'};
@@ -54,7 +71,6 @@ class ApiService {
     }
   }
 
-  // --- MAPA DE MESAS ---
   Future<Map<String, dynamic>?> getConfiguracion() async {
     final baseUrl = await getServerUrl();
     if (baseUrl == null) return null;

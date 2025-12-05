@@ -3,9 +3,9 @@ import json
 import datetime
 import requests
 import time
-import threading # Usamos threading nativo
+import threading 
 from functools import wraps
-
+import eventlet 
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from flask import Flask, request, jsonify, send_from_directory, render_template
@@ -22,9 +22,9 @@ class ServerWorker(QObject):
     asistencia_recibida = pyqtSignal(dict)
     nueva_orden_recibida = pyqtSignal(dict)
     kds_estado_cambiado = pyqtSignal(str)
+    ordenes_modificadas = pyqtSignal()
 
     API_KEY = "puestito_seguro_2025"
-    
     PINS_ACCESO = {
         "1111": "cocina",
         "2222": "barra"
@@ -36,7 +36,7 @@ class ServerWorker(QObject):
         
         self.app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
         
-        self.socketio = SocketIO(self.app, cors_allowed_origins="*", async_mode='threading')
+        self.socketio = SocketIO(self.app, cors_allowed_origins="*", async_mode='eventlet')
         worker_self = self
 
         def require_auth(f):
@@ -198,6 +198,28 @@ class ServerWorker(QObject):
 
             return jsonify({"status": "ok_new"}), 200
         
+        @self.app.route('/api/split-order', methods=['POST'])
+        @require_auth
+        def split_order_endpoint():
+            data = request.json
+            mesa_key = data.get('mesa_key')
+            items = data.get('items') 
+            
+            if not mesa_key or not items:
+                return jsonify({"error": "Datos incompletos"}), 400
+                
+            success = worker_self.data_manager.split_order(mesa_key, items)
+            
+            if success:
+                worker_self.socketio.emit('mesas_actualizadas', worker_self._get_table_state())
+                
+                worker_self.ordenes_modificadas.emit() 
+                
+                return jsonify({"status": "success"}), 200
+            else:
+                return jsonify({"error": "Error al dividir cuenta"}), 500
+
+
         @self.app.route('/employees', methods=['GET'])
         @require_auth
         def get_employees():

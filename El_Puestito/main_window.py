@@ -97,7 +97,7 @@ class MainWindow(QMainWindow):
         
         self.server_worker.asistencia_recibida.connect(self.actualizar_tabla_asistencia)
         self.server_worker.nueva_orden_recibida.connect(self.app_controller.procesar_nueva_orden)
-
+        self.server_worker.ordenes_modificadas.connect(self.app_controller.ordenes_actualizadas.emit)
         self.server_worker.kds_estado_cambiado.connect(self.on_kds_externo_update)
 
         self.thread.start()
