@@ -1,5 +1,3 @@
-// lib/main.dart
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -11,7 +9,6 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:uuid/uuid.dart'; 
 import 'scanner_screen.dart'; 
 
-// Modelo de empleado
 class Employee {
   final String id;
   final String nombre;
@@ -35,29 +32,24 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Definimos los colores principales (similares a tu app de escritorio)
-    const primaryColor = Color(0xFFF76606); // Naranja Puestito
+    const primaryColor = Color(0xFFF76606);
     const darkBackgroundColor = Color(0xFF0F0F10);
     const cardBackgroundColor = Color(0xFF1B1C1F);
     const textColor = Color(0xFFE5E7EB);
     const subtleTextColor = Color(0xFF8F949C);
 
     return MaterialApp(
-      // --- QUITAR BANNER DEBUG ---
       debugShowCheckedModeBanner: false,
-      // --------------------------
       title: 'Control de Asistencia',
-
-      // --- TEMA OSCURO ---
-      themeMode: ThemeMode.dark, // Forzar tema oscuro
+      themeMode: ThemeMode.dark,
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         primaryColor: primaryColor,
         colorScheme: const ColorScheme.dark(
           primary: primaryColor,
-          secondary: primaryColor, // Usar naranja como acento también
+          secondary: primaryColor,
           background: darkBackgroundColor,
-          surface: cardBackgroundColor, // Color para Cards, Dropdowns, etc.
+          surface: cardBackgroundColor,
           onBackground: textColor,
           onSurface: textColor,
           error: Colors.redAccent,
@@ -65,21 +57,21 @@ class MyApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: darkBackgroundColor,
         appBarTheme: const AppBarTheme(
-          backgroundColor: cardBackgroundColor, // Barra superior más oscura
-          foregroundColor: textColor, // Texto e íconos blancos en AppBar
-          elevation: 1, // Sombra sutil
+          backgroundColor: cardBackgroundColor,
+          foregroundColor: textColor,
+          elevation: 1,
           centerTitle: true,
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-           fillColor: cardBackgroundColor, // Fondo del dropdown
+           fillColor: cardBackgroundColor,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.0),
-             borderSide: BorderSide.none, // Sin borde visible por defecto
+             borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.0),
-             borderSide: const BorderSide(color: primaryColor), // Borde naranja al enfocar
+             borderSide: const BorderSide(color: primaryColor),
           ),
           labelStyle: const TextStyle(color: subtleTextColor),
           hintStyle: const TextStyle(color: subtleTextColor),
@@ -87,8 +79,8 @@ class MyApp extends StatelessWidget {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: primaryColor, // Botón naranja
-            foregroundColor: Colors.white, // Texto blanco
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16.0),
             textStyle: const TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
             shape: RoundedRectangleBorder(
@@ -96,7 +88,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-         dropdownMenuTheme: DropdownMenuThemeData( // Estilo del menú desplegable
+         dropdownMenuTheme: DropdownMenuThemeData(
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
             fillColor: cardBackgroundColor,
@@ -104,27 +96,25 @@ class MyApp extends StatelessWidget {
               borderRadius: BorderRadius.circular(12.0),
               borderSide: BorderSide.none,
             ),
-             contentPadding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 10.0), // Ajustar padding
+             contentPadding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 10.0),
           ),
-           textStyle: const TextStyle(color: textColor), // Texto del item seleccionado
+           textStyle: const TextStyle(color: textColor),
           menuStyle: MenuStyle(
-             backgroundColor: MaterialStateProperty.all(cardBackgroundColor), // Fondo del menú
+             backgroundColor: MaterialStateProperty.all(cardBackgroundColor),
             surfaceTintColor: MaterialStateProperty.all(cardBackgroundColor),
           ),
         ),
-         textTheme: const TextTheme( // Asegurar colores de texto base
+         textTheme: const TextTheme(
             bodyMedium: TextStyle(color: textColor),
             bodyLarge: TextStyle(color: textColor),
             titleMedium: TextStyle(color: textColor),
             titleLarge: TextStyle(color: textColor),
         ),
-         iconTheme: const IconThemeData(color: textColor), // Color de íconos general
+        iconTheme: const IconThemeData(color: textColor),
         progressIndicatorTheme: const ProgressIndicatorThemeData(
-           color: primaryColor, // Indicador de carga naranja
+          color: primaryColor,
         ),
       ),
-      // -----------------
-
       initialRoute: '/',
       routes: {
         '/': (context) => const AttendanceScreen(),
@@ -142,9 +132,14 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
+  static const String apiKey = "puestito_seguro_2025";
+  
   List<Employee> _employees = [];
   bool _isLoadingEmployees = false;
   String? _selectedEmployeeId;
+  String? _lockedEmployeeName; 
+  bool _isDeviceLocked = false; 
+
   String _statusMessage = 'Cargando configuración...';
   String? _savedServerUrl;
   final LocalAuthentication _auth = LocalAuthentication();
@@ -153,32 +148,40 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   void initState() {
     super.initState();
-    // _resetDeviceId(); // Comenta o elimina esta línea para producción
-    _loadServerUrlAndEmployees();
+    _loadConfiguration();
   }
 
-  /// Elimina el ID único guardado (para pruebas)
-  Future<void> _resetDeviceId() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('unique_device_id');
-    print("🧹 ID único eliminado. Se generará uno nuevo al reiniciar.");
+  Map<String, String> _getHeaders() {
+    return {
+      'Content-Type': 'application/json; charset=UTF-8',
+      'X-API-KEY': apiKey,
+    };
   }
 
-  Future<void> _loadServerUrlAndEmployees() async {
+  Future<void> _loadConfiguration() async {
     setState(() {
       _isLoadingEmployees = true;
-      _statusMessage = 'Cargando URL del servidor...';
+      _statusMessage = 'Verificando seguridad...';
     });
 
     final prefs = await SharedPreferences.getInstance();
     final serverUrl = prefs.getString('server_url');
+    final lockedEmpId = prefs.getString('locked_employee_id'); 
+    final lockedEmpName = prefs.getString('locked_employee_name');
 
     setState(() {
       _savedServerUrl = serverUrl;
+      if (lockedEmpId != null) {
+        _isDeviceLocked = true;
+        _selectedEmployeeId = lockedEmpId;
+        _lockedEmployeeName = lockedEmpName ?? 'Usuario Registrado';
+        _statusMessage = 'Dispositivo vinculado a $_lockedEmployeeName.';
+      } else {
+        _isDeviceLocked = false;
+      }
     });
 
-    final deviceId = await _getDeviceId();
-    print("📱 ID único de este dispositivo: $deviceId");
+    await _getDeviceId();
 
     if (serverUrl == null || serverUrl.isEmpty) {
       setState(() {
@@ -188,14 +191,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       return;
     }
 
-    await _fetchEmployees(serverUrl);
-
-    setState(() {
-      _isLoadingEmployees = false;
-      if (_statusMessage.startsWith('Cargando')) {
-        _statusMessage = 'Por favor, selecciona tu nombre y registra tu asistencia.';
-      }
-    });
+    if (!_isDeviceLocked) {
+      await _fetchEmployees(serverUrl);
+    } else {
+       setState(() {
+        _isLoadingEmployees = false;
+      });
+    }
   }
 
   Future<void> _fetchEmployees(String serverUrl) async {
@@ -207,7 +209,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (url.endsWith('/')) url = url.substring(0, url.length - 1);
 
       final response = await http
-          .get(Uri.parse('$url/employees'))
+          .get(Uri.parse('$url/employees'), headers: _getHeaders())
           .timeout(const Duration(seconds: 8));
 
       if (!mounted) return;
@@ -216,57 +218,44 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         final List<dynamic> employeeListJson = jsonDecode(response.body);
         setState(() {
           _employees = employeeListJson.map((json) => Employee.fromJson(json)).toList();
-          _statusMessage = 'Lista de empleados cargada.';
-          _selectedEmployeeId = null;
+          _statusMessage = 'Lista cargada. Selecciona tu usuario.';
+          _isLoadingEmployees = false;
         });
       } else {
-        final errorBody = jsonDecode(response.body);
         setState(() {
-          _statusMessage =
-              'Error al cargar empleados: ${errorBody['error'] ?? response.statusCode}';
-          _employees = [];
+          _statusMessage = 'Error de API Key o Servidor (${response.statusCode})';
+          _isLoadingEmployees = false;
         });
       }
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _statusMessage = 'Error de red al cargar empleados: ${e.toString()}';
+        _statusMessage = 'Error de conexión con el servidor.';
         _employees = [];
+        _isLoadingEmployees = false;
       });
     }
   }
 
-
   Future<String?> _getDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
-
     final storedId = prefs.getString('unique_device_id');
     if (storedId != null) return storedId;
 
     final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
     String? deviceId;
-
     try {
       if (Platform.isAndroid) {
         final androidInfo = await deviceInfo.androidInfo;
         deviceId = androidInfo.id; 
-        if (deviceId == null || deviceId.startsWith('AP') || deviceId.length < 10) {
-          deviceId = null;
-        }
       } else if (Platform.isIOS) {
         final iosInfo = await deviceInfo.iosInfo;
         deviceId = iosInfo.identifierForVendor;
       }
-    } catch (e) {
-      print('Error al obtener Device ID nativo: $e');
-    }
+    } catch (e) { }
 
-    // Genera UUID si no hay uno válido
     deviceId ??= const Uuid().v4();
-
     await prefs.setString('unique_device_id', deviceId);
-
-    print("✅ ID único asignado a este dispositivo: $deviceId");
     return deviceId;
   }
 
@@ -275,51 +264,34 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     if (_selectedEmployeeId == null) {
       setState(() {
-        _statusMessage = 'Error: Debes seleccionar un empleado primero.';
+        _statusMessage = 'Error: No se ha identificado el empleado.';
       });
       return;
     }
 
-    setState(() {
-      _isProcessing = true;
-    });
+    setState(() { _isProcessing = true; });
 
     bool authenticated = false;
     try {
-      setState(() {
-        _statusMessage = 'Por favor, autentícate...';
-      });
-
+      setState(() { _statusMessage = 'Escanea tu huella/rostro...'; });
       authenticated = await _auth.authenticate(
-        localizedReason: 'Autentícate para registrar tu asistencia',
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: false,
-        ),
+        localizedReason: 'Confirma tu identidad',
+        options: const AuthenticationOptions(stickyAuth: true, biometricOnly: false),
       );
     } on PlatformException catch (e) {
       setState(() {
-        _statusMessage = 'Error de autenticación: ${e.message}';
+        _statusMessage = 'Error biométrico: ${e.message}';
         _isProcessing = false;
       });
       return;
     }
 
-    if (!mounted) return;
-
     if (authenticated) {
-      setState(() {
-        _statusMessage = 'Autenticación exitosa. Enviando datos...';
-      });
+      setState(() { _statusMessage = 'Identidad confirmada. Registrando...'; });
       await _sendAttendanceData();
     } else {
       setState(() {
-        _statusMessage = 'Autenticación fallida. Inténtalo de nuevo.';
-      });
-    }
-
-    if (mounted) {
-      setState(() {
+        _statusMessage = 'No se pudo verificar tu identidad.';
         _isProcessing = false;
       });
     }
@@ -327,23 +299,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _sendAttendanceData() async {
     final serverUrl = _savedServerUrl;
-
-    if (serverUrl == null || serverUrl.isEmpty) {
-      setState(() {
-        _statusMessage = 'Error: No hay URL del servidor. Escanea el QR.';
-      });
-      return;
-    }
-
     final deviceId = await _getDeviceId();
-    if (deviceId == null || deviceId.isEmpty) {
-      setState(() {
-        _statusMessage = 'Error: No se pudo obtener el ID del dispositivo.';
-      });
-      return;
-    }
 
-    print("📡 Enviando registro con deviceId: $deviceId");
+    if (serverUrl == null || deviceId == null) {
+        setState(() { _isProcessing = false; _statusMessage = "Error de configuración"; });
+        return;
+    }
 
     try {
       final body = jsonEncode({
@@ -357,7 +318,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final response = await http
           .post(
             Uri.parse('$url/registrar'),
-            headers: {'Content-Type': 'application/json; charset=UTF-8'},
+            headers: _getHeaders(),
             body: body,
           )
           .timeout(const Duration(seconds: 10));
@@ -365,25 +326,61 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final responseBody = jsonDecode(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        if (!_isDeviceLocked) {
+          await _lockDeviceToUser(_selectedEmployeeId!);
+        }
+        
         setState(() {
-          _statusMessage = 'Éxito: ${responseBody['message']}';
+          _statusMessage = '✅ Asistencia Registrada Correctamente';
         });
       } else {
         setState(() {
-          _statusMessage =
-              'Error: ${responseBody['message'] ?? 'Error desconocido del servidor.'}';
+          _statusMessage = '❌ Error: ${responseBody['message'] ?? 'Servidor rechazó'}';
         });
       }
     } catch (e) {
       setState(() {
-        _statusMessage = 'Error de red: No se pudo conectar al servidor.';
+        _statusMessage = '⚠ Error de red o API Key inválida.';
       });
+    } finally {
+      if (mounted) setState(() { _isProcessing = false; });
     }
+  }
+
+  Future<void> _lockDeviceToUser(String empId) async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    String empName = "Empleado";
+    try {
+      final emp = _employees.firstWhere((e) => e.id == empId);
+      empName = emp.nombre;
+    } catch (_) {}
+
+    await prefs.setString('locked_employee_id', empId);
+    await prefs.setString('locked_employee_name', empName);
+
+    setState(() {
+      _isDeviceLocked = true;
+      _lockedEmployeeName = empName;
+      _employees.clear(); 
+    });
   }
 
   void _openScanner() async {
     await Navigator.of(context).pushNamed('/scanner');
-    _loadServerUrlAndEmployees();
+    _loadConfiguration();
+  }
+
+  void _resetDeviceLock() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('locked_employee_id');
+    await prefs.remove('locked_employee_name');
+    setState(() {
+      _isDeviceLocked = false;
+      _selectedEmployeeId = null;
+      _statusMessage = "Dispositivo desbloqueado. Recargando...";
+    });
+    _loadConfiguration();
   }
 
   @override
@@ -391,13 +388,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Control de Asistencia'),
-        // centerTitle: true, // Ya está centrado por el tema
         actions: [
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
-            tooltip: 'Escanear QR del Servidor',
             onPressed: _openScanner,
           ),
+          if (_isDeviceLocked)
+            IconButton(
+              icon: const Icon(Icons.lock_reset, color: Colors.grey),
+              onPressed: _resetDeviceLock, 
+              tooltip: "Resetear usuario",
+            )
         ],
       ),
       body: Padding(
@@ -406,28 +407,55 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            
             if (_isLoadingEmployees)
               const Center(child: CircularProgressIndicator())
+            else if (_isDeviceLocked)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: Theme.of(context).primaryColor, width: 2),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.account_circle, size: 60, color: Colors.white70),
+                    const SizedBox(height: 10),
+                    const Text("Bienvenido de nuevo,", style: TextStyle(color: Colors.grey)),
+                    const SizedBox(height: 5),
+                    Text(
+                      _lockedEmployeeName ?? "Empleado",
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Este dispositivo está vinculado a tu nombre.",
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              )
             else if (_employees.isEmpty && _savedServerUrl != null)
               Center(
                 child: Text(
-                  _statusMessage.contains('Error')
-                      ? _statusMessage
-                      : 'No se encontraron empleados en el servidor.',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error), // Usar color de error del tema
+                  _statusMessage,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                   textAlign: TextAlign.center,
                 ),
               )
             else
               DropdownButtonFormField<String>(
                 value: _selectedEmployeeId,
-                decoration: const InputDecoration( // Usará inputDecorationTheme del tema
+                decoration: const InputDecoration(
                   labelText: 'Selecciona tu nombre',
-                  prefixIcon: Icon(Icons.person),
+                  prefixIcon: Icon(Icons.person_add),
+                  helperText: "⚠️ Se vinculará este dispositivo a tu nombre permanentemente.",
+                  helperMaxLines: 2,
                 ),
                 hint: const Text('Empleado'),
                 isExpanded: true,
-                // Estilos del menú y items ahora controlados por dropdownMenuTheme
                 items: _employees.map((Employee employee) {
                   return DropdownMenuItem<String>(
                     value: employee.id,
@@ -437,46 +465,41 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 onChanged: (String? newValue) {
                   setState(() {
                     _selectedEmployeeId = newValue;
-                    _statusMessage =
-                        'Empleado seleccionado. Listo para registrar.';
                   });
                 },
               ),
+            
             const SizedBox(height: 32.0),
+            
             ElevatedButton.icon(
-              icon: const Icon(Icons.fingerprint), // O Icons.touch_app
-              label: const Text('Registrar Asistencia'),
-              // Estilo tomado de elevatedButtonTheme
-              onPressed:
-                  _isProcessing || _employees.isEmpty ? null : _authenticateAndRegister,
+              icon: const Icon(Icons.fingerprint, size: 28),
+              label: const Text('Registrar Entrada/Salida'),
+              onPressed: _isProcessing ? null : _authenticateAndRegister,
             ),
+
             const SizedBox(height: 40.0),
+            
             Text(
               _statusMessage,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16.0,
-                color: _statusMessage.contains('Error') ||
-                        _statusMessage.contains('ADVERTENCIA')
+                color: _statusMessage.contains('Error') || _statusMessage.contains('❌')
                     ? Theme.of(context).colorScheme.error
-                    : (_statusMessage.contains('Éxito')
+                    : (_statusMessage.contains('Éxito') || _statusMessage.contains('✅')
                         ? Colors.green.shade400
                         : Theme.of(context).colorScheme.onBackground),
                 fontWeight: FontWeight.w500,
               ),
             ),
+            
             const Spacer(),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Text(
-                'Servidor: ${_savedServerUrl ?? "No configurado"}',
+            if (_savedServerUrl != null)
+              Text(
+                'Servidor Conectado',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7), // Usar color del tema
-                  fontSize: 12
-                ),
+                style: TextStyle(color: Colors.green.shade700, fontSize: 10),
               ),
-            ),
           ],
         ),
       ),
