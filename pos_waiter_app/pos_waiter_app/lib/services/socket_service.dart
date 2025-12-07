@@ -14,8 +14,10 @@ class SocketService with ChangeNotifier {
   Map<String, dynamic> get mesas => _mesasState;
 
   final StreamController<void> _menuController = StreamController<void>.broadcast();
-  Stream<void> get menuActualizadoStream => _menuController.stream;
+  final StreamController<void> _configController = StreamController<void>.broadcast();
 
+  Stream<void> get menuActualizadoStream => _menuController.stream;
+  Stream<void> get configUpdatedStream => _configController.stream;
   Future<void> initService() async {
     await _fetchInitialData(); 
     await _connectSocket();    
@@ -75,6 +77,11 @@ class SocketService with ChangeNotifier {
 
       _socket!.on('menu_actualizado', (_) => _menuController.add(null));
 
+      _socket!.on('configuracion_actualizada', (_) {
+      print("Socket: Evento 'configuracion_actualizada' recibido.");
+        _configController.add(null);
+
+      });
     } catch (e) {
       print("Socket Error: $e");
     }
@@ -84,6 +91,7 @@ class SocketService with ChangeNotifier {
   void dispose() {
     _socket?.dispose();
     _menuController.close();
+    _configController.close();
     super.dispose();
   }
 }

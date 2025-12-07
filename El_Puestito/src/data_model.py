@@ -19,19 +19,20 @@ class DataManager:
     def __init__(self, db_path):
         self.db_path = db_path
         self.local = threading.local()
-        print(f"🗃️  DataManager inicializado. Conectando a: {self.db_path}")
-        
+        print(f"DataManager inicializado. Conectando a: {self.db_path}")
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
+
         self.create_tables()
-        
         self._check_and_update_schema()
-        
         self.run_migration_if_needed()
 
     def get_conn(self):
         """Obtiene o crea una conexión a la BD para el hilo actual."""
         if not hasattr(self.local, 'conn'):
             self.local.conn = sqlite3.connect(self.db_path)
-            self.local.conn.row_factory = sqlite3.Row 
+            self.local.conn.row_factory = sqlite3.Row
+            self.local.conn.execute("PRAGMA busy_timeout = 3000;") 
         return self.local.conn
 
     def close_conn_for_thread(self):
@@ -160,14 +161,14 @@ class DataManager:
             columns = [info[1] for info in cursor.fetchall()]
             
             if 'destino' not in columns:
-                print("⚠️ Esquema desactualizado detectado: Falta columna 'destino' en menu_categorias.")
-                print("🛠️ Aplicando migración de esquema...")
+                print("Esquema desactualizado detectado: Falta columna 'destino' en menu_categorias.")
+                print("Aplicando migración de esquema...")
                 
                 self.execute("ALTER TABLE menu_categorias ADD COLUMN destino TEXT DEFAULT 'cocina';")
                 
                 self._migrate_hardcoded_destinations_to_db()
                 
-                print("✅ Esquema actualizado y destinos migrados exitosamente.")
+                print("Esquema actualizado y destinos migrados exitosamente.")
                 
         except Exception as e:
             print(f"Error verificando/actualizando esquema: {e}")
@@ -327,7 +328,6 @@ class DataManager:
     def clear_all_attendance_history(self):
         return self.execute("DELETE FROM eventos_asistencia;")
 
-    # --- Métodos de Menú y Órdenes ---
 
     def get_menu_with_categories(self):
         """Retorna el menú completo incluyendo el destino de impresión."""
@@ -489,7 +489,7 @@ class DataManager:
             )
             
             conn.commit()
-            print(f"✅ Orden {id_orden} (Mesa {mesa_key}) creada. Destinos resueltos dinámicamente.")
+            print(f"Orden {id_orden} (Mesa {mesa_key}) creada. Destinos resueltos dinámicamente.")
             return id_orden
             
         except sqlite3.Error as e:
@@ -498,15 +498,19 @@ class DataManager:
             return None
 
     def get_active_orders_caja(self):
+        """
+        Obtiene el estado de todas las mesas activas.
+        """
         query = """
         SELECT
             o.id_orden, o.mesa_key, o.fecha_apertura,
-            d.id_detalle,  -- <--- AGREGADO
+            d.id_detalle,
             d.cantidad, d.precio_unitario_congelado AS precio_unitario,
             d.nombre_congelado AS nombre, d.imagen_congelada AS imagen,
-            d.notas, d.id_item_menu AS item_id
+            d.notas, d.id_item_menu AS item_id,
+            d.estado_item
         FROM ordenes o
-        JOIN orden_detalle d ON o.id_orden = d.id_orden
+        LEFT JOIN orden_detalle d ON o.id_orden = d.id_orden
         WHERE o.estado = 'activa'
         ORDER BY o.fecha_apertura;
         """
@@ -515,28 +519,35 @@ class DataManager:
         caja_data = {}
         for row in rows:
             mesa_key = row['mesa_key']
+            
             if mesa_key not in caja_data:
                 caja_data[mesa_key] = {
                     'id_orden_db': row['id_orden'],
                     'fecha_apertura': row['fecha_apertura'],
                     'items': []
                 }
-            item_dict = {
-                'id_detalle': row['id_detalle'],
-                'item_id': row['item_id'],
-                'nombre': row['nombre'],
-                'cantidad': row['cantidad'],
-                'precio_unitario': row['precio_unitario'],
-                'imagen': row['imagen'],
-                'notas': row['notas']
-            }
-            caja_data[mesa_key]['items'].append(item_dict)
+            
+            if row['id_detalle'] is not None:
+                item_dict = {
+                    'id_detalle': row['id_detalle'],
+                    'item_id': row['item_id'],
+                    'nombre': row['nombre'],
+                    'cantidad': row['cantidad'],
+                    'precio_unitario': row['precio_unitario'],
+                    'imagen': row['imagen'],
+                    'notas': row['notas'],
+                    'estado_item': row['estado_item']
+                }
+                caja_data[mesa_key]['items'].append(item_dict)
+                
         return caja_data
     
     def split_order(self, original_mesa_key, items_to_split):
         """
         Mueve ítems de una orden activa a una nueva orden derivada.
-        items_to_split: lista de dicts {'id_detalle': int, 'cantidad': int}
+        CORREGIDO: 
+        1. Evita recursión infinita (siempre usa la mesa base).
+        2. Elimina la sub-cuenta de origen si queda vacía (evita mesas fantasmas).
         """
         conn = self.get_conn()
         cursor = conn.cursor()
@@ -547,15 +558,25 @@ class DataManager:
             
             id_orden_origen = orden_orig['id_orden']
             
-            rows = self.fetchall("SELECT mesa_key FROM ordenes WHERE mesa_key LIKE ? AND estado = 'activa'", (f"{original_mesa_key}-%",))
+            temp_key = original_mesa_key.split('+')[0] if '+' in original_mesa_key else original_mesa_key
+            base_mesa_key = temp_key.split('-')[0] if '-' in temp_key else temp_key
+
+            rows = self.fetchall("SELECT mesa_key FROM ordenes WHERE mesa_key LIKE ? AND estado = 'activa'", (f"{base_mesa_key}-%",))
+            
             existing_indexes = []
             for r in rows:
-                parts = r['mesa_key'].split('-')
-                if len(parts) > 1 and parts[-1].isdigit():
-                    existing_indexes.append(int(parts[-1]))
+                try:
+                    parts = r['mesa_key'].split('-')
+                    if len(parts) > 1 and parts[-1].isdigit():
+                        existing_indexes.append(int(parts[-1]))
+                except ValueError: continue
             
-            next_index = max(existing_indexes) + 1 if existing_indexes else 2
-            new_mesa_key = f"{original_mesa_key}-{next_index}"
+            next_index = max(existing_indexes) + 1 if existing_indexes else 1
+            new_mesa_key = f"{base_mesa_key}-{next_index}"
+            
+            if new_mesa_key == original_mesa_key:
+                next_index += 1
+                new_mesa_key = f"{base_mesa_key}-{next_index}"
             
             new_uuid = f"{orden_orig['client_uuid']}_split_{datetime.datetime.now().timestamp()}"
             cursor.execute(
@@ -572,18 +593,25 @@ class DataManager:
                 if not row or row['cantidad'] < qty_split: continue
                 
                 if row['cantidad'] == qty_split:
-                    
                     cursor.execute("UPDATE orden_detalle SET id_orden = ? WHERE id_detalle = ?", (id_nueva_orden, id_detalle))
                 else:
-                    
                     cursor.execute("UPDATE orden_detalle SET cantidad = cantidad - ? WHERE id_detalle = ?", (qty_split, id_detalle))
                     cursor.execute("""
                         INSERT INTO orden_detalle (id_orden, id_item_menu, cantidad, precio_unitario_congelado, nombre_congelado, imagen_congelada, notas, destino, estado_item)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (id_nueva_orden, row['id_item_menu'], qty_split, row['precio_unitario_congelado'], row['nombre_congelado'], row['imagen_congelada'], row['notas'], row['destino'], row['estado_item']))
             
+            if '-' in original_mesa_key:
+                cursor.execute("SELECT COUNT(*) FROM orden_detalle WHERE id_orden = ?", (id_orden_origen,))
+                remaining = cursor.fetchone()[0]
+                if remaining == 0:
+                    print(f"Sub-cuenta {original_mesa_key} quedó vacía tras el movimiento. Eliminando...")
+                    cursor.execute("UPDATE ordenes SET estado = 'cancelada', fecha_cierre = ? WHERE id_orden = ?", 
+                                (datetime.datetime.now().isoformat(), id_orden_origen))
+
             conn.commit()
-            print(f"Cuenta separada creada: {new_mesa_key}")
+            self._cleanup_empty_order(original_mesa_key, id_orden_origen)
+            print(f"Cuenta separada creada: {new_mesa_key} (Items movidos desde {original_mesa_key})")
             return True
             
         except sqlite3.Error as e:
@@ -593,7 +621,7 @@ class DataManager:
         
     def separar_cuenta_en_mesas_unidas(self, mesa_origen_key, items_a_mover):
         """
-        Versión SQLITE NATIVA para separar cuentas manteniendo la integridad de mesas unidas.
+        Versión SQLITE NATIVA para separar cuentas.
         """
         conn = self.get_conn()
         cursor = conn.cursor()
@@ -604,18 +632,29 @@ class DataManager:
                 print("No se encontró orden activa para separar.")
                 return False
             
-            id_orden_origen = orden_orig['id_orden']
+            temp_key = mesa_origen_key.split('+')[0] if '+' in mesa_origen_key else mesa_origen_key
             
-            rows = self.fetchall("SELECT mesa_key FROM ordenes WHERE mesa_key LIKE ? AND estado = 'activa'", (f"{mesa_origen_key}-%",))
+
+            base_mesa_key = temp_key.split('-')[0] if '-' in temp_key else temp_key
+
+            rows = self.fetchall("SELECT mesa_key FROM ordenes WHERE mesa_key LIKE ? AND estado = 'activa'", (f"{base_mesa_key}-%",))
+            
             existing_indexes = []
             for r in rows:
-                parts = r['mesa_key'].split('-')
-                if len(parts) > 1 and parts[-1].isdigit():
-                    existing_indexes.append(int(parts[-1]))
+                try:
+                    parts = r['mesa_key'].split('-')
+                    if len(parts) > 1 and parts[-1].isdigit():
+                        existing_indexes.append(int(parts[-1]))
+                except ValueError: continue
             
-            next_index = max(existing_indexes) + 1 if existing_indexes else 2
-            new_mesa_key = f"{mesa_origen_key}-{next_index}"
+            next_index = max(existing_indexes) + 1 if existing_indexes else 1
             
+            new_mesa_key = f"{base_mesa_key}-{next_index}"
+            
+            if new_mesa_key == mesa_origen_key:
+                next_index += 1
+                new_mesa_key = f"{base_mesa_key}-{next_index}"
+
             new_uuid = f"{orden_orig['client_uuid']}_split_{datetime.datetime.now().timestamp()}"
             
             cursor.execute(
@@ -624,50 +663,102 @@ class DataManager:
             )
             id_nueva_orden = cursor.lastrowid
             
-            total_movido = 0
-            
             for item_data in items_a_mover:
                 id_detalle = item_data.get('id') or item_data.get('id_detalle')
                 cantidad_a_mover = int(item_data['cantidad'])
                 
                 row = self.fetchone("SELECT * FROM orden_detalle WHERE id_detalle = ?", (id_detalle,))
-                
-                if not row:
-                    continue
+                if not row: continue
                     
                 cantidad_actual = row['cantidad']
                 
                 if cantidad_actual == cantidad_a_mover:
                     cursor.execute("UPDATE orden_detalle SET id_orden = ? WHERE id_detalle = ?", (id_nueva_orden, id_detalle))
-                    
                 elif cantidad_actual > cantidad_a_mover:
                     cursor.execute("UPDATE orden_detalle SET cantidad = cantidad - ? WHERE id_detalle = ?", (cantidad_a_mover, id_detalle))
-                    
                     cursor.execute("""
                         INSERT INTO orden_detalle 
                         (id_orden, id_item_menu, cantidad, precio_unitario_congelado, nombre_congelado, imagen_congelada, notas, destino, estado_item)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
-                        id_nueva_orden, 
-                        row['id_item_menu'], 
-                        cantidad_a_mover, 
-                        row['precio_unitario_congelado'], 
-                        row['nombre_congelado'], 
-                        row['imagen_congelada'], 
-                        row.get('notas', ''), 
-                        row['destino'], 
-                        row['estado_item']
+                        id_nueva_orden, row['id_item_menu'], cantidad_a_mover, row['precio_unitario_congelado'], 
+                        row['nombre_congelado'], row['imagen_congelada'], row.get('notas', ''), 
+                        row['destino'], row['estado_item']
                     ))
 
             conn.commit()
-            print(f"Cuenta separada exitosamente: {new_mesa_key} (Derivada de {mesa_origen_key})")
-            
+            print(f"Cuenta separada exitosamente: {new_mesa_key} (Hermana de {base_mesa_key})")
             return id_nueva_orden
             
         except sqlite3.Error as e:
             conn.rollback()
             print(f"Error al separar cuenta: {e}")
             return False
+        
+    def remove_items_from_order(self, mesa_key, items_to_remove):
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        try:
+            orden = self.fetchone("SELECT id_orden FROM ordenes WHERE mesa_key = ? AND estado = 'activa'", (mesa_key,))
+            if not orden: return False
+
+            id_orden = orden['id_orden']
+            
+            for item in items_to_remove:
+                id_detalle = item['id_detalle']
+                qty_to_remove = int(item['cantidad'])
+
+                row = self.fetchone("SELECT * FROM orden_detalle WHERE id_detalle = ? AND id_orden = ? AND estado_item = 'pendiente'", (id_detalle, id_orden))
+                if not row: continue 
+
+                if row['cantidad'] <= qty_to_remove:
+                    cursor.execute("DELETE FROM orden_detalle WHERE id_detalle = ?", (id_detalle,))
+                else:
+                    cursor.execute("UPDATE orden_detalle SET cantidad = cantidad - ? WHERE id_detalle = ?", (qty_to_remove, id_detalle))
+
+            conn.commit()
+            
+            self._cleanup_empty_order(mesa_key, id_orden)
+
+            return True
+        except sqlite3.Error as e:
+            conn.rollback()
+            print(f"Error removing items: {e}")
+            return False
+        
+    def _cleanup_empty_order(self, mesa_key, id_orden):
+        """
+        Verifica si una orden quedó vacía y la cierra automáticamente si corresponde.
+        Reglas:
+        - Subcuentas (1-1): Se cierran.
+        - Mesas simples (1): Se cierran.
+        - Grupos (1+2): NO se cierran para mantener la unión visual en el mapa.
+        """
+        try:
+            conn = self.get_conn()
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT COUNT(*) FROM orden_detalle WHERE id_orden = ?", (id_orden,))
+            remaining = cursor.fetchone()[0]
+
+            if remaining == 0:
+                if '+' in mesa_key:
+                    print(f"⚠️ Grupo {mesa_key} quedó vacío, pero se mantiene activo para preservar la unión.")
+                    return False
+
+                print(f"🧹 Limpieza automática: Orden {mesa_key} vacía. Cerrando...")
+                timestamp = datetime.datetime.now().isoformat()
+                cursor.execute(
+                    "UPDATE ordenes SET estado = 'cancelada', fecha_cierre = ? WHERE id_orden = ?", 
+                    (timestamp, id_orden)
+                )
+                conn.commit()
+                return True
+                
+        except Exception as e:
+            print(f"Error en limpieza automática: {e}")
+        
+        return False    
     
     def _get_active_orders_by_destino(self, destino_busqueda):
         query = """
@@ -728,11 +819,74 @@ class DataManager:
         
     def mark_barra_order_ready(self, mesa_key):
         return self._mark_order_items_ready(mesa_key, 'barra')
+    def cancel_order_by_key(self, mesa_key):
+        """
+        Fuerza la cancelación de una orden específica (útil para mesas bugeadas/vacías).
+        """
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        try:
+            orden = self.fetchone("SELECT id_orden FROM ordenes WHERE mesa_key = ? AND estado = 'activa'", (mesa_key,))
+            if not orden: return False
+
+            id_orden = orden['id_orden']
+            
+            cursor.execute("SELECT COUNT(*) FROM orden_detalle WHERE id_orden = ?", (id_orden,))
+            count = cursor.fetchone()[0]
+            
+            if count > 0:
+                print(f"⚠️ No se puede cancelar mesa {mesa_key}, aún tiene {count} productos.")
+                return False
+
+            timestamp = datetime.datetime.now().isoformat()
+            cursor.execute(
+                "UPDATE ordenes SET estado = 'cancelada', fecha_cierre = ? WHERE id_orden = ?", 
+                (timestamp, id_orden)
+            )
+            conn.commit()
+            print(f"Orden {mesa_key} cancelada manualmente.")
+            return True
+        except sqlite3.Error as e:
+            conn.rollback()
+            print(f"Error cancelando orden: {e}")
+            return False
 
     def complete_order(self, mesa_key):
+        """
+        Cierra una orden activa y realiza limpieza automática de 'cuentas fantasmas'.
+        """
         orden_a_cerrar = self.get_active_orders_caja().get(mesa_key)
         if not orden_a_cerrar:
             return None
+            
         timestamp = datetime.datetime.now().isoformat()
+        
         self.execute("UPDATE ordenes SET estado = 'cerrada', fecha_cierre = ? WHERE mesa_key = ? AND estado = 'activa';", (timestamp, mesa_key))
+        
+        if '-' in mesa_key:
+            try:
+                base_key = mesa_key.rsplit('-', 1)[0]
+                
+                query_splits = "SELECT COUNT(*) as count FROM ordenes WHERE mesa_key LIKE ? AND estado = 'activa'"
+                otros_splits = self.fetchone(query_splits, (f"{base_key}-%",))
+                
+                if otros_splits and otros_splits['count'] == 0:
+                    
+                    query_madre = "SELECT id_orden, mesa_key FROM ordenes WHERE (mesa_key = ? OR mesa_key LIKE ?) AND estado = 'activa'"
+                    orden_madre = self.fetchone(query_madre, (base_key, f"{base_key}+%"))
+                    
+                    if orden_madre:
+                        query_items = "SELECT COUNT(*) as count FROM orden_detalle WHERE id_orden = ?"
+                        items_madre = self.fetchone(query_items, (orden_madre['id_orden'],))
+                        
+                        if items_madre and items_madre['count'] == 0:
+                            print(f"🧹 Limpieza automática: Cerrando orden grupal vacía {orden_madre['mesa_key']}")
+                            self.execute(
+                                "UPDATE ordenes SET estado = 'cerrada', fecha_cierre = ? WHERE id_orden = ?",
+                                (timestamp, orden_madre['id_orden'])
+                            )
+                            
+            except Exception as e:
+                print(f"Error en validación de limpieza automática: {e}")
+
         return orden_a_cerrar

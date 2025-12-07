@@ -228,7 +228,7 @@ class MainWindow(QMainWindow):
 
     def on_kds_externo_update(self, destino):
         """Se ejecuta cuando alguien toca 'LISTO' en la página web"""
-        print(f"🔄 Actualizando vista de escritorio por cambio en Web ({destino})")
+        print(f"Actualizando vista de escritorio por cambio en Web ({destino})")
         
         if destino == 'cocina' or destino == 'all':
             if hasattr(self, 'page_cocina'):

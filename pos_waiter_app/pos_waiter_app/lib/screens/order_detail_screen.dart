@@ -18,102 +18,292 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final socketService = Provider.of<SocketService>(context);
-    final mesaData = socketService.mesas[widget.mesaKey];
+    
+    final allMesas = socketService.mesas;
+    final relatedOrders = _getRelatedOrders(allMesas, widget.mesaKey);
 
-    if (mesaData == null) {
+    if (relatedOrders.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: Text("Mesa ${widget.mesaKey}")),
         body: const Center(child: Text("La mesa ya no tiene órdenes activas.")),
       );
     }
 
-    final List items = mesaData['items'] ?? [];
-
     return Scaffold(
       appBar: AppBar(
-        title: Text("Detalle Mesa ${widget.mesaKey}"),
+        title: Text("Gestión Mesa ${widget.mesaKey}"),
       ),
       body: Column(
         children: [
           Expanded(
             child: ListView.builder(
-              itemCount: items.length,
-              itemBuilder: (ctx, i) {
-                final item = items[i];
-                final int idDetalle = item['id_detalle']; 
-                final int maxQty = item['cantidad'];
-                final int currentSel = _selectedQuantities[idDetalle] ?? 0;
-
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(item['nombre'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              Text("Cant: $maxQty  |  Unit: C\$${item['precio_unitario']}"),
-                            ],
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove_circle_outline),
-                              color: currentSel > 0 ? Colors.red : Colors.grey,
-                              onPressed: currentSel > 0 
-                                ? () => setState(() => _selectedQuantities[idDetalle] = currentSel - 1)
-                                : null,
-                            ),
-                            Text(
-                              "$currentSel",
-                              style: TextStyle(
-                                fontSize: 18, 
-                                fontWeight: FontWeight.bold,
-                                color: currentSel > 0 ? Colors.blue : Colors.black
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.add_circle_outline),
-                              color: currentSel < maxQty ? Colors.green : Colors.grey,
-                              onPressed: currentSel < maxQty 
-                                ? () => setState(() => _selectedQuantities[idDetalle] = currentSel + 1)
-                                : null,
-                            ),
-                          ],
-                        )
-                      ],
-                    ),
-                  ),
-                );
+              padding: const EdgeInsets.only(bottom: 80), 
+              itemCount: relatedOrders.length,
+              itemBuilder: (ctx, index) {
+                final orderGroup = relatedOrders[index];
+                return _buildOrderSection(orderGroup);
               },
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5, offset: const Offset(0, -2))]
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                icon: _isLoading 
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                  : const Icon(Icons.call_split),
-                label: const Text("SEPARAR CUENTA"),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
-                onPressed: (_isLoading || !_hasSelection()) ? null : _submitSplit,
-              ),
-            ),
-          )
+          _buildBottomActions(),
         ],
       ),
     );
+  }
+
+  Widget _buildOrderSection(Map<String, dynamic> orderGroup) {
+    final String key = orderGroup['key'];
+    final List items = orderGroup['items'];
+    final bool isSubAccount = key.contains('-');
+    
+    double sectionTotal = 0.0;
+    for (var item in items) {
+      final double precio = double.tryParse(item['precio_unitario'].toString()) ?? 0.0;
+      final int cantidad = int.tryParse(item['cantidad'].toString()) ?? 0;
+      sectionTotal += (precio * cantidad);
+    }
+    
+    String title = "Cuenta Principal";
+    if (isSubAccount) {
+      final parts = key.split('-');
+      title = "Sub-cuenta ${parts.last}";
+    } else if (key.contains('+')) {
+      title = "Grupo Principal ($key)";
+    }
+
+    final headerColor = isSubAccount ? Colors.blue.shade100 : Colors.orange.shade100;
+    final headerTextColor = isSubAccount ? Colors.blue.shade900 : Colors.brown.shade900;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: headerColor,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: headerTextColor)),
+                  Text("${items.length} items", style: TextStyle(color: headerTextColor.withOpacity(0.7), fontSize: 12))
+                ],
+              ),
+              Text(
+                "C\$ ${sectionTotal.toStringAsFixed(2)}",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: headerTextColor),
+              ),
+            ],
+          ),
+        ),
+
+        if (items.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(20),
+            alignment: Alignment.center,
+            child: Column(
+              children: [
+                const Text("Esta cuenta está vacía.", style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.cleaning_services),
+                  label: const Text("LIBERAR MESA VACÍA"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade300, 
+                    foregroundColor: Colors.black87
+                  ),
+                  onPressed: () => _submitCancel(key),
+                )
+              ],
+            ),
+          )
+        else
+          ...items.map((item) => _buildItemCard(item)),
+          
+        const SizedBox(height: 10), 
+      ],
+    );
+  }
+
+  Future<void> _submitCancel(String key) async {
+    setState(() => _isLoading = true);
+    final api = ApiService();
+    final success = await api.cancelOrder(key);
+    
+    if (mounted) {
+      setState(() => _isLoading = false);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mesa liberada correctamente")));
+        if (mounted) Navigator.pop(context); 
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error al liberar mesa")));
+      }
+    }
+  }
+
+  Widget _buildItemCard(dynamic item) {
+    final int idDetalle = item['id_detalle']; 
+    final int maxQty = item['cantidad'];
+    final String estado = item['estado_item'] ?? 'pendiente'; 
+    final bool isLocked = estado == 'listo'; 
+    final int currentSel = _selectedQuantities[idDetalle] ?? 0;
+    
+    final double precioUnitario = double.tryParse(item['precio_unitario'].toString()) ?? 0.0;
+    final double subtotalItem = precioUnitario * maxQty;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      color: isLocked ? Colors.grey.shade100 : Colors.white,
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          children: [
+            Icon(
+              isLocked ? Icons.check_circle : Icons.timer,
+              color: isLocked ? Colors.green : Colors.orange,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item['nombre'], 
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold, 
+                      fontSize: 16,
+                      color: isLocked ? Colors.grey : Colors.black
+                    )
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "C\$ ${precioUnitario.toStringAsFixed(2)} x $maxQty",
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                  ),
+                  Text(
+                    "Total: C\$ ${subtotalItem.toStringAsFixed(2)}  |  ${isLocked ? 'LISTO' : 'PENDIENTE'}",
+                    style: TextStyle(
+                      color: isLocked ? Colors.green.shade700 : Colors.orange.shade800,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12
+                    )
+                  ),
+                ],
+              ),
+            ),
+            if (!isLocked) 
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline),
+                    color: currentSel > 0 ? Colors.red : Colors.grey,
+                    onPressed: currentSel > 0 
+                      ? () => setState(() => _selectedQuantities[idDetalle] = currentSel - 1)
+                      : null,
+                  ),
+                  Text(
+                    "$currentSel",
+                    style: TextStyle(
+                      fontSize: 18, 
+                      fontWeight: FontWeight.bold,
+                      color: currentSel > 0 ? Colors.blue : Colors.black
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    color: currentSel < maxQty ? Colors.green : Colors.grey,
+                    onPressed: currentSel < maxQty 
+                      ? () => setState(() => _selectedQuantities[idDetalle] = currentSel + 1)
+                      : null,
+                  ),
+                ],
+              )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomActions() {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5, offset: const Offset(0, -2))]
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              icon: _isLoading 
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                : const Icon(Icons.delete_forever),
+              label: const Text("ELIMINAR"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, 
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12)
+              ),
+              onPressed: (_isLoading || !_hasSelection()) ? null : _submitDelete,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.call_split),
+              label: const Text("SEPARAR"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange, 
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12)
+              ),
+              onPressed: (_isLoading || !_hasSelection()) ? null : _submitSplit,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _getRelatedOrders(Map<String, dynamic> allMesas, String currentKey) {
+    String baseId = currentKey;
+    if (baseId.contains('+')) {
+      baseId = baseId.split('+')[0];
+    }
+    if (baseId.contains('-')) {
+      baseId = baseId.split('-')[0];
+    }
+    
+    List<Map<String, dynamic>> group = [];
+    
+    allMesas.forEach((key, data) {
+      String keyBase = key;
+      if (keyBase.contains('+')) keyBase = keyBase.split('+')[0];
+      if (keyBase.contains('-')) keyBase = keyBase.split('-')[0];
+      
+      if (keyBase == baseId) {
+        group.add({
+          'key': key,
+          'items': data['items'] ?? [],
+          'fecha': data['fecha_apertura']
+        });
+      }
+    });
+
+    group.sort((a, b) {
+      String keyA = a['key'];
+      String keyB = b['key'];
+      bool isSubA = keyA.contains('-');
+      bool isSubB = keyB.contains('-');
+      
+      if (!isSubA && isSubB) return -1; 
+      if (isSubA && !isSubB) return 1;
+      return keyA.compareTo(keyB);
+    });
+
+    return group;
   }
 
   bool _hasSelection() {
@@ -122,24 +312,101 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Future<void> _submitSplit() async {
     setState(() => _isLoading = true);
+    final api = ApiService();
+    bool allSuccess = true;
     
-    List<Map<String, dynamic>> itemsToSend = [];
+    final socketService = Provider.of<SocketService>(context, listen: false);
+    final allMesas = socketService.mesas;
+    final relatedOrders = _getRelatedOrders(allMesas, widget.mesaKey);
+    
+    Map<String, List<Map<String, dynamic>>> batchSplit = {};
+
     _selectedQuantities.forEach((idDetalle, qty) {
       if (qty > 0) {
-        itemsToSend.add({'id_detalle': idDetalle, 'cantidad': qty});
+        String? foundKey;
+        for (var order in relatedOrders) {
+          final items = order['items'] as List;
+          if (items.any((i) => i['id_detalle'] == idDetalle)) {
+            foundKey = order['key'];
+            break;
+          }
+        }
+        
+        if (foundKey != null) {
+          if (!batchSplit.containsKey(foundKey)) batchSplit[foundKey] = [];
+          batchSplit[foundKey]!.add({'id_detalle': idDetalle, 'cantidad': qty});
+        }
       }
     });
 
-    final api = ApiService();
-    final success = await api.splitOrder(widget.mesaKey, itemsToSend);
+    for (var entry in batchSplit.entries) {
+      final success = await api.splitOrder(entry.key, entry.value);
+      if (!success) allSuccess = false;
+    }
 
     if (mounted) {
       setState(() => _isLoading = false);
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cuenta separada con éxito")));
-        Navigator.of(context).pop(); 
+      if (allSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cuentas separadas exitosamente")));
+        setState(() { _selectedQuantities.clear(); });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error al separar la cuenta")));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error al separar algunos items")));
+      }
+    }
+  }
+
+  Future<void> _submitDelete() async {
+    final confirm = await showDialog<bool>(
+      context: context, 
+      builder: (ctx) => AlertDialog(
+        title: const Text("¿Eliminar productos?"),
+        content: const Text("Se eliminarán los items seleccionados de TODAS las sub-cuentas marcadas."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancelar")),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Eliminar", style: TextStyle(color: Colors.red))),
+        ],
+      )
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    final api = ApiService();
+    bool allSuccess = true;
+
+    final socketService = Provider.of<SocketService>(context, listen: false);
+    final relatedOrders = _getRelatedOrders(socketService.mesas, widget.mesaKey);
+    Map<String, List<Map<String, dynamic>>> batchDelete = {};
+
+    _selectedQuantities.forEach((idDetalle, qty) {
+      if (qty > 0) {
+        String? foundKey;
+        for (var order in relatedOrders) {
+          final items = order['items'] as List;
+          if (items.any((i) => i['id_detalle'] == idDetalle)) {
+            foundKey = order['key'];
+            break;
+          }
+        }
+        if (foundKey != null) {
+          if (!batchDelete.containsKey(foundKey)) batchDelete[foundKey] = [];
+          batchDelete[foundKey]!.add({'id_detalle': idDetalle, 'cantidad': qty});
+        }
+      }
+    });
+
+    for (var entry in batchDelete.entries) {
+      final success = await api.removeItems(entry.key, entry.value);
+      if (!success) allSuccess = false;
+    }
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+      if (allSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Productos eliminados")));
+        setState(() { _selectedQuantities.clear(); });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error al eliminar algunos items")));
       }
     }
   }

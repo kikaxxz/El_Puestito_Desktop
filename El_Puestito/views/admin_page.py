@@ -89,10 +89,10 @@ class AdminPage(QWidget):
                 config_data = json.load(f)
                 self.available_roles = list(config_data.get("roles_pago", {}).keys())
                 if not self.available_roles:
-                    print("⚠️ No se encontraron roles en config.json. Usando lista por defecto.")
+                    print("No se encontraron roles en config.json. Usando lista por defecto.")
                     self.available_roles = ["Mesero", "Cajera", "Jefe de Cocina", "Michelero"]
         except (FileNotFoundError, json.JSONDecodeError):
-            print("⚠️ No se encontró config.json. Usando lista de roles por defecto.")
+            print("No se encontró config.json. Usando lista de roles por defecto.")
             self.available_roles = ["Mesero", "Cajera", "Jefe de Cocina", "Michelero"]
 
         tables_tab = QWidget()
@@ -295,8 +295,11 @@ class AdminPage(QWidget):
         if current_total < 100:
             self.current_config["total_mesas"] = current_total + 1
             self.populate_table_cards()
+            self._save_config_to_file()
+            self._notify_server_config_change()
             self.config_updated.emit(self.current_config)
-            print(f"⚙️ Mesa añadida. Total: {self.current_config['total_mesas']}")
+            
+            print(f"Mesa añadida. Total: {self.current_config['total_mesas']}")
         else:
             QMessageBox.information(self, "Límite Alcanzado", "Se ha alcanzado el número máximo de mesas (100).")
 
@@ -305,8 +308,11 @@ class AdminPage(QWidget):
         if current_total > 1:
             self.current_config["total_mesas"] = current_total - 1
             self.populate_table_cards()
+            self._save_config_to_file()
+            self._notify_server_config_change()
             self.config_updated.emit(self.current_config)
-            print(f"⚙️ Mesa eliminada. Total: {self.current_config['total_mesas']}")
+            
+            print(f"Mesa eliminada. Total: {self.current_config['total_mesas']}")
         else:
             QMessageBox.warning(self, "Acción no permitida", "Debe haber al menos una mesa.")
 
@@ -470,7 +476,7 @@ class AdminPage(QWidget):
             self.menu_tree.expandAll()
             
         except Exception as e:
-            print(f"❌ Error inesperado al cargar menú desde BD: {e}")
+            print(f"Error inesperado al cargar menú desde BD: {e}")
             QMessageBox.critical(self, "Error de Menú", f"No se pudo cargar el menú desde la base de datos:\n{e}")
 
     def save_menu_data(self):
@@ -500,7 +506,7 @@ class AdminPage(QWidget):
                     print(f"⚠️ No se pudo notificar a los clientes (trigger_update): {e}")
 
         except Exception as e:
-            print(f"❌ Error: No se pudo escribir en la BD: {e}")
+            print(f"Error: No se pudo escribir en la BD: {e}")
             QMessageBox.critical(self, "Error al Guardar", f"No se pudo actualizar la base de datos:\n{e}")
 
     
@@ -550,7 +556,7 @@ class AdminPage(QWidget):
         )
         
         if not attendance_history_rows:
-            print("⚠️ No se encontró historial de asistencia en ese rango.")
+            print("No se encontró historial de asistencia en ese rango.")
             self.payroll_table.setRowCount(0)
             return
 
@@ -825,7 +831,7 @@ class AdminPage(QWidget):
             QMessageBox.information(self, "Éxito", f"El reporte PDF para {employee_name} se ha guardado correctamente.")
 
         except Exception as e:
-            print(f"❌ Error al generar el PDF: {e}")
+            print(f"Error al generar el PDF: {e}")
             QMessageBox.critical(self, "Error de PDF", f"Ocurrió un error al generar el archivo PDF:\n{e}")
 
     def generate_random_attendance(self):
@@ -839,7 +845,7 @@ class AdminPage(QWidget):
             QMessageBox.warning(self, "Fechas Inválidas", "La fecha de inicio no puede ser posterior a la fecha de fin.")
             return
             
-        print(f"🎲 Preparando para generar datos aleatorios desde {start_date} hasta {end_date}...")
+        print(f"Preparando para generar datos aleatorios desde {start_date} hasta {end_date}...")
         
         confirm = QMessageBox.warning(self, "Confirmar Generación de Datos", 
                                     "Esto añadirá registros de entrada/salida aleatorios a la base de datos "
@@ -903,13 +909,47 @@ class AdminPage(QWidget):
         success = self.app_controller.data_manager.add_attendance_events_batch(new_entries_batch)
         
         if success:
-            print(f"✅ {len(new_entries_batch)} registros aleatorios añadidos a la BD")
+            print(f"{len(new_entries_batch)} registros aleatorios añadidos a la BD")
             QMessageBox.information(self, "Éxito", f"Se generaron y añadieron {len(new_entries_batch)//2} días de trabajo aleatorios al historial.")
             self.calculate_payroll()
         else:
-            print(f"❌ Error al guardar el historial de asistencia en la BD.")
+            print(f"Error al guardar el historial de asistencia en la BD.")
             QMessageBox.critical(self, "Error", "No se pudo guardar el archivo de historial de asistencia.")
 
     def update_export_button_state(self):
         has_selection = bool(self.payroll_table.selectionModel().selectedRows())
         self.btn_export_pdf.setEnabled(has_selection)
+
+    def _save_config_to_file(self):
+        """Guarda la configuración actual en el archivo JSON."""
+        config_path = os.path.join(BASE_DIR, "assets", "config.json")
+        try:
+            with open(config_path, 'w') as f:
+                json.dump(self.current_config, f, indent=4)
+            print("Configuración guardada en config.json")
+        except Exception as e:
+            print(f"Error guardando config.json: {e}")
+            QMessageBox.critical(self, "Error", f"No se pudo guardar la configuración:\n{e}")
+    
+    def _notify_server_config_change(self):
+        """Avisa al servidor que la configuración ha cambiado, INCLUYENDO LA API KEY."""
+        try:
+            url = 'http://127.0.0.1:5000/trigger_update'
+            
+            api_key = self.app_controller.API_KEY 
+            headers = {
+                'X-API-KEY': api_key,
+                'Content-Type': 'application/json'
+            }
+
+            payload = {'event': 'configuracion_actualizada'}
+            response = requests.post(url, json=payload, headers=headers)
+            
+            if response.status_code == 200:
+                print("📡 Notificación enviada correctamente al servidor.")
+            else:
+                print(f"Servidor rechazó la notificación. Código: {response.status_code}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"No se pudo conectar con el servidor: {e}")
+    

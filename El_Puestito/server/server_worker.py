@@ -97,6 +97,7 @@ class ServerWorker(QObject):
             
             worker_self.socketio.emit('kds_update', {'destino': destino})
             worker_self.kds_estado_cambiado.emit(destino)
+            worker_self.socketio.emit('mesas_actualizadas', worker_self._get_table_state())
             return jsonify({"status": "success"}), 200
 
         @self.app.route('/shutdown', methods=['POST'])
@@ -248,24 +249,71 @@ class ServerWorker(QObject):
         def trigger_update():
             data = request.json
             event_name = data.get('event')
-
+            payload_data = data.get('data') 
             if event_name == 'mesas_actualizadas':
-                time.sleep(0.1)
+                time.sleep(0.1) 
                 table_state_payload = worker_self._get_table_state()
                 worker_self.socketio.emit('mesas_actualizadas', table_state_payload)
                 
             elif event_name == 'menu_actualizado':
                 worker_self.socketio.emit('menu_actualizado', {'mensaje': 'Menú cambiado'})
             
+            else:
+                if payload_data:
+                    worker_self.socketio.emit(event_name, payload_data)
+                else:
+                    worker_self.socketio.emit(event_name)
+
+            print(f"Evento '{event_name}' procesado y emitido.")
             return jsonify({"status": "emitted"}), 200
+        
+        @self.app.route('/api/cancel-order', methods=['POST'])
+        @require_auth
+        def cancel_order_endpoint():
+            data = request.json
+            mesa_key = data.get('mesa_key')
+            
+            if not mesa_key: return jsonify({"error": "Falta mesa_key"}), 400
+            
+            success = worker_self.data_manager.cancel_order_by_key(mesa_key)
+            
+            if success:
+                worker_self.socketio.emit('mesas_actualizadas', worker_self._get_table_state())
+                return jsonify({"status": "success"}), 200
+            else:
+                return jsonify({"error": "No se pudo cancelar (¿Tiene productos?)"}), 400
+
+        @self.app.route('/api/remove-items', methods=['POST'])
+        @require_auth
+        def remove_items_endpoint():
+            data = request.json
+            mesa_key = data.get('mesa_key')
+            items = data.get('items')
+            
+            if not mesa_key or not items:
+                return jsonify({"error": "Datos incompletos"}), 400
+                
+            success = worker_self.data_manager.remove_items_from_order(mesa_key, items)
+            
+            if success:
+                worker_self.socketio.emit('mesas_actualizadas', worker_self._get_table_state())
+                worker_self.socketio.emit('kds_update', {'destino': 'cocina'})
+                worker_self.socketio.emit('kds_update', {'destino': 'barra'})
+                
+                worker_self.ordenes_modificadas.emit() 
+
+                return jsonify({"status": "success"}), 200
+            else:
+                return jsonify({"error": "No se pudieron eliminar"}), 400
         
     def forzar_actualizacion_kds(self, destino):
         """
         Llama a esta función desde CocinaPage.py o BarraPage.py 
         cuando se marca una orden como lista desde el escritorio.
         """
-        print(f"📡 Enviando actualización a KDS Web: {destino}")
+        print(f"Enviando actualización a KDS Web: {destino}")
         self.socketio.emit('kds_update', {'destino': destino})
+        self.socketio.emit('mesas_actualizadas', self._get_table_state())
             
     def _get_table_state(self):
         try:

@@ -41,7 +41,7 @@ class AppController(QObject):
             if nuevo_id is None: raise Exception("Fallo BD al crear orden")
 
             self.ordenes_actualizadas.emit() 
-            self._notificar_servidor_mesas_actualizadas()
+            self.notificar_cambios_mesas()
 
         except Exception as e:
             print(f"Error CRÍTICO: {e}")
@@ -54,19 +54,21 @@ class AppController(QObject):
             orden_cerrada = self.data_manager.complete_order(mesa_key)
             
             if orden_cerrada:
-                print(f"✅ Mesa {mesa_key} cerrada en BD.")
-                self._notificar_servidor_mesas_actualizadas()
+                print(f"Mesa {mesa_key} cerrada en BD.")
+                self.ordenes_actualizadas.emit()
+                self.notificar_cambios_mesas()
                 return True
             else:
-                print(f"⚠️ No se pudo cerrar la orden de la mesa {mesa_key} (¿Ya estaba cerrada?)")
+                print(f"No se pudo cerrar la orden de la mesa {mesa_key} (¿Ya estaba cerrada?)")
                 return False
 
         except Exception as e:
             print(f"Error al cobrar: {e}")
             return False
 
-    def _notificar_servidor_mesas_actualizadas(self):
-        """Envía la señal al servidor Flask con la LLAVE DE SEGURIDAD."""
+    def notificar_cambios_mesas(self):
+        """Envía la señal al servidor Flask para que avise a los celulares."""
+        print("[Controller] Enviando señal de actualización a SocketIO...")
         url = QUrl('http://127.0.0.1:5000/trigger_update')
         request = QNetworkRequest(url)
         request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")

@@ -13,6 +13,8 @@ class CocinaPage(QWidget):
         self.tickets_en_pantalla = {} 
         self.setup_ui()
         
+        self.controller.ordenes_actualizadas.connect(self.load_active_orders)
+
     def setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -41,7 +43,6 @@ class CocinaPage(QWidget):
     @pyqtSlot()
     def load_active_orders(self):
         datos_ordenes = self.controller.data_manager.get_active_cocina_orders()
-        
         ordenes_actuales = { str(orden['numero_mesa']): orden for orden in datos_ordenes }
         
         ids_bd = set(ordenes_actuales.keys())
@@ -49,42 +50,54 @@ class CocinaPage(QWidget):
 
         a_borrar = ids_pantalla - ids_bd
         for mesa_key in a_borrar:
-            self._remover_ticket(mesa_key)
+            self._eliminar_widget_memoria(mesa_key)
 
         a_agregar = ids_bd - ids_pantalla
         for mesa_key in a_agregar:
-            datos = ordenes_actuales[mesa_key]
-            self._agregar_ticket(mesa_key, datos)
+            self._crear_widget_memoria(mesa_key, ordenes_actuales[mesa_key])
+            
+        a_actualizar = ids_bd.intersection(ids_pantalla)
+        for mesa_key in a_actualizar:
+            self._eliminar_widget_memoria(mesa_key)
+            self._crear_widget_memoria(mesa_key, ordenes_actuales[mesa_key])
 
-    def _agregar_ticket(self, key, datos):
+        self._reorganizar_grid()
+
+    def _crear_widget_memoria(self, key, datos):
+        """Crea el widget y lo guarda en el diccionario, pero NO lo agrega al grid todavía."""
         ticket_widget = OrderTicket(datos) 
         ticket_widget.btn_listo.clicked.connect(lambda: self._marcar_listo(key))
-        
-        count = len(self.tickets_en_pantalla)
-        row = count // 4
-        col = count % 4
-        
-        self.grid_layout.addWidget(ticket_widget, row, col)
         self.tickets_en_pantalla[key] = ticket_widget
 
-    def _remover_ticket(self, key):
+    def _eliminar_widget_memoria(self, key):
+        """Elimina el widget del diccionario y lo destruye."""
         if key in self.tickets_en_pantalla:
             widget = self.tickets_en_pantalla.pop(key)
-            self.grid_layout.removeWidget(widget)
+            widget.setParent(None)
             widget.deleteLater() 
-            
-            self._reorganizar_grid()
 
     def _reorganizar_grid(self):
-        widgets_ordenados = list(self.tickets_en_pantalla.values())
+        """Limpia el layout visualmente y reubica todos los widgets en orden."""
+
+        while self.grid_layout.count():
+            item = self.grid_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.setParent(None) 
+
+        keys_ordenadas = sorted(self.tickets_en_pantalla.keys())
         
-        for i, widget in enumerate(widgets_ordenados):
-            row = i // 4
-            col = i % 4
-            self.grid_layout.addWidget(widget, row, col)
+        for i, key in enumerate(keys_ordenadas):
+            widget = self.tickets_en_pantalla[key]
+            
+            if widget:
+                row = i // 4
+                col = i % 4
+                self.grid_layout.addWidget(widget, row, col)
 
     def _marcar_listo(self, mesa_key):
         self.controller.data_manager.mark_cocina_order_ready(mesa_key)
+        
         self.load_active_orders()
-        if self.main_window and hasattr(self.main_window, 'server_worker'):
-            self.main_window.server_worker.forzar_actualizacion_kds('cocina')
+        
+        self.controller.notificar_cambios_mesas()

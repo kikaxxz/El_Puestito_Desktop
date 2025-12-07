@@ -6,7 +6,7 @@ from PyQt6.QtCore import Qt, pyqtSlot
 from widgets.order_ticket import OrderTicket
 
 class BarraPage(QWidget):
-    def __init__(self, controller,main_window):
+    def __init__(self, controller, main_window):
         super().__init__()
         self.controller = controller
         self.main_window = main_window
@@ -42,7 +42,6 @@ class BarraPage(QWidget):
     @pyqtSlot()
     def load_active_orders(self):
         datos_ordenes = self.controller.data_manager.get_active_barra_orders()
-        
         ordenes_actuales = { str(orden['numero_mesa']): orden for orden in datos_ordenes }
         
         ids_bd = set(ordenes_actuales.keys())
@@ -50,42 +49,47 @@ class BarraPage(QWidget):
 
         a_borrar = ids_pantalla - ids_bd
         for mesa_key in a_borrar:
-            self._remover_ticket(mesa_key)
+            self._eliminar_widget_memoria(mesa_key)
 
         a_agregar = ids_bd - ids_pantalla
         for mesa_key in a_agregar:
-            datos = ordenes_actuales[mesa_key]
-            self._agregar_ticket(mesa_key, datos)
+            self._crear_widget_memoria(mesa_key, ordenes_actuales[mesa_key])
 
-    def _agregar_ticket(self, key, datos):
+        a_actualizar = ids_bd.intersection(ids_pantalla)
+        for mesa_key in a_actualizar:
+            self._eliminar_widget_memoria(mesa_key)
+            self._crear_widget_memoria(mesa_key, ordenes_actuales[mesa_key])
+            
+        self._reorganizar_grid()
+
+    def _crear_widget_memoria(self, key, datos):
         ticket_widget = OrderTicket(datos)
         ticket_widget.btn_listo.clicked.connect(lambda: self._marcar_listo(key))
-        
-        count = len(self.tickets_en_pantalla)
-        row = count // 4
-        col = count % 4
-        
-        self.grid_layout.addWidget(ticket_widget, row, col)
         self.tickets_en_pantalla[key] = ticket_widget
-
-    def _remover_ticket(self, key):
+        
+    def _eliminar_widget_memoria(self, key):
         if key in self.tickets_en_pantalla:
             widget = self.tickets_en_pantalla.pop(key)
-            self.grid_layout.removeWidget(widget)
+            widget.setParent(None)
             widget.deleteLater()
-            self._reorganizar_grid()
 
     def _reorganizar_grid(self):
-        """Recalcula las posiciones de todos los tickets restantes."""
-        widgets_ordenados = list(self.tickets_en_pantalla.values())
+        while self.grid_layout.count():
+            item = self.grid_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.setParent(None)
         
-        for i, widget in enumerate(widgets_ordenados):
-            row = i // 4
-            col = i % 4
-            self.grid_layout.addWidget(widget, row, col)
+        keys_ordenadas = sorted(self.tickets_en_pantalla.keys())
+
+        for i, key in enumerate(keys_ordenadas):
+            widget = self.tickets_en_pantalla[key]
+            if widget:
+                row = i // 4
+                col = i % 4
+                self.grid_layout.addWidget(widget, row, col)
 
     def _marcar_listo(self, mesa_key):
         self.controller.data_manager.mark_barra_order_ready(mesa_key)
         self.load_active_orders()
-        if self.main_window and hasattr(self.main_window, 'server_worker'):
-            self.main_window.server_worker.forzar_actualizacion_kds('barra')
+        self.controller.notificar_cambios_mesas()

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/socket_service.dart';
@@ -16,12 +17,29 @@ class _TableMapScreenState extends State<TableMapScreen> {
   bool _isJoiningMode = false;
   final Set<int> _selectedTables = {};
   
+  // Suscripción para detectar cambios en la configuración
+  StreamSubscription? _configSubscription;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadConfigAndInit();
+      
+      // --- AUTOMATIZACIÓN DE CONFIGURACIÓN ---
+      final socketService = Provider.of<SocketService>(context, listen: false);
+      _configSubscription = socketService.configUpdatedStream.listen((_) {
+        print("TableMapScreen: Configuración actualizada detectada. Recargando...");
+        _loadConfigAndInit(); 
+      });
+      // ---------------------------------------
     });
+  }
+
+  @override
+  void dispose() {
+    _configSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadConfigAndInit() async {
@@ -35,6 +53,95 @@ class _TableMapScreenState extends State<TableMapScreen> {
         Provider.of<SocketService>(context, listen: false).initService();
       }
     }
+  }
+
+  // --- FUNCIÓN CORREGIDA: Menú de Opciones sin altura fija ---
+  void _showTableOptions(BuildContext context, String mesaKey, int mesaPadreId) {
+    
+    // Reconstruimos la lista de mesas hijas
+    List<int> mesasHijas = [];
+    if (mesaKey.contains('+')) {
+      final parts = mesaKey.split('+');
+      for (var p in parts) {
+        final m = int.tryParse(p);
+        if (m != null && m != mesaPadreId) {
+          mesasHijas.add(m);
+        }
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Permite que el contenido defina la altura
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        // Usamos Padding y Column con MainAxisSize.min para evitar el overflow
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 30), // Padding inferior extra para estética
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // <--- ESTO SOLUCIONA EL OVERFLOW
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Mesa $mesaKey", 
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  )
+                ],
+              ),
+              const SizedBox(height: 10),
+              
+              // Opción 1: AGREGAR PRODUCTOS
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.add_shopping_cart, color: Colors.blue, size: 28),
+                ),
+                title: const Text("Agregar Productos", style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text("Ir al catálogo para añadir items"),
+                onTap: () {
+                  Navigator.pop(ctx); 
+                  Navigator.of(context).pushNamed('/menu', arguments: {
+                    'mesa_padre': mesaPadreId, 
+                    'mesas_hijas': mesasHijas
+                  });
+                },
+              ),
+              
+              const Divider(),
+
+              // Opción 2: DETALLE / DIVIDIR
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.receipt_long, color: Colors.orange, size: 28),
+                ),
+                title: const Text("Ver Detalle / Dividir", style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text("Ver consumo actual o separar cuentas"),
+                onTap: () {
+                  Navigator.pop(ctx); 
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => OrderDetailScreen(mesaKey: mesaKey)
+                  ));
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -99,7 +206,7 @@ class _TableMapScreenState extends State<TableMapScreen> {
         actions: _isJoiningMode ? [] : [
           IconButton(
             icon: const Icon(Icons.refresh), 
-            onPressed: () => socketService.refreshTables(),
+            onPressed: () => _loadConfigAndInit(),
             tooltip: "Actualizar manual",
           ),
           IconButton(
@@ -192,10 +299,9 @@ class _TableMapScreenState extends State<TableMapScreen> {
                   }
                 }
             }
-
-            Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => OrderDetailScreen(mesaKey: keyToSend)
-            ));
+            
+            // Invocamos el menú corregido
+            _showTableOptions(context, keyToSend, numMesa);
 
           } else {
             Navigator.of(context).pushNamed('/menu', arguments: {'mesa_padre': numMesa, 'mesas_hijas': []});

@@ -30,6 +30,44 @@ class ApiService {
     }
   }
 
+  Future<bool> cancelOrder(String mesaKey) async {
+    final baseUrl = await getServerUrl();
+    if (baseUrl == null) return false;
+    
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/cancel-order'),
+        headers: _getHeaders(),
+        body: json.encode({'mesa_key': mesaKey}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Cancel Order: $e");
+      return false;
+    }
+  }
+
+
+  Future<bool> removeItems(String mesaKey, List<Map<String, dynamic>> items) async {
+    final baseUrl = await getServerUrl();
+    if (baseUrl == null) return false;
+    
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/remove-items'),
+        headers: _getHeaders(),
+        body: json.encode({
+          'mesa_key': mesaKey,
+          'items': items,
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Remove Items: $e");
+      return false;
+    }
+  }
+
   Map<String, String> _getHeaders() {
     return {
       'Content-Type': 'application/json',
