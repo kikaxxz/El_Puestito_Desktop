@@ -7,10 +7,9 @@ from PyQt6.QtCore import (
 )
 
 from widgets.role_card import RoleCard
-
+from widgets.pin_dialog import PinDialog 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 
 class RoleSelectionPage(QWidget):
     role_selected = pyqtSignal(str) 
@@ -18,6 +17,8 @@ class RoleSelectionPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("role_selection_page")
+        
+        self.ROLE_PINS = self._load_pins_from_config()
         
         self.title = QLabel("Selección de Rol", parent=self)
         self.title.setObjectName("main_title")
@@ -39,12 +40,34 @@ class RoleSelectionPage(QWidget):
         self.initial_geometries = {}
         self._initial_setup_done = False
         
-        self.card_cashier.clicked.connect(lambda: self.start_animation(self.card_cashier))
-        self.card_admin.clicked.connect(lambda: self.start_animation(self.card_admin))
-        self.card_cook.clicked.connect(lambda: self.start_animation(self.card_cook))
-        self.card_bar.clicked.connect(lambda: self.start_animation(self.card_bar))
+        self.card_cashier.clicked.connect(lambda: self.handle_card_click(self.card_cashier, "Cajero"))
+        self.card_admin.clicked.connect(lambda: self.handle_card_click(self.card_admin, "Administrador"))
+        self.card_cook.clicked.connect(lambda: self.handle_card_click(self.card_cook, "Cocinero"))
+        self.card_bar.clicked.connect(lambda: self.handle_card_click(self.card_bar, "Barra"))
 
         self.current_animation_group = None
+
+    def _load_pins_from_config(self):
+        try:
+            path = os.path.join(BASE_DIR, "assets", "config.json")
+            import json
+            with open(path, 'r') as f:
+                data = json.load(f)
+                return data.get("seguridad", {}).get("pines", {})
+        except Exception:
+            return {"Cajero": "0000"}     
+
+    def handle_card_click(self, card, role_name):
+        """
+        Intermediario: Pide el PIN y, si es correcto, inicia la animación.
+        """
+        correct_pin = self.ROLE_PINS.get(role_name)
+        
+        dialog = PinDialog(correct_pin, role_name, parent=self)
+        if dialog.exec():
+            self.start_animation(card)
+        else:
+            print("Acceso cancelado por el usuario")
 
     def showEvent(self, event):
         """Se llama cada vez que la página se muestra."""
@@ -60,15 +83,12 @@ class RoleSelectionPage(QWidget):
         if self._initial_setup_done:
             self.recenter_elements()
 
-    # --- ESTE ES EL MÉTODO CORREGIDO ---
     def setup_initial_positions(self):
         """Calcula la posición inicial de las tarjetas."""
         
-        # Forzamos a las tarjetas a calcular su tamaño ANTES de leerlo
         for card in self.all_cards:
             card.adjustSize()
 
-        # Ahora sí leemos el tamaño (ya no será 0)
         card_width = self.card_cashier.width()
         card_height = self.card_cashier.height()
         
@@ -81,9 +101,6 @@ class RoleSelectionPage(QWidget):
             
         total_width = 4 * card_width + 3 * spacing
         self.cards_container.setFixedSize(total_width, card_height)
-
-        # Comentamos esta línea que daba el AttributeError
-        # QTimer.singleShot(0, self.recenter_elements)
     
     def recenter_elements(self):
         """Recalcula el centro de la página y reposiciona los elementos."""

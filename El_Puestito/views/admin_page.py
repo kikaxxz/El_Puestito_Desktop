@@ -12,12 +12,15 @@ from PyQt6.QtWidgets import (
     QCheckBox, QGraphicsOpacityEffect, QTreeWidgetItemIterator,
     QCalendarWidget, QDateEdit, QFileDialog
 )
+
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt, pyqtSignal, QDate
 from widgets.table_card_widget import TableCardWidget
 from widgets.platillo_item import PlatilloItemWidget
+from logger_setup import setup_logger
+logger = setup_logger()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -321,7 +324,7 @@ class AdminPage(QWidget):
         print(f"Abriendo dashboard web: {url}")
 
     def _load_initial_data(self):
-        print("Cargando datos iniciales de AdminPage desde la BD...")
+        logger.info("Cargando datos iniciales de AdminPage desde la BD...")
         self.refresh_employee_table() 
         self.populate_table_cards()   
         self.load_menu_data()         
@@ -554,16 +557,16 @@ class AdminPage(QWidget):
             for item_id, disponible in updates_to_make:
                 self.app_controller.data_manager.update_menu_item_availability(item_id, disponible)
             
-            print(f"💾 Menú guardado exitosamente en la BD ({len(updates_to_make)} items actualizados)")
+            logger.info(f"Menú guardado exitosamente en la BD ({len(updates_to_make)} items actualizados)")
             QMessageBox.information(self, "Éxito", "El estado del menú se ha guardado correctamente.")
 
             try:
                     requests.post('http://127.0.0.1:5000/trigger_update', json={'event': 'menu_actualizado'})
             except requests.exceptions.RequestException as e:
-                    print(f"No se pudo notificar a los clientes (trigger_update): {e}")
+                    logger.warning(f"No se pudo notificar a los clientes (trigger_update): {e}")
 
         except Exception as e:
-            print(f"Error: No se pudo escribir en la BD: {e}")
+            logger.error(f"Error guardando menú en BD: {e}")
             QMessageBox.critical(self, "Error al Guardar", f"No se pudo actualizar la base de datos:\n{e}")
 
     
@@ -571,7 +574,7 @@ class AdminPage(QWidget):
         selected_date = self.calendar.selectedDate().toPyDate()
         selected_date_str = selected_date.isoformat()
         
-        print(f"📊 Generando reporte desde BD para {selected_date_str}...")
+        logger.info(f"Generando reporte visual para {selected_date_str}")
 
         total_ventas, items_vendidos = self.app_controller.data_manager.get_sales_report(selected_date_str)
         
@@ -589,7 +592,7 @@ class AdminPage(QWidget):
             self.report_table.setItem(row, 0, item_nombre)
             self.report_table.setItem(row, 1, item_cantidad)
             
-        print(f"📊 Reporte generado. Total: C${total_ventas:.2f}, Items: {total_items}")
+        logger.info(f"Reporte generado. Total: C${total_ventas:.2f}")
 
 
     def calculate_payroll(self):
@@ -986,9 +989,9 @@ class AdminPage(QWidget):
         try:
             with open(config_path, 'w') as f:
                 json.dump(self.current_config, f, indent=4)
-            print("Configuración guardada en config.json")
+            logger.info("Configuración guardada en config.json")
         except Exception as e:
-            print(f"Error guardando config.json: {e}")
+            logger.critical(f"Error guardando config.json: {e}")
             QMessageBox.critical(self, "Error", f"No se pudo guardar la configuración:\n{e}")
     
     def _notify_server_config_change(self):
@@ -1006,9 +1009,9 @@ class AdminPage(QWidget):
             response = requests.post(url, json=payload, headers=headers)
             
             if response.status_code == 200:
-                print("Notificación enviada correctamente al servidor.")
+                logger.info("Notificación de configuración enviada al servidor.")
             else:
-                print(f"Servidor rechazó la notificación. Código: {response.status_code}")
+                logger.warning(f"Servidor rechazó la notificación de configuración. Código: {response.status_code}")
 
         except requests.exceptions.RequestException as e:
-            print(f"No se pudo conectar con el servidor: {e}")
+            logger.error(f"No se pudo conectar con el servidor para notificar configuración: {e}")

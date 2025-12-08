@@ -1,5 +1,14 @@
 {
     "total_mesas": 10,
+    "api_key": "puestito_seguro_2025",
+    "seguridad": {
+        "pines": {
+            "Cajero": "3333",
+            "Administrador": "9999",
+            "Cocinero": "1111",
+            "Barra": "2222"
+        }
+    },
     "roles_pago": {
         "Mesero": {
             "hora": 31.25,

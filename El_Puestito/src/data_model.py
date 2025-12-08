@@ -3,6 +3,8 @@ import os
 import threading
 import json
 import datetime
+from logger_setup import setup_logger
+logger = setup_logger()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "assets", "puestito.db")
@@ -50,7 +52,7 @@ class DataManager:
             conn.commit()
             return cursor.lastrowid
         except sqlite3.Error as e:
-            print(f"Error en DataManager.execute: {e}\nQuery: {query}")
+            logger.error(f"Error en DataManager.execute: {e}\nQuery: {query}")
             return None
 
     def fetchone(self, query, params=()):
@@ -476,22 +478,21 @@ class DataManager:
 
     def create_new_order(self, orden_completa):
         """
-        Crea una nueva orden usando la BD para determinar el destino (Barra/Cocina).
+        Crea una nueva orden con transacción atómica explícita.
+        Si algo falla (ej: menu cambia, error de red), se deshace todo.
         """
         conn = self.get_conn()
-        cursor = conn.cursor()
         
         try:
+            cursor = conn.cursor()
+            
             mesa_principal = str(orden_completa['numero_mesa'])
             mesas_enlazadas = orden_completa.get('mesas_enlazadas', [])
             
-            mesa_key = ""
-            if mesas_enlazadas and len(mesas_enlazadas) > 0:
-                todas_las_mesas_list = [mesa_principal] + [str(m) for m in mesas_enlazadas]
-                mesas_str_list = sorted(todas_las_mesas_list)
-                mesa_key = "+".join(mesas_str_list)
-            else:
-                mesa_key = mesa_principal
+            mesa_key = mesa_principal
+            if mesas_enlazadas:
+                todas = [mesa_principal] + [str(m) for m in mesas_enlazadas]
+                mesa_key = "+".join(sorted(todas))
 
             timestamp = orden_completa.get('timestamp', datetime.datetime.now().isoformat())
             client_uuid = orden_completa.get('order_id')
@@ -510,9 +511,7 @@ class DataManager:
             detalle_batch = []
             for item in items_data:
                 item_id = item.get('item_id')
-                
-                
-                destino = destinos_map.get(item_id, 'cocina')
+                destino = destinos_map.get(item_id, 'cocina') 
                 
                 detalle_batch.append((
                     id_orden,
@@ -524,7 +523,6 @@ class DataManager:
                     item.get('notas', ''),
                     destino 
                 ))
-            
             cursor.executemany(
                 """
                 INSERT INTO orden_detalle (
@@ -534,14 +532,17 @@ class DataManager:
                 """,
                 detalle_batch
             )
-            
             conn.commit()
-            print(f"Orden {id_orden} (Mesa {mesa_key}) creada. Destinos resueltos dinámicamente.")
+            logger.info(f"Orden {id_orden} creada exitosamente (Atomicidad garantizada).")
             return id_orden
             
         except sqlite3.Error as e:
             conn.rollback()
-            print(f"Error en create_new_order: {e}")
+            print(f"Error CRÍTICO creando orden. Se hizo ROLLBACK. Causa: {e}")
+            return None
+        except Exception as e:
+            conn.rollback()
+            print(f"Error lógico creando orden. Rollback ejecutado. Causa: {e}")
             return None
 
     def get_active_orders_caja(self):
@@ -658,12 +659,12 @@ class DataManager:
 
             conn.commit()
             self._cleanup_empty_order(original_mesa_key, id_orden_origen)
-            print(f"Cuenta separada creada: {new_mesa_key} (Items movidos desde {original_mesa_key})")
+            logger.info(f"Cuenta separada creada: {new_mesa_key}")
             return True
             
         except sqlite3.Error as e:
             conn.rollback()
-            print(f"Error splitting order: {e}")
+            logger.error(f"Error al separar cuenta (split_order): {e}")
             return False
         
     def separar_cuenta_en_mesas_unidas(self, mesa_origen_key, items_a_mover):
@@ -790,10 +791,10 @@ class DataManager:
 
             if remaining == 0:
                 if '+' in mesa_key:
-                    print(f"⚠️ Grupo {mesa_key} quedó vacío, pero se mantiene activo para preservar la unión.")
+                    logger.info(f"Grupo {mesa_key} quedó vacío, pero se mantiene activo para preservar unión.")
                     return False
 
-                print(f"🧹 Limpieza automática: Orden {mesa_key} vacía. Cerrando...")
+                logger.info(f"Limpieza automática: Orden {mesa_key} vacía. Cerrando...")
                 timestamp = datetime.datetime.now().isoformat()
                 cursor.execute(
                     "UPDATE ordenes SET estado = 'cancelada', fecha_cierre = ? WHERE id_orden = ?", 
@@ -927,7 +928,7 @@ class DataManager:
                         items_madre = self.fetchone(query_items, (orden_madre['id_orden'],))
                         
                         if items_madre and items_madre['count'] == 0:
-                            print(f"🧹 Limpieza automática: Cerrando orden grupal vacía {orden_madre['mesa_key']}")
+                            logger.info(f"Limpieza automática: Cerrando orden grupal vacía {orden_madre['mesa_key']}")
                             self.execute(
                                 "UPDATE ordenes SET estado = 'cerrada', fecha_cierre = ? WHERE id_orden = ?",
                                 (timestamp, orden_madre['id_orden'])

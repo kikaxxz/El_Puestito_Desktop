@@ -10,6 +10,9 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_socketio import SocketIO
 
+from logger_setup import setup_logger
+logger = setup_logger()
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
@@ -23,18 +26,24 @@ class ServerWorker(QObject):
     kds_estado_cambiado = pyqtSignal(str)
     ordenes_modificadas = pyqtSignal()
 
-    API_KEY = "puestito_seguro_2025"
-    PINS_ACCESO = {
-        "1111": "cocina",
-        "2222": "barra"
-    }
-
     def __init__(self, data_manager):
         super().__init__()
         self.data_manager = data_manager 
+        self.config = self._load_config()
         
+        self.API_KEY = self.config.get('api_key', 'puestito_seguro_2025')
+        
+        seguridad = self.config.get('seguridad', {})
+        self.PINS_ACCESO = seguridad.get('pines', {})
+        
+        self.PINS_WEB_MAP = {}
+        for rol, pin in self.PINS_ACCESO.items():
+            if rol.lower() in ['cocinero', 'cocina']:
+                self.PINS_WEB_MAP[str(pin)] = 'cocina'
+            elif rol.lower() in ['barra', 'michelero']:
+                self.PINS_WEB_MAP[str(pin)] = 'barra'
+
         self.app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
-        
         self.socketio = SocketIO(self.app, cors_allowed_origins="*", async_mode='eventlet')
         worker_self = self
 
@@ -46,10 +55,12 @@ class ServerWorker(QObject):
                 
                 token = request.headers.get('X-API-KEY')
                 if token != worker_self.API_KEY:
+                    logger.warning(f"Intento de acceso no autorizado desde {request.remote_addr}")
                     return jsonify({"error": "Unauthorized", "message": "Falta API Key válida"}), 401
                 
                 return f(*args, **kwargs)
             return decorated
+
 
         @self.app.route('/')
         def index():
@@ -65,11 +76,13 @@ class ServerWorker(QObject):
         def validar_pin():
             data = request.json
             pin = data.get('pin')
-            destino = worker_self.PINS_ACCESO.get(pin)
+            destino = worker_self.PINS_WEB_MAP.get(str(pin))
             
             if destino:
+                logger.info(f"Acceso KDS web autorizado para: {destino}")
                 return jsonify({"status": "success", "redirect": f"/kds/{destino}"})
             else:
+                logger.warning("Intento de PIN incorrecto en KDS web")
                 return jsonify({"status": "error", "message": "PIN Incorrecto"}), 401
 
         @self.app.route('/api/kds-orders/<destino>', methods=['GET'])
@@ -93,6 +106,8 @@ class ServerWorker(QObject):
                 worker_self.data_manager.mark_cocina_order_ready(mesa_key)
             elif destino == 'barra':
                 worker_self.data_manager.mark_barra_order_ready(mesa_key)
+            
+            logger.info(f"Orden Mesa {mesa_key} marcada lista en {destino} (vía Web)")
             
             worker_self.socketio.emit('kds_update', {'destino': destino})
             worker_self.kds_estado_cambiado.emit(destino)
@@ -135,9 +150,7 @@ class ServerWorker(QObject):
                 })
 
             except Exception as e:
-                print(f"Error en API Chart: {e}")
-                import traceback
-                traceback.print_exc()
+                logger.error(f"Error generando datos para gráficas: {e}", exc_info=True)
                 return jsonify({"error": str(e)}), 500
 
         @self.app.route('/shutdown', methods=['POST'])
@@ -162,9 +175,11 @@ class ServerWorker(QObject):
             if not empleado.get("deviceId"):
                 self.data_manager.link_device_to_employee(employee_id, device_id)
                 self._registrar_evento(employee_id, "entrada")
+                logger.info(f"Dispositivo vinculado para empleado {employee_id}")
                 return jsonify({"status": "success", "message": "Dispositivo vinculado y entrada marcada"}), 201
             
             elif empleado.get("deviceId") != device_id:
+                logger.warning(f"Intento de asistencia fallido: DeviceID incorrecto para {employee_id}")
                 return jsonify({"error": "device_mismatch"}), 403
             
             last_event = self.data_manager.get_last_attendance_event(employee_id)
@@ -180,7 +195,8 @@ class ServerWorker(QObject):
                 config_path = os.path.join(BASE_DIR, "assets", "config.json")
                 with open(config_path, 'r') as f:
                     return jsonify(json.load(f))
-            except Exception:
+            except Exception as e:
+                logger.error(f"Error sirviendo configuración: {e}")
                 return jsonify({"error": "Error cargando config"}), 500
             
         @self.app.route('/images/<path:filename>')
@@ -207,7 +223,6 @@ class ServerWorker(QObject):
                     
                     if items_disponibles:
                         nueva_categoria = categoria_original.copy()
-                        
                         items_app_format = []
                         for item in items_disponibles:
                             item_copy = item.copy()
@@ -218,7 +233,8 @@ class ServerWorker(QObject):
                         menu_filtrado["categorias"].append(nueva_categoria)
                 
                 return jsonify(menu_filtrado)
-            except Exception:
+            except Exception as e:
+                logger.error(f"Error sirviendo menú: {e}")
                 return jsonify({"error": "No se pudo cargar el menú"}), 500
             
         @self.app.route('/nueva-orden', methods=['POST'])
@@ -234,6 +250,7 @@ class ServerWorker(QObject):
             if worker_self.data_manager.check_duplicate_order_id(order_id):
                 return jsonify({"status": "ok_duplicate"}), 200
             
+            logger.info(f"Nueva orden recibida vía API: {order_id}")
             worker_self.nueva_orden_recibida.emit(orden) 
             worker_self.socketio.emit('kds_update', {'destino': 'all'})
 
@@ -252,14 +269,13 @@ class ServerWorker(QObject):
             success = worker_self.data_manager.split_order(mesa_key, items)
             
             if success:
+                logger.info(f"Cuenta separada exitosamente en Mesa {mesa_key}")
                 worker_self.socketio.emit('mesas_actualizadas', worker_self._get_table_state())
-                
                 worker_self.ordenes_modificadas.emit() 
-                
                 return jsonify({"status": "success"}), 200
             else:
+                logger.error(f"Fallo al separar cuenta en Mesa {mesa_key}")
                 return jsonify({"error": "Error al dividir cuenta"}), 500
-
 
         @self.app.route('/employees', methods=['GET'])
         @require_auth
@@ -281,7 +297,8 @@ class ServerWorker(QObject):
             try:
                 caja_data = worker_self.data_manager.get_active_orders_caja()
                 return jsonify(caja_data)
-            except Exception:
+            except Exception as e:
+                logger.error(f"Error obteniendo estado mesas: {e}")
                 return jsonify({"error": "No se pudo cargar el estado de las mesas"}), 500
             
         @self.app.route('/trigger_update', methods=['POST'])
@@ -290,6 +307,9 @@ class ServerWorker(QObject):
             data = request.json
             event_name = data.get('event')
             payload_data = data.get('data') 
+            
+            logger.info(f"Retransmitiendo evento: {event_name}")
+            
             if event_name == 'mesas_actualizadas':
                 time.sleep(0.1) 
                 table_state_payload = worker_self._get_table_state()
@@ -304,7 +324,6 @@ class ServerWorker(QObject):
                 else:
                     worker_self.socketio.emit(event_name)
 
-            print(f"Evento '{event_name}' procesado y emitido.")
             return jsonify({"status": "emitted"}), 200
         
         @self.app.route('/api/cancel-order', methods=['POST'])
@@ -318,6 +337,7 @@ class ServerWorker(QObject):
             success = worker_self.data_manager.cancel_order_by_key(mesa_key)
             
             if success:
+                logger.info(f"Orden cancelada manualmente: Mesa {mesa_key}")
                 worker_self.socketio.emit('mesas_actualizadas', worker_self._get_table_state())
                 return jsonify({"status": "success"}), 200
             else:
@@ -336,22 +356,30 @@ class ServerWorker(QObject):
             success = worker_self.data_manager.remove_items_from_order(mesa_key, items)
             
             if success:
+                logger.info(f"Items eliminados de Mesa {mesa_key}")
                 worker_self.socketio.emit('mesas_actualizadas', worker_self._get_table_state())
                 worker_self.socketio.emit('kds_update', {'destino': 'cocina'})
                 worker_self.socketio.emit('kds_update', {'destino': 'barra'})
-                
                 worker_self.ordenes_modificadas.emit() 
-
                 return jsonify({"status": "success"}), 200
             else:
                 return jsonify({"error": "No se pudieron eliminar"}), 400
-        
+    
+    def _load_config(self):
+        """Carga la configuración desde config.json de forma segura."""
+        try:
+            path = os.path.join(BASE_DIR, "assets", "config.json")
+            if not os.path.exists(path):
+                logger.warning("config.json no encontrado, usando valores por defecto.")
+                return {}
+            with open(path, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error crítico cargando config.json: {e}")
+            return {}
+
     def forzar_actualizacion_kds(self, destino):
-        """
-        Llama a esta función desde CocinaPage.py o BarraPage.py 
-        cuando se marca una orden como lista desde el escritorio.
-        """
-        print(f"Enviando actualización a KDS Web: {destino}")
+        logger.info(f"Enviando actualización forzada a KDS Web: {destino}")
         self.socketio.emit('kds_update', {'destino': destino})
         self.socketio.emit('mesas_actualizadas', self._get_table_state())
             
@@ -359,13 +387,13 @@ class ServerWorker(QObject):
         try:
             caja_data = self.data_manager.get_active_orders_caja()
             return caja_data 
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error obteniendo estado de mesas: {e}")
             return {}
 
     def _validate_order_items(self, orden):
         try:
             available_ids = self.data_manager.get_available_menu_items()
-            
             items_en_orden = orden.get("items", [])
             for item_in_order in items_en_orden:
                 item_id = item_in_order.get("item_id") 
@@ -373,24 +401,28 @@ class ServerWorker(QObject):
                     item_nombre = item_in_order.get("nombre", "Desconocido")
                     return False, f"El platillo '{item_nombre}' ya no está disponible."
             return True, ""
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error validando orden: {e}")
             return False, "Error interno al validar el menú."
         
     def _registrar_evento(self, emp_id, tipo):
         ts = datetime.datetime.now().isoformat(timespec='seconds')
         self.data_manager.add_attendance_event(emp_id, tipo, ts)
+        logger.info(f"Asistencia registrada: {emp_id} - {tipo}")
         self.asistencia_recibida.emit({
             "employee_id": emp_id, "event_type": tipo, "timestamp": ts
         })
 
     def stop_server(self):
         pass
+
     def start_server(self):
         try:
+            logger.info("Iniciando servidor Flask/SocketIO en puerto 5000...")
             self.socketio.run(self.app, 
                             host='0.0.0.0', 
                             port=5000, 
                             allow_unsafe_werkzeug=True, 
                             log_output=False) 
         except Exception as e:
-            print(f"Server Error: {e}")
+            logger.critical(f"Fallo fatal en el servidor: {e}", exc_info=True)
