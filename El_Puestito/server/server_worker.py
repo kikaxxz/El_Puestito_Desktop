@@ -7,7 +7,6 @@ import threading
 from functools import wraps
 import eventlet 
 from PyQt6.QtCore import QObject, pyqtSignal
-
 from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_socketio import SocketIO
 
@@ -99,6 +98,47 @@ class ServerWorker(QObject):
             worker_self.kds_estado_cambiado.emit(destino)
             worker_self.socketio.emit('mesas_actualizadas', worker_self._get_table_state())
             return jsonify({"status": "success"}), 200
+
+        @self.app.route('/reportes-web')
+        def view_reportes():
+            return render_template('reportes_dashboard.html')
+
+        @self.app.route('/api/chart-data', methods=['GET'])
+        def get_chart_data():
+            try:
+                start_arg = request.args.get('start')
+                end_arg = request.args.get('end')
+                
+                tendencia = worker_self.data_manager.get_sales_history_range(
+                    start_date=start_arg if start_arg else None, 
+                    end_date=end_arg if end_arg else None
+                )
+                
+                hoy = datetime.date.today().isoformat()
+                
+                if start_arg and end_arg:
+                    top_items = worker_self.data_manager.get_top_products_range(start_arg, end_arg)
+                else:
+                    top_items = worker_self.data_manager.get_top_products_range(hoy, hoy)
+
+                top_platillos = {
+                    "nombres": [item['nombre'] for item in top_items],
+                    "cantidades": [item['cantidad_total'] for item in top_items]
+                }
+                
+                total_hoy, _ = worker_self.data_manager.get_sales_report(hoy)
+                
+                return jsonify({
+                    "tendencia": tendencia,
+                    "top_productos": top_platillos,
+                    "resumen_hoy": {"total": total_hoy} 
+                })
+
+            except Exception as e:
+                print(f"Error en API Chart: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({"error": str(e)}), 500
 
         @self.app.route('/shutdown', methods=['POST'])
         def shutdown():

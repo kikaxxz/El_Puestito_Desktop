@@ -384,6 +384,53 @@ class DataManager:
         """
         items_vendidos = self.fetchall(items_query, (date_str,))
         return total_ventas, items_vendidos
+    
+    def get_sales_history_range(self, start_date=None, end_date=None, days=30):
+        """
+        Obtiene ventas totales por día. Versión blindada para fechas.
+        """
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        
+        try:
+            if not end_date:
+                end_date_obj = datetime.date.today()
+            else:
+                s_end = str(end_date).strip()
+                end_date_obj = datetime.datetime.strptime(s_end, '%Y-%m-%d').date()
+
+            if not start_date:
+                start_date_obj = end_date_obj - datetime.timedelta(days=days)
+            else:
+                s_start = str(start_date).strip()
+                start_date_obj = datetime.datetime.strptime(s_start, '%Y-%m-%d').date()
+            
+            query = """
+            SELECT 
+                DATE(o.fecha_cierre) as fecha, 
+                SUM(d.cantidad * d.precio_unitario_congelado) as total_dia
+            FROM ordenes o
+            JOIN orden_detalle d ON o.id_orden = d.id_orden
+            WHERE o.estado = 'cerrada' 
+            AND DATE(o.fecha_cierre) BETWEEN DATE(?) AND DATE(?)
+            GROUP BY DATE(o.fecha_cierre)
+            ORDER BY fecha ASC;
+            """
+            
+            cursor.execute(query, (start_date_obj.isoformat(), end_date_obj.isoformat()))
+            rows = cursor.fetchall()
+            
+            fechas = [row['fecha'] for row in rows]
+            totales = [row['total_dia'] for row in rows]
+            
+            return {"fechas": fechas, "totales": totales}
+
+        except ValueError as e:
+            print(f"Error de formato de fecha en DataManager: {e}")
+            return {"fechas": [], "totales": []}
+        except Exception as e:
+            print(f"Error general en historial: {e}")
+            return {"fechas": [], "totales": []}
 
     def add_attendance_events_batch(self, events_list):
         query = "INSERT INTO eventos_asistencia (id_empleado, timestamp, tipo) VALUES (?, ?, ?);"
@@ -890,3 +937,37 @@ class DataManager:
                 print(f"Error en validación de limpieza automática: {e}")
 
         return orden_a_cerrar
+    
+    def get_top_products_range(self, start_date=None, end_date=None):
+        """
+        Obtiene los 5 productos más vendidos en un rango de fechas específico.
+        """
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        
+        if not end_date:
+            end_date_obj = datetime.date.today()
+        else:
+            end_date_obj = datetime.datetime.strptime(str(end_date).strip(), '%Y-%m-%d').date()
+
+        if not start_date:
+            start_date_obj = end_date_obj 
+        else:
+            start_date_obj = datetime.datetime.strptime(str(start_date).strip(), '%Y-%m-%d').date()
+
+        query = """
+        SELECT m.nombre, SUM(d.cantidad) AS cantidad_total
+        FROM ordenes o
+        JOIN orden_detalle d ON o.id_orden = d.id_orden
+        JOIN menu_items m ON d.id_item_menu = m.id_item
+        WHERE o.estado = 'cerrada' 
+        AND DATE(o.fecha_cierre) BETWEEN DATE(?) AND DATE(?)
+        GROUP BY d.id_item_menu, m.nombre
+        ORDER BY cantidad_total DESC
+        LIMIT 5;
+        """
+        
+        cursor.execute(query, (start_date_obj.isoformat(), end_date_obj.isoformat()))
+        rows = cursor.fetchall()
+        
+        return [dict(row) for row in rows]

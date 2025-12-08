@@ -12,9 +12,10 @@ from PyQt6.QtWidgets import (
     QCheckBox, QGraphicsOpacityEffect, QTreeWidgetItemIterator,
     QCalendarWidget, QDateEdit, QFileDialog
 )
+from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt, pyqtSignal, QDate
-
 from widgets.table_card_widget import TableCardWidget
 from widgets.platillo_item import PlatilloItemWidget
 
@@ -153,26 +154,73 @@ class AdminPage(QWidget):
         self.tab_widget.addTab(menu_tab, "Gestión de Menú")
         
         reportes_tab = QWidget()
-        reportes_layout = QHBoxLayout(reportes_tab)
-        reportes_tab.setLayout(reportes_layout)
-        reportes_layout.setContentsMargins(15, 15, 15, 15)
+        reportes_layout = QVBoxLayout(reportes_tab)
+        reportes_layout.setContentsMargins(20, 20, 20, 20)
+        reportes_layout.setSpacing(20)
         
-        left_panel = QWidget()
-        left_layout = QVBoxLayout(left_panel)
-        left_panel.setFixedWidth(400) 
+        top_container = QWidget()
+        top_layout = QHBoxLayout(top_container)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(20)
         
-        left_layout.addWidget(QLabel("Seleccione un día:"))
+        cal_wrapper = QWidget()
+        cal_layout = QVBoxLayout(cal_wrapper)
+        cal_layout.setContentsMargins(0, 0, 0, 0)
+        cal_layout.setSpacing(5)
+        
+        lbl_fecha = QLabel("Seleccione fecha:")
+        lbl_fecha.setStyleSheet("font-size: 16px; font-weight: bold; color: #dddddd;")
+        cal_layout.addWidget(lbl_fecha)
+        
         self.calendar = QCalendarWidget()
         self.calendar.setObjectName("report_calendar")
-        left_layout.addWidget(self.calendar)
+        self.calendar.setGridVisible(True)
+        self.calendar.setFixedSize(400, 280)
+        cal_layout.addWidget(self.calendar)
         
-        right_panel = QWidget()
-        right_layout = QVBoxLayout(right_panel)
+        # B. Lado Derecho: TARJETA DE RESUMEN (Stats Card)
+        self.stats_card = QFrame()
+        self.stats_card.setObjectName("stats_card")
+        self.stats_card.setStyleSheet("""
+            QFrame#stats_card {
+                background-color: #2b2b2b; 
+                border: 1px solid #3d3d3d;
+                border-radius: 12px;
+            }
+            QLabel { color: white; }
+        """)
         
-        self.report_total_label = QLabel("Total de Ventas: C$ 0.00")
-        self.report_total_label.setObjectName("section_title") 
+        stats_layout = QVBoxLayout(self.stats_card)
+        stats_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        stats_layout.setSpacing(5)
         
-        right_layout.addWidget(QLabel("Platillos más vendidos de ese día:"))
+        lbl_titulo_ventas = QLabel("VENTAS TOTALES DEL DÍA")
+        lbl_titulo_ventas.setAlignment(Qt.AlignmentFlag.AlignCenter) 
+        lbl_titulo_ventas.setStyleSheet("font-size: 14px; font-weight: bold; color: #aaaaaa; letter-spacing: 1px;") 
+        stats_layout.addWidget(lbl_titulo_ventas)
+
+        self.report_total_label = QLabel("C$ 0.00")
+        self.report_total_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.report_total_label.setStyleSheet("font-size: 48px; font-weight: bold; color: #4caf50;")
+        stats_layout.addWidget(self.report_total_label)
+        
+        self.report_count_label = QLabel("0 artículos vendidos")
+        self.report_count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.report_count_label.setStyleSheet("font-size: 16px; color: #888888;")
+        stats_layout.addWidget(self.report_count_label)
+        
+        top_layout.addWidget(cal_wrapper)
+        top_layout.addWidget(self.stats_card)
+        
+        top_layout.setStretch(0, 0) 
+        top_layout.setStretch(1, 1) 
+        
+        reportes_layout.addWidget(top_container)
+        
+        lbl_desglose = QLabel("Desglose de productos:")
+        lbl_desglose.setStyleSheet("font-size: 16px; font-weight: bold; margin-top: 10px;")
+        reportes_layout.addWidget(lbl_desglose)
+        
         self.report_table = QTableWidget()
         self.report_table.setObjectName("employee_table") 
         self.report_table.setColumnCount(2)
@@ -180,13 +228,17 @@ class AdminPage(QWidget):
         self.report_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.report_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         self.report_table.setColumnWidth(1, 150)
+        btn_web_report = QPushButton("Ver Gráficas Detalladas (Web)")
+        btn_web_report.setObjectName("blue_button") 
+        btn_web_report.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_web_report.setFixedHeight(40)
+        btn_web_report.clicked.connect(self.abrir_reportes_web)
         
-        right_layout.addWidget(self.report_total_label)
-        right_layout.addWidget(self.report_table)
-        reportes_layout.addWidget(left_panel)
-        reportes_layout.addWidget(right_panel)
+        reportes_layout.addWidget(btn_web_report) 
+        reportes_layout.addWidget(self.report_table)
+        
         self.tab_widget.addTab(reportes_tab, "Reportes")
-        
+
         payroll_tab = QWidget()
         payroll_layout = QVBoxLayout(payroll_tab)
         payroll_tab.setLayout(payroll_layout)
@@ -262,6 +314,11 @@ class AdminPage(QWidget):
         self.payroll_table.itemSelectionChanged.connect(self.update_export_button_state)
 
         self._load_initial_data()
+
+    def abrir_reportes_web(self):
+        url = "http://127.0.0.1:5000/reportes-web"
+        QDesktopServices.openUrl(QUrl(url))
+        print(f"Abriendo dashboard web: {url}")
 
     def _load_initial_data(self):
         print("Cargando datos iniciales de AdminPage desde la BD...")
@@ -365,7 +422,7 @@ class AdminPage(QWidget):
             QMessageBox.critical(self, "Error", f"No se pudo añadir el empleado {new_name} a la base de datos.")
             return
             
-        print(f"✅ Empleado '{new_name}' (ID: {new_id}) añadido a la BD.")
+        print(f"Empleado '{new_name}' (ID: {new_id}) añadido a la BD.")
         
         self.refresh_employee_table()
         
@@ -413,7 +470,7 @@ class AdminPage(QWidget):
         
         self.app_controller.editar_empleado(original_id, new_id, new_name, new_rol)
         
-        print(f"✅ Empleado (ID original: {original_id}) actualizado en la BD.")
+        print(f"Empleado (ID original: {original_id}) actualizado en la BD.")
         
         self.refresh_employee_table()
         
@@ -441,7 +498,7 @@ class AdminPage(QWidget):
                 QMessageBox.critical(self, "Error de Borrado", f"No se pudo eliminar a '{employee_name}'.\nEs probable que tenga un historial de asistencia vinculado.")
                 return
                 
-            print(f"✅ Empleado '{employee_name}' (ID: {employee_id}) eliminado de la BD.")
+            print(f"Empleado '{employee_name}' (ID: {employee_id}) eliminado de la BD.")
             
             self.refresh_employee_table()
             
@@ -503,7 +560,7 @@ class AdminPage(QWidget):
             try:
                     requests.post('http://127.0.0.1:5000/trigger_update', json={'event': 'menu_actualizado'})
             except requests.exceptions.RequestException as e:
-                    print(f"⚠️ No se pudo notificar a los clientes (trigger_update): {e}")
+                    print(f"No se pudo notificar a los clientes (trigger_update): {e}")
 
         except Exception as e:
             print(f"Error: No se pudo escribir en la BD: {e}")
@@ -518,8 +575,11 @@ class AdminPage(QWidget):
 
         total_ventas, items_vendidos = self.app_controller.data_manager.get_sales_report(selected_date_str)
         
-        self.report_total_label.setText(f"Total de Ventas: C$ {total_ventas:.2f}")
+        total_items = sum(item["cantidad_total"] for item in items_vendidos)
         
+        self.report_total_label.setText(f"C$ {total_ventas:,.2f}") 
+        self.report_count_label.setText(f"{total_items} artículos vendidos")
+
         self.report_table.setRowCount(len(items_vendidos))
         for row, item in enumerate(items_vendidos):
             item_nombre = QTableWidgetItem(item["nombre"])
@@ -529,7 +589,7 @@ class AdminPage(QWidget):
             self.report_table.setItem(row, 0, item_nombre)
             self.report_table.setItem(row, 1, item_cantidad)
             
-        print(f"📊 Reporte generado para {selected_date_str}. Total: C${total_ventas:.2f}")
+        print(f"📊 Reporte generado. Total: C${total_ventas:.2f}, Items: {total_items}")
 
 
     def calculate_payroll(self):
@@ -540,7 +600,7 @@ class AdminPage(QWidget):
         end_date_inclusive = end_date_q.toPyDate()
         end_date_exclusive = end_date_q.toPyDate() + datetime.timedelta(days=1)
 
-        print(f"💰 Calculando nómina desde {start_date} hasta {end_date_inclusive}...")
+        print(f"Calculando nómina desde {start_date} hasta {end_date_inclusive}...")
 
         payroll_rates = self.current_config.get("roles_pago", {})
         if not payroll_rates:
@@ -702,7 +762,7 @@ class AdminPage(QWidget):
             row += 1
             
         self.update_export_button_state()
-        print(f"✅ Nómina calculada y mostrada para {len(payroll_results)} empleados. Detalles diarios guardados para PDF.")
+        print(f"Nómina calculada y mostrada para {len(payroll_results)} empleados. Detalles diarios guardados para PDF.")
 
 
     def export_payroll_pdf(self):
@@ -729,7 +789,7 @@ class AdminPage(QWidget):
         start_date = start_date_q.toPyDate()
         end_date = end_date_q.toPyDate() 
 
-        print(f"📄 Preparando PDF para {employee_name} (ID: {employee_id}) del {start_date} al {end_date}...")
+        print(f"Preparando PDF para {employee_name} (ID: {employee_id}) del {start_date} al {end_date}...")
 
         employee_daily_details = self.payroll_daily_details.get(employee_id, {})
 
@@ -753,7 +813,7 @@ class AdminPage(QWidget):
                 pdf.image(logo_path, x=5, y=5, w=50) 
                 pdf.ln(20) 
             else:
-                print(f"⚠️ Advertencia: No se encontró el logo en {logo_path}")
+                print(f"Advertencia: No se encontró el logo en {logo_path}")
                 pdf.ln(20) 
 
             pdf.set_font("Arial", 'B', 16)
@@ -827,7 +887,7 @@ class AdminPage(QWidget):
             pdf.cell(0, 10, f"Pago Total del Período: C$ {total_period_pay:.2f}", 0, 1)
 
             pdf.output(save_path, "F")
-            print(f"✅ PDF guardado exitosamente en: {save_path}")
+            print(f"PDF guardado exitosamente en: {save_path}")
             QMessageBox.information(self, "Éxito", f"El reporte PDF para {employee_name} se ha guardado correctamente.")
 
         except Exception as e:
@@ -946,10 +1006,9 @@ class AdminPage(QWidget):
             response = requests.post(url, json=payload, headers=headers)
             
             if response.status_code == 200:
-                print("📡 Notificación enviada correctamente al servidor.")
+                print("Notificación enviada correctamente al servidor.")
             else:
                 print(f"Servidor rechazó la notificación. Código: {response.status_code}")
 
         except requests.exceptions.RequestException as e:
             print(f"No se pudo conectar con el servidor: {e}")
-    

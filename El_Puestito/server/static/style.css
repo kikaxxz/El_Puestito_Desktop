@@ -1,11 +1,10 @@
 :root {
-    /* Paleta de Colores Premium */
     --bg-gradient-start: #1a1b1f;
     --bg-gradient-end: #111111;
     --glass-bg: rgba(30, 31, 35, 0.7);
     --glass-border: rgba(255, 255, 255, 0.08);
-    --primary-color: #f76606; /* Naranja Marca */
-    --success-color: #00d26a; /* Verde Vibrante */
+    --primary-color: #f76606; 
+    --success-color: #00d26a; 
     --text-main: #ffffff;
     --text-muted: #8b8d91;
     --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
@@ -23,7 +22,6 @@ body {
     flex-direction: column;
 }
 
-/* --- PANTALLA DE LOGIN (Estilo iPad) --- */
 .login-wrapper {
     display: flex;
     justify-content: center;
@@ -254,6 +252,5 @@ body {
 @keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 @keyframes slideUp { 0% { transform: translateY(20px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
 
-/* Scrollbar invisible pero funcional */
 .kds-grid::-webkit-scrollbar { width: 6px; }
 .kds-grid::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }

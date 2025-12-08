@@ -29,6 +29,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       );
     }
 
+    double grandTotal = 0.0;
+    for (var group in relatedOrders) {
+      for (var item in group['items']) {
+        final double p = double.tryParse(item['precio_unitario'].toString()) ?? 0.0;
+        final int q = int.tryParse(item['cantidad'].toString()) ?? 0;
+        grandTotal += (p * q);
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text("Gestión Mesa ${widget.mesaKey}"),
@@ -37,7 +46,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         children: [
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.only(bottom: 80), 
+              padding: const EdgeInsets.only(bottom: 20), 
               itemCount: relatedOrders.length,
               itemBuilder: (ctx, index) {
                 final orderGroup = relatedOrders[index];
@@ -45,7 +54,44 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               },
             ),
           ),
+          
+          _buildGrandTotal(grandTotal),
+
           _buildBottomActions(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGrandTotal(double total) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05), 
+            offset: const Offset(0, -3), 
+            blurRadius: 5
+          )
+        ]
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            "GRAN TOTAL:", 
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)
+          ),
+          Text(
+            "C\$ ${total.toStringAsFixed(2)}",
+            style: TextStyle(
+              fontSize: 22, 
+              fontWeight: FontWeight.w900, 
+              color: Colors.green.shade800
+            ),
+          ),
         ],
       ),
     );
@@ -71,7 +117,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       title = "Grupo Principal ($key)";
     }
 
-    final headerColor = isSubAccount ? Colors.blue.shade100 : Colors.orange.shade100;
+    final headerColor = isSubAccount ? Colors.blue.shade50 : Colors.orange.shade50;
     final headerTextColor = isSubAccount ? Colors.blue.shade900 : Colors.brown.shade900;
 
     return Column(
@@ -86,13 +132,27 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: headerTextColor)),
-                  Text("${items.length} items", style: TextStyle(color: headerTextColor.withOpacity(0.7), fontSize: 12))
+                  Text(
+                    title, 
+                    style: TextStyle(
+                      fontSize: 16, 
+                      fontWeight: FontWeight.bold, 
+                      color: headerTextColor
+                    )
+                  ),
+                  Text(
+                    "${items.length} items",
+                    style: TextStyle(color: headerTextColor.withOpacity(0.7), fontSize: 12),
+                  )
                 ],
               ),
               Text(
                 "C\$ ${sectionTotal.toStringAsFixed(2)}",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: headerTextColor),
+                style: TextStyle(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.bold, 
+                  color: headerTextColor
+                ),
               ),
             ],
           ),
@@ -124,22 +184,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         const SizedBox(height: 10), 
       ],
     );
-  }
-
-  Future<void> _submitCancel(String key) async {
-    setState(() => _isLoading = true);
-    final api = ApiService();
-    final success = await api.cancelOrder(key);
-    
-    if (mounted) {
-      setState(() => _isLoading = false);
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mesa liberada correctamente")));
-        if (mounted) Navigator.pop(context); 
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error al liberar mesa")));
-      }
-    }
   }
 
   Widget _buildItemCard(dynamic item) {
@@ -229,9 +273,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Widget _buildBottomActions() {
     return Container(
       padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5, offset: const Offset(0, -2))]
       ),
       child: Row(
         children: [
@@ -407,6 +450,22 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         setState(() { _selectedQuantities.clear(); });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error al eliminar algunos items")));
+      }
+    }
+  }
+  
+  Future<void> _submitCancel(String key) async {
+    setState(() => _isLoading = true);
+    final api = ApiService();
+    final success = await api.cancelOrder(key);
+    
+    if (mounted) {
+      setState(() => _isLoading = false);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mesa liberada correctamente")));
+        if (mounted) Navigator.pop(context); 
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error al liberar mesa")));
       }
     }
   }
