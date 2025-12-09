@@ -32,9 +32,9 @@ class DataManager:
     def get_conn(self):
         """Obtiene o crea una conexión a la BD para el hilo actual."""
         if not hasattr(self.local, 'conn'):
-            self.local.conn = sqlite3.connect(self.db_path)
+            self.local.conn = sqlite3.connect(self.db_path, check_same_thread=False)
             self.local.conn.row_factory = sqlite3.Row
-            self.local.conn.execute("PRAGMA busy_timeout = 3000;") 
+            self.local.conn.execute("PRAGMA busy_timeout = 30000;") 
         return self.local.conn
 
     def close_conn_for_thread(self):
@@ -87,7 +87,8 @@ class DataManager:
             id_empleado TEXT PRIMARY KEY,
             nombre TEXT NOT NULL,
             rol TEXT,
-            deviceId TEXT UNIQUE
+            deviceId TEXT UNIQUE,
+            fingerprint_id INTEGER UNIQUE
         );
         """)
 
@@ -171,9 +172,30 @@ class DataManager:
                 self._migrate_hardcoded_destinations_to_db()
                 
                 print("Esquema actualizado y destinos migrados exitosamente.")
-                
+
+            cursor.execute("PRAGMA table_info(empleados)")
+            columns_emp = [info[1] for info in cursor.fetchall()]
+            
+            if 'fingerprint_id' not in columns_emp:
+                logger.info("Esquema: Falta columna 'fingerprint_id' en empleados. Agregando...")
+                self.execute("ALTER TABLE empleados ADD COLUMN fingerprint_id INTEGER;")
+                self.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_empleados_fingerprint ON empleados(fingerprint_id);")
+                logger.info("Columna 'fingerprint_id' agregada correctamente.")
+
         except Exception as e:
             print(f"Error verificando/actualizando esquema: {e}")
+
+    def link_fingerprint_to_employee(self, employee_id, fingerprint_id):
+        """Asocia un ID de huella del sensor a un empleado."""
+        try:
+            self.execute("UPDATE empleados SET fingerprint_id = NULL WHERE fingerprint_id = ?", (fingerprint_id,))
+            return self.execute("UPDATE empleados SET fingerprint_id = ? WHERE id_empleado = ?", (fingerprint_id, employee_id))
+        except Exception as e:
+            logger.error(f"Error vinculando huella: {e}")
+            return False
+            
+    def get_employee_by_fingerprint(self, fingerprint_id):
+        return self.fetchone("SELECT * FROM empleados WHERE fingerprint_id = ?", (fingerprint_id,))
 
     def _migrate_hardcoded_destinations_to_db(self):
         """
@@ -285,9 +307,9 @@ class DataManager:
 
             print(f"Migrados {item_count} items de menú desde {json_path}")
         except FileNotFoundError:
-            print(f"⚠️ No se encontró {json_path} para migrar menú.")
+            print(f"No se encontró {json_path} para migrar menú.")
         except Exception as e:
-            print(f"❌ Error migrando menú: {e}")
+            print(f"Error migrando menú: {e}")
 
 
     def get_employees(self):
@@ -299,11 +321,19 @@ class DataManager:
     def get_employee_by_device(self, device_id):
         return self.fetchone("SELECT * FROM empleados WHERE deviceId = ?;", (device_id,))
         
-    def add_employee(self, id, nombre, rol):
-        return self.execute("INSERT INTO empleados (id_empleado, nombre, rol) VALUES (?, ?, ?);", (id, nombre, rol))
+    def add_employee(self, id, nombre, rol, fingerprint_id=None):
+        """Ahora acepta el ID de la huella opcionalmente."""
+        return self.execute(
+            "INSERT INTO empleados (id_empleado, nombre, rol, fingerprint_id) VALUES (?, ?, ?, ?);", 
+            (id, nombre, rol, fingerprint_id)
+        )
 
-    def update_employee(self, id_original, new_id, new_name, new_rol):
-        return self.execute("UPDATE empleados SET id_empleado = ?, nombre = ?, rol = ? WHERE id_empleado = ?;", (new_id, new_name, new_rol, id_original))
+    def update_employee(self, id_original, new_id, new_name, new_rol, fingerprint_id=None):
+        """Actualiza también la huella."""
+        return self.execute(
+            "UPDATE empleados SET id_empleado = ?, nombre = ?, rol = ?, fingerprint_id = ? WHERE id_empleado = ?;", 
+            (new_id, new_name, new_rol, fingerprint_id, id_original)
+        )
         
     def delete_employee(self, employee_id):
         try:
@@ -360,7 +390,7 @@ class DataManager:
         return self.execute("UPDATE menu_items SET disponible = ? WHERE id_item = ?;", (int(is_available), item_id))
 
     def get_last_attendance_event(self, employee_id):
-        return self.fetchone("SELECT tipo FROM eventos_asistencia WHERE id_empleado = ? ORDER BY timestamp DESC LIMIT 1;", (employee_id,))
+        return self.fetchone("SELECT tipo, timestamp FROM eventos_asistencia WHERE id_empleado = ? ORDER BY timestamp DESC LIMIT 1;", (employee_id,))
 
     def get_first_unlinked_employee(self):
         return self.fetchone("SELECT * FROM empleados WHERE deviceId IS NULL OR deviceId = '' ORDER BY nombre LIMIT 1;")

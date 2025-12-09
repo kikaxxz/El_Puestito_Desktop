@@ -51,11 +51,17 @@ class RoleSelectionPage(QWidget):
         try:
             path = os.path.join(BASE_DIR, "assets", "config.json")
             import json
-            with open(path, 'r') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 return data.get("seguridad", {}).get("pines", {})
-        except Exception:
-            return {"Cajero": "0000"}     
+        except Exception as e:
+            print(f"Error cargando pines: {e}")
+            return {
+                "Cajero": "3333",
+                "Administrador": "9999",
+                "Cocinero": "1111",
+                "Barra": "2222"
+            }    
 
     def handle_card_click(self, card, role_name):
         """

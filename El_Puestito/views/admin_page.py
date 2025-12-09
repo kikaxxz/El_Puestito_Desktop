@@ -10,13 +10,12 @@ from PyQt6.QtWidgets import (
     QScrollArea, QListWidget, QListWidgetItem, QInputDialog, QMessageBox,
     QTabWidget, QGridLayout, QSizePolicy, QTreeWidget, QTreeWidgetItem,
     QCheckBox, QGraphicsOpacityEffect, QTreeWidgetItemIterator,
-    QCalendarWidget, QDateEdit, QFileDialog
+    QCalendarWidget, QDateEdit, QFileDialog, QLayout, QFormLayout, QComboBox
 )
 
 from PyQt6.QtGui import QDesktopServices
-from PyQt6.QtCore import QUrl
+from PyQt6.QtCore import QUrl, QTimer, Qt, pyqtSignal, QDate
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt, pyqtSignal, QDate
 from widgets.table_card_widget import TableCardWidget
 from widgets.platillo_item import PlatilloItemWidget
 from logger_setup import setup_logger
@@ -24,6 +23,152 @@ logger = setup_logger()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+
+class EmployeeFormDialog(QDialog):
+    def __init__(self, parent=None, employee_data=None, available_roles=[], api_key=""):
+        super().__init__(parent)
+        self.setWindowTitle("Datos del Empleado")
+        self.setFixedSize(400, 350)
+        self.api_key = api_key
+        self.fingerprint_id = employee_data.get('fingerprint_id') if employee_data else None
+        
+        layout = QVBoxLayout(self)
+        form_layout = QFormLayout()
+        
+        self.inp_id = QLineEdit(employee_data.get('id_empleado', '') if employee_data else '')
+        self.inp_name = QLineEdit(employee_data.get('nombre', '') if employee_data else '')
+        
+        self.combo_rol = QComboBox()
+        self.combo_roles = available_roles
+        self.combo_rol.addItems(self.combo_roles)
+        if employee_data and employee_data.get('rol') in self.combo_roles:
+            self.combo_rol.setCurrentText(employee_data.get('rol'))
+            
+        form_layout.addRow("ID Empleado:", self.inp_id)
+        form_layout.addRow("Nombre Completo:", self.inp_name)
+        form_layout.addRow("Rol:", self.combo_rol)
+        layout.addLayout(form_layout)
+        
+        layout.addWidget(QLabel("--- Registro Biométrico ---"))
+        from PyQt6.QtWidgets import QProgressBar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 3) 
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(False) 
+        self.progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #f76606; }")
+        
+        layout.addWidget(self.progress_bar) 
+
+        bio_layout = QHBoxLayout()
+        self.lbl_finger_status = QLabel()
+        self.lbl_finger_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_finger_status.setStyleSheet("font-size: 14px; font-weight: bold; color: #888;")
+        self.update_finger_label()
+        
+        
+        self.btn_scan = QPushButton("Escanear Huella")
+        self.btn_scan.setObjectName("blue_button")
+        self.btn_scan.clicked.connect(self.start_scan_process)
+        
+        bio_layout.addWidget(self.lbl_finger_status)
+        bio_layout.addWidget(self.btn_scan)
+        layout.addLayout(bio_layout)
+        
+        layout.addStretch()
+        
+        btn_box = QHBoxLayout()
+        self.btn_save = QPushButton("Guardar")
+        self.btn_save.clicked.connect(self.accept) 
+        self.btn_cancel = QPushButton("Cancelar")
+        self.btn_cancel.clicked.connect(self.reject) 
+        
+        btn_box.addWidget(self.btn_cancel)
+        btn_box.addWidget(self.btn_save)
+        layout.addLayout(btn_box)
+        
+        self.poll_timer = QTimer(self)
+        self.poll_timer.interval = 1000
+        self.poll_timer.timeout.connect(self.check_enroll_status)
+
+    def closeEvent(self, event):
+        self.poll_timer.stop()
+        super().closeEvent(event)
+
+    def reject(self):
+        self.poll_timer.stop()
+        super().reject()
+
+    def accept(self):
+        self.poll_timer.stop()
+        super().accept()
+
+    def update_finger_label(self):
+        if self.fingerprint_id:
+            self.lbl_finger_status.setText(f"Huella ID: {self.fingerprint_id}")
+            self.lbl_finger_status.setStyleSheet("color: green; font-weight: bold;")
+        else:
+            self.lbl_finger_status.setText("Sin Huella")
+            self.lbl_finger_status.setStyleSheet("color: red;")
+
+    def start_scan_process(self):
+        try:
+            url = 'http://127.0.0.1:5000/api/biometric/start-enroll'
+            headers = {'X-API-KEY': self.api_key}
+            requests.post(url, headers=headers)
+            
+            self.btn_scan.setEnabled(False)
+            self.btn_scan.setText("Esperando sensor...")
+            
+            self.poll_timer.stop()
+            self.poll_timer.start() 
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"No se pudo conectar al servidor: {e}")
+            self.btn_scan.setEnabled(True)
+            self.btn_scan.setText("Reintentar")
+
+    def check_enroll_status(self):
+        try:
+            url = 'http://127.0.0.1:5000/api/biometric/check-enroll-status'
+            resp = requests.get(url, timeout=1)
+            
+            if resp.status_code == 200:
+                data = resp.json()
+                
+                if data.get('status') == 'done':
+                    self.fingerprint_id = data.get('finger_id')
+                    self.poll_timer.stop()
+                    
+                    self.progress_bar.setValue(3) 
+                    self.lbl_finger_status.setText(f"¡ÉXITO! ID Asignado: {self.fingerprint_id}")
+                    self.lbl_finger_status.setStyleSheet("color: #00d26a; font-weight: bold;")
+                    
+                    self.btn_scan.setText("Escanear Nueva")
+                    self.btn_scan.setEnabled(True)
+                elif data.get('status') == 'in_progress':
+                    step = data.get('step', 0)
+                    msg = data.get('message', '...')
+                    
+                    self.progress_bar.setValue(step)
+                    self.lbl_finger_status.setText(msg)
+                    
+                    if step == 1: 
+                        self.lbl_finger_status.setStyleSheet("color: #ff9800; font-weight: bold;")
+                    elif step == 2:
+                        self.lbl_finger_status.setStyleSheet("color: #2196f3; font-weight: bold;")
+                    else:
+                        self.lbl_finger_status.setStyleSheet("color: #ccc;")
+
+        except Exception as e:
+            print(f"Error polling: {e}")
+
+    def get_data(self):
+        return {
+            'id': self.inp_id.text().strip(),
+            'nombre': self.inp_name.text().strip(),
+            'rol': self.combo_rol.currentText(),
+            'fingerprint_id': self.fingerprint_id
+        }
 def QSpacerItem(arg1, arg2, arg3, arg4):
     raise NotImplementedError
 
@@ -64,11 +209,21 @@ class AdminPage(QWidget):
         self.btn_edit_employee.setObjectName("orange_button")
         self.btn_delete_employee = QPushButton("Eliminar Empleado")
         self.btn_delete_employee.setObjectName("orange_button")
+        self.btn_format_sensor = QPushButton("Formatear Sensor")
+        self.btn_format_sensor.setStyleSheet("""
+            background-color: #D32F2F; 
+            color: white; 
+            font-weight: bold; 
+            padding: 5px; 
+            border-radius: 5px;
+        """)
+        self.btn_format_sensor.setFixedWidth(150)
 
         employee_controls_layout.addWidget(self.btn_add_employee)
         employee_controls_layout.addWidget(self.btn_edit_employee)
         employee_controls_layout.addWidget(self.btn_delete_employee)
         employee_controls_layout.addStretch()
+        employee_controls_layout.addWidget(self.btn_format_sensor)
         employee_layout.addLayout(employee_controls_layout)
 
         self.employee_table = QTableWidget()
@@ -181,7 +336,6 @@ class AdminPage(QWidget):
         self.calendar.setFixedSize(400, 280)
         cal_layout.addWidget(self.calendar)
         
-        # B. Lado Derecho: TARJETA DE RESUMEN (Stats Card)
         self.stats_card = QFrame()
         self.stats_card.setObjectName("stats_card")
         self.stats_card.setStyleSheet("""
@@ -231,6 +385,7 @@ class AdminPage(QWidget):
         self.report_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.report_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         self.report_table.setColumnWidth(1, 150)
+        
         btn_web_report = QPushButton("Ver Gráficas Detalladas (Web)")
         btn_web_report.setObjectName("blue_button") 
         btn_web_report.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -303,7 +458,8 @@ class AdminPage(QWidget):
         self.btn_add_employee.clicked.connect(self.add_employee)
         self.btn_edit_employee.clicked.connect(self.edit_employee)
         self.btn_delete_employee.clicked.connect(self.delete_employee)
-        
+        self.btn_format_sensor.clicked.connect(self.formatear_sensor)
+
         self.btn_add_table.clicked.connect(self.add_table)
         self.btn_remove_table.clicked.connect(self.remove_table)
         
@@ -396,39 +552,22 @@ class AdminPage(QWidget):
             self.employee_table.setItem(row, 2, rol_item)
 
     def add_employee(self):
-        new_id, ok1 = QInputDialog.getText(self, 'Añadir Empleado', 'Ingrese el ID del nuevo empleado:')
-        if not ok1 or not new_id.strip():
-            print("Operación cancelada.")
-            return
-
-        new_id = new_id.strip()
-        
-        if self.app_controller.data_manager.get_employee_by_id(new_id):
-            QMessageBox.warning(self, "Error", f"El ID '{new_id}' ya existe en la base de datos.")
-            return
-
-        new_name, ok2 = QInputDialog.getText(self, 'Añadir Empleado', 'Ingrese el nombre completo del nuevo empleado:')
-        if not ok2 or not new_name.strip():
-            print("Operación cancelada (Nombre).")
-            return
-        
-        new_rol, ok3 = QInputDialog.getItem(self, "Añadir Empleado", "Seleccione el rol:", self.available_roles, 0, False)
-        if not ok3 or not new_rol:
-            print("Operación cancelada (Rol).")
-            return
+        dialog = EmployeeFormDialog(self, available_roles=self.available_roles, api_key=self.app_controller.API_KEY)
+        if dialog.exec():
+            data = dialog.get_data()
+            if not data['id'] or not data['nombre']: return 
             
-        new_name = new_name.strip()
-        
-        result = self.app_controller.agregar_empleado(new_id, new_name, new_rol)
-        
-        if result is None:
-            QMessageBox.critical(self, "Error", f"No se pudo añadir el empleado {new_name} a la base de datos.")
-            return
+            if self.app_controller.data_manager.get_employee_by_id(data['id']):
+                QMessageBox.warning(self, "Error", f"El ID '{data['id']}' ya existe.")
+                return
+
+            result = self.app_controller.agregar_empleado(data['id'], data['nombre'], data['rol'], data['fingerprint_id'])
             
-        print(f"Empleado '{new_name}' (ID: {new_id}) añadido a la BD.")
-        
-        self.refresh_employee_table()
-        
+            if result:
+                print(f"✅ Empleado '{data['nombre']}' añadido con huella ID: {data['fingerprint_id']}")
+                self.refresh_employee_table()
+            else:
+                QMessageBox.critical(self, "Error", "No se pudo añadir el empleado.")
 
     def edit_employee(self):
         current_row = self.employee_table.currentRow()
@@ -440,43 +579,20 @@ class AdminPage(QWidget):
         original_id = original_id_item.text()
         
         original_employee = self.app_controller.data_manager.get_employee_by_id(original_id)
-        if not original_employee:
-            QMessageBox.critical(self, "Error", "No se pudo encontrar al empleado en la base de datos.")
-            self.refresh_employee_table()
-            return
-            
-        original_name = original_employee.get("nombre", "")
-        original_rol = original_employee.get("rol", "")
+        if not original_employee: return
         
-        new_id, ok1 = QInputDialog.getText(self, 'Editar Empleado', 'ID:', QLineEdit.EchoMode.Normal, original_id)
-        if not ok1 or not new_id.strip(): return
-        new_id = new_id.strip()
-
-        if new_id != original_id:
-            if self.app_controller.data_manager.get_employee_by_id(new_id):
-                QMessageBox.warning(self, "Error", f"El ID '{new_id}' ya está en uso.")
+        dialog = EmployeeFormDialog(self, employee_data=original_employee, available_roles=self.available_roles, api_key=self.app_controller.API_KEY)
+        if dialog.exec():
+            data = dialog.get_data()
+            
+            if data['id'] != original_id and self.app_controller.data_manager.get_employee_by_id(data['id']):
+                QMessageBox.warning(self, "Error", f"El ID '{data['id']}' ya existe.")
                 return
 
-        new_name, ok2 = QInputDialog.getText(self, 'Editar Empleado', 'Nombre Completo:', QLineEdit.EchoMode.Normal, original_name)
-        if not ok2 or not new_name.strip(): return
-        new_name = new_name.strip()
-
-        try:
-            current_role_index = self.available_roles.index(original_rol)
-        except ValueError:
-            current_role_index = 0 
-
-        new_rol, ok3 = QInputDialog.getItem(self, "Editar Empleado", "Seleccione el rol:", self.available_roles, current_role_index, False)
-        if not ok3 or not new_rol:
-            print("Edición cancelada (Rol).")
-            return
-        
-        self.app_controller.editar_empleado(original_id, new_id, new_name, new_rol)
-        
-        print(f"Empleado (ID original: {original_id}) actualizado en la BD.")
-        
-        self.refresh_employee_table()
-        
+            self.app_controller.editar_empleado(original_id, data['id'], data['nombre'], data['rol'], data['fingerprint_id'])
+            
+            print(f"Empleado editado. Huella ID: {data['fingerprint_id']}")
+            self.refresh_employee_table()
 
     def delete_employee(self):
         current_row = self.employee_table.currentRow()
@@ -507,7 +623,6 @@ class AdminPage(QWidget):
             
         else:
             print("Operación cancelada.")
-            
     
     def load_menu_data(self):
         self.menu_tree.clear() 
@@ -890,7 +1005,7 @@ class AdminPage(QWidget):
             pdf.cell(0, 10, f"Pago Total del Período: C$ {total_period_pay:.2f}", 0, 1)
 
             pdf.output(save_path, "F")
-            print(f"PDF guardado exitosamente en: {save_path}")
+            print(f"✅ PDF guardado exitosamente en: {save_path}")
             QMessageBox.information(self, "Éxito", f"El reporte PDF para {employee_name} se ha guardado correctamente.")
 
         except Exception as e:
@@ -1015,3 +1130,27 @@ class AdminPage(QWidget):
 
         except requests.exceptions.RequestException as e:
             logger.error(f"No se pudo conectar con el servidor para notificar configuración: {e}")
+
+    def formatear_sensor(self):
+        confirm = QMessageBox.warning(self, 
+                                    "PELIGRO: Formatear Sensor", 
+                                    "¿Estás seguro? Esto borrará TODAS las huellas almacenadas en el sensor físico.\n\nLos empleados tendrán que registrar su huella de nuevo.",
+                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, 
+                                    QMessageBox.StandardButton.No)
+        
+        if confirm == QMessageBox.StandardButton.Yes:
+            try:
+                api_key = self.app_controller.API_KEY
+                
+                api_url = "http://127.0.0.1:5000/api/biometric/start-clear"
+                headers = {'X-API-KEY': api_key}
+                
+                response = requests.post(api_url, headers=headers, timeout=2)
+                
+                if response.status_code == 200:
+                    QMessageBox.information(self, "Orden Enviada", "El sensor se formateará en los próximos segundos.")
+                else:
+                    QMessageBox.warning(self, "Error", f"El servidor no aceptó la orden. Código: {response.status_code}")
+                    
+            except Exception as e:
+                QMessageBox.critical(self, "Error de Conexión", f"No se pudo conectar con el servidor local:\n{str(e)}")

@@ -14,7 +14,7 @@ try:
     from data_model import DataManager, DB_PATH
 except ImportError:
     print("Error: No se pudo encontrar 'data_model.py'.")
-    print("Asegúrate de que exista en la carpeta 'src/'.")
+    print("Asegurarse de que exista en la carpeta 'src/'.")
     sys.exit(1)
 
 
@@ -28,7 +28,6 @@ from views.role_selection_page import RoleSelectionPage
 from views.admin_page import AdminPage
 from widgets.qr_code_dialog import QRCodeDialog
 from src.app_controller import AppController
-from views.role_selection_page import RoleSelectionPage
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -44,7 +43,7 @@ class MainWindow(QMainWindow):
         self.data_manager.create_tables()
         self.data_manager.run_migration_if_needed()
         self.app_controller = AppController(self.data_manager)
-        
+
         self.setWindowTitle("El Puestito - Sistema de Gestión")
         self.setMinimumSize(1200, 800)
         self.current_role = None
@@ -99,6 +98,7 @@ class MainWindow(QMainWindow):
         self.server_worker.nueva_orden_recibida.connect(self.app_controller.procesar_nueva_orden)
         self.server_worker.ordenes_modificadas.connect(self.app_controller.ordenes_actualizadas.emit)
         self.server_worker.kds_estado_cambiado.connect(self.on_kds_externo_update)
+        self.server_worker.asistencia_recibida.connect(self.app_controller.asistencia_recibida.emit)
 
         self.thread.start()
         print("🚀 Servidor de asistencia iniciado en segundo plano.")
@@ -121,9 +121,9 @@ class MainWindow(QMainWindow):
         try:
             with open(self.config_file_path, "w") as f:
                 json.dump(self.app_config, f, indent=4)
-            print(f"💾 Configuración guardada en {self.config_file_path}")
+            print(f"Configuración guardada en {self.config_file_path}")
         except IOError:
-            print("❌ Error al guardar la configuración.")
+            print("Error al guardar la configuración.")
     
     def actualizar_tabla_asistencia(self, datos):
         print(f"🔄 Señal recibida en MainWindow, pasando datos a la tabla: {datos}")

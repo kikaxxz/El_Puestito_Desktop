@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QTableWidget, QLineEdit, QHeaderView, QTableWidgetItem, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSlot
-
+import requests
 class AttendancePage(QWidget):
 
     def __init__(self, app_controller, parent=None):
@@ -31,6 +31,7 @@ class AttendancePage(QWidget):
         
         self.load_and_refresh_table()
         self.app_controller.lista_empleados_actualizada.connect(self.load_and_refresh_table)
+        self.app_controller.asistencia_recibida.connect(self.registrar_asistencia)
         print("[AttendancePage] Conectada a la señal 'lista_empleados_actualizada'.")
 
 
@@ -39,13 +40,16 @@ class AttendancePage(QWidget):
         search_bar = QLineEdit()
         search_bar.setPlaceholderText("Buscar empleado...")
         search_bar.setObjectName("search_bar")
-        self.btn_limpiar = QPushButton("Limpiar Registros")
+        
+        self.btn_limpiar = QPushButton("Limpiar Historial")
         self.btn_limpiar.setObjectName("orange_button") 
-        self.btn_limpiar.setFixedWidth(180) 
+        self.btn_limpiar.setFixedWidth(200)
+        
         controls_layout.addWidget(search_bar)
         controls_layout.addStretch()
         controls_layout.addWidget(self.btn_limpiar) 
         return controls_layout
+
 
     def create_employee_table(self):
         table = QTableWidget()
@@ -129,7 +133,7 @@ class AttendancePage(QWidget):
             return
 
         if employee_id not in self.employee_row_map:
-            print(f"⚠️  Se recibió asistencia para {employee_id} pero no está en la tabla. Refrescando todo.")
+            print(f"Se recibió asistencia para {employee_id} pero no está en la tabla. Refrescando todo.")
             self.load_and_refresh_table()
             return
             
@@ -177,7 +181,7 @@ class AttendancePage(QWidget):
         if confirm == QMessageBox.StandardButton.No:
             return
 
-        print("🧹🧹 Limpiando TODO el historial de la base de datos...")
+        print("Limpiando TODO el historial de la base de datos...")
         
         self.app_controller.data_manager.clear_all_attendance_history()
         

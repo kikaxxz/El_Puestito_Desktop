@@ -42,14 +42,22 @@ async function submitPin() {
 if (window.location.pathname.startsWith('/kds/')) {
     
     const socket = io();
+    const alertOverlay = document.getElementById('disconnect-alert');
 
     socket.on('connect', () => {
-        console.log("Conectado al WebSocket");
+        console.log("🟢 Conectado al WebSocket");
+        if(alertOverlay) alertOverlay.style.display = 'none';
         loadOrders();
+    });
+
+    socket.on('disconnect', () => {
+        console.warn("🔴 Desconectado del WebSocket");
+        if(alertOverlay) alertOverlay.style.display = 'flex';
     });
 
     socket.on('kds_update', (data) => {
         if (data.destino === 'all' || data.destino === DESTINO) {
+            console.log("🔔 Actualización recibida");
             loadOrders();
         }
     });
@@ -57,10 +65,12 @@ if (window.location.pathname.startsWith('/kds/')) {
     async function loadOrders() {
         try {
             const res = await fetch(`/api/kds-orders/${DESTINO}`);
+            if (!res.ok) throw new Error("Error HTTP al cargar órdenes");
+            
             const orders = await res.json();
             renderTickets(orders);
         } catch (e) {
-            console.error(e);
+            console.error("Error cargando órdenes:", e);
         }
     }
 
@@ -87,15 +97,18 @@ if (window.location.pathname.startsWith('/kds/')) {
                     <div class="qty-box">${item.cantidad}</div>
                     <div class="item-info">
                         <div class="item-name">${item.nombre}</div>
-                        ${item.notas ? `<div class="item-note">${item.notas}</div>` : ''}
+                        ${item.notas ? `<div class="item-note">📝 ${item.notas}</div>` : ''}
                     </div>
                 </div>
             `).join('');
 
+            const minutesElapsed = (new Date() - new Date(group.timestamp)) / 60000;
+            const timeClass = minutesElapsed > 15 ? 'color: #ff4444;' : ''; 
+
             card.innerHTML = `
                 <div class="card-header">
                     <div class="mesa-badge">Mesa ${group.numero_mesa}</div>
-                    <div class="timer-badge">${formatTime(group.timestamp)}</div>
+                    <div class="timer-badge" style="${timeClass}">${formatTime(group.timestamp)}</div>
                 </div>
                 <div class="card-items">
                     ${itemsHtml}
@@ -117,8 +130,11 @@ if (window.location.pathname.startsWith('/kds/')) {
 
     window.markReady = async function(mesaKey) {
         const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        
         btn.innerHTML = 'Enviando...';
         btn.disabled = true;
+        btn.style.backgroundColor = '#555';
 
         try {
             await fetch('/api/kds-complete', {
@@ -130,9 +146,10 @@ if (window.location.pathname.startsWith('/kds/')) {
                 body: JSON.stringify({ mesa_key: mesaKey, destino: DESTINO })
             });
         } catch (e) {
-            alert("Error de conexión");
+            alert("Error de conexión al completar orden");
             btn.disabled = false;
-            btn.innerHTML = 'Reintentar';
+            btn.innerHTML = originalText;
+            btn.style.backgroundColor = ''; 
         }
     }
 }

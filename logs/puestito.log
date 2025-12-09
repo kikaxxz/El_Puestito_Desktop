@@ -3,3 +3,369 @@
 2025-12-08 13:13:23,078 [INFO] Retransmitiendo evento: mesas_actualizadas
 2025-12-08 13:16:57,997 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000...
 2025-12-08 13:30:02,835 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 16:51:39,685 [ERROR] Error en DataManager.execute: near "fingerprint_id": syntax error
+Query: 
+        CREATE TABLE IF NOT EXISTS empleados (
+            id_empleado TEXT PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            rol TEXT,
+            deviceId TEXT UNIQUE
+            fingerprint_id INTEGER UNIQUE
+        );
+        
+2025-12-08 16:51:39,686 [ERROR] Error en DataManager.execute: Cannot add a UNIQUE column
+Query: ALTER TABLE empleados ADD COLUMN fingerprint_id INTEGER UNIQUE;
+2025-12-08 16:51:39,687 [ERROR] Error en DataManager.execute: near "fingerprint_id": syntax error
+Query: 
+        CREATE TABLE IF NOT EXISTS empleados (
+            id_empleado TEXT PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            rol TEXT,
+            deviceId TEXT UNIQUE
+            fingerprint_id INTEGER UNIQUE
+        );
+        
+2025-12-08 16:51:39,844 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 16:51:40,654 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 16:51:40,656 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 16:51:40,856 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000...
+2025-12-08 17:00:26,691 [ERROR] Error en DataManager.execute: near "fingerprint_id": syntax error
+Query: 
+        CREATE TABLE IF NOT EXISTS empleados (
+            id_empleado TEXT PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            rol TEXT,
+            deviceId TEXT UNIQUE
+            fingerprint_id INTEGER UNIQUE
+        );
+        
+2025-12-08 17:00:26,692 [ERROR] Error en DataManager.execute: Cannot add a UNIQUE column
+Query: ALTER TABLE empleados ADD COLUMN fingerprint_id INTEGER UNIQUE;
+2025-12-08 17:00:26,692 [ERROR] Error en DataManager.execute: near "fingerprint_id": syntax error
+Query: 
+        CREATE TABLE IF NOT EXISTS empleados (
+            id_empleado TEXT PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            rol TEXT,
+            deviceId TEXT UNIQUE
+            fingerprint_id INTEGER UNIQUE
+        );
+        
+2025-12-08 17:00:26,783 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 17:00:27,174 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 17:00:27,175 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 17:00:27,344 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000...
+2025-12-08 17:01:09,782 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 17:09:42,169 [ERROR] Error en DataManager.execute: near "fingerprint_id": syntax error
+Query: 
+        CREATE TABLE IF NOT EXISTS empleados (
+            id_empleado TEXT PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            rol TEXT,
+            deviceId TEXT UNIQUE
+            fingerprint_id INTEGER UNIQUE
+        );
+        
+2025-12-08 17:09:42,170 [ERROR] Error en DataManager.execute: Cannot add a UNIQUE column
+Query: ALTER TABLE empleados ADD COLUMN fingerprint_id INTEGER UNIQUE;
+2025-12-08 17:09:42,171 [ERROR] Error en DataManager.execute: near "fingerprint_id": syntax error
+Query: 
+        CREATE TABLE IF NOT EXISTS empleados (
+            id_empleado TEXT PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            rol TEXT,
+            deviceId TEXT UNIQUE
+            fingerprint_id INTEGER UNIQUE
+        );
+        
+2025-12-08 17:09:42,252 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 17:09:42,603 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 17:09:42,604 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 17:09:42,769 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000...
+2025-12-08 17:10:58,422 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 17:11:16,354 [INFO] ESP32 reporta nueva huella registrada: ID 3
+2025-12-08 17:24:36,816 [ERROR] Error en DataManager.execute: near "fingerprint_id": syntax error
+Query: 
+        CREATE TABLE IF NOT EXISTS empleados (
+            id_empleado TEXT PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            rol TEXT,
+            deviceId TEXT UNIQUE
+            fingerprint_id INTEGER UNIQUE
+        );
+        
+2025-12-08 17:24:36,817 [ERROR] Error en DataManager.execute: Cannot add a UNIQUE column
+Query: ALTER TABLE empleados ADD COLUMN fingerprint_id INTEGER UNIQUE;
+2025-12-08 17:24:36,818 [ERROR] Error en DataManager.execute: near "fingerprint_id": syntax error
+Query: 
+        CREATE TABLE IF NOT EXISTS empleados (
+            id_empleado TEXT PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            rol TEXT,
+            deviceId TEXT UNIQUE
+            fingerprint_id INTEGER UNIQUE
+        );
+        
+2025-12-08 17:28:45,668 [ERROR] Error en DataManager.execute: near "fingerprint_id": syntax error
+Query: 
+        CREATE TABLE IF NOT EXISTS empleados (
+            id_empleado TEXT PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            rol TEXT,
+            deviceId TEXT UNIQUE
+            fingerprint_id INTEGER UNIQUE
+        );
+        
+2025-12-08 17:28:45,669 [ERROR] Error en DataManager.execute: Cannot add a UNIQUE column
+Query: ALTER TABLE empleados ADD COLUMN fingerprint_id INTEGER UNIQUE;
+2025-12-08 17:28:45,669 [ERROR] Error en DataManager.execute: near "fingerprint_id": syntax error
+Query: 
+        CREATE TABLE IF NOT EXISTS empleados (
+            id_empleado TEXT PRIMARY KEY,
+            nombre TEXT NOT NULL,
+            rol TEXT,
+            deviceId TEXT UNIQUE
+            fingerprint_id INTEGER UNIQUE
+        );
+        
+2025-12-08 17:28:45,753 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 17:28:46,121 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 17:28:46,122 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 17:28:46,291 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000...
+2025-12-08 17:31:24,130 [INFO] Esquema: Falta columna 'fingerprint_id' en empleados. Agregando...
+2025-12-08 17:31:24,133 [INFO] Columna 'fingerprint_id' agregada correctamente.
+2025-12-08 17:31:24,198 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 17:31:24,544 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 17:31:24,545 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 17:31:24,712 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000...
+2025-12-08 17:31:51,621 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 17:32:03,503 [INFO] ESP32 reporta nueva huella registrada: ID 4
+2025-12-08 17:33:56,754 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 17:34:09,803 [INFO] ESP32 reporta nueva huella registrada: ID 5
+2025-12-08 17:36:31,242 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 17:36:31,597 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 17:36:31,598 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 17:36:31,773 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000...
+2025-12-08 17:36:43,961 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 17:36:55,971 [INFO] ESP32 reporta nueva huella registrada: ID 6
+2025-12-08 17:37:11,114 [INFO] Asistencia registrada: 1 - entrada
+2025-12-08 17:37:11,114 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (entrada)
+2025-12-08 17:51:16,844 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 17:51:17,222 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 17:51:17,223 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 17:51:17,400 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000...
+2025-12-08 18:49:30,924 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 18:49:31,303 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 18:49:31,304 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 18:49:31,478 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000...
+2025-12-08 18:50:33,134 [INFO] 📡 [ESP32 DICE]: WiFi Conectado! Iniciando sistema...
+2025-12-08 18:50:43,034 [INFO] 📡 [ESP32 DICE]: ERROR: No se encuentra el sensor biometrico.
+2025-12-08 18:51:58,650 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 18:51:59,000 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 18:51:59,001 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 18:51:59,179 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000...
+2025-12-08 18:52:09,872 [INFO] 📡 [ESP32 DICE]: WiFi Conectado! Iniciando sistema...
+2025-12-08 18:52:11,410 [INFO] 📡 [ESP32 DICE]: ERROR: No se encuentra el sensor biometrico.
+2025-12-08 18:58:38,187 [INFO] 📡 [ESP32 DICE]: WiFi Conectado! Iniciando sistema...
+2025-12-08 18:58:39,624 [INFO] 📡 [ESP32 DICE]: ERROR: No se encuentra el sensor biometrico.
+2025-12-08 19:00:09,843 [INFO] 📡 [ESP32 DICE]: WiFi Conectado! Iniciando sistema...
+2025-12-08 19:00:11,482 [INFO] 📡 [ESP32 DICE]: ERROR: No se encuentra el sensor biometrico.
+2025-12-08 19:01:05,551 [INFO] 📡 [ESP32 DICE]: WiFi Conectado! Iniciando sistema...
+2025-12-08 19:01:07,087 [INFO] 📡 [ESP32 DICE]: ERROR: No se encuentra el sensor biometrico.
+2025-12-08 19:02:07,813 [INFO] 📡 [ESP32 DICE]: WiFi Conectado! Iniciando sistema...
+2025-12-08 19:02:09,247 [INFO] 📡 [ESP32 DICE]: ERROR: No se encuentra el sensor biometrico.
+2025-12-08 19:25:25,503 [INFO] 📡 [ESP32 DICE]: WiFi Conectado! Iniciando sistema...
+2025-12-08 19:25:26,970 [INFO] 📡 [ESP32 DICE]: ERROR: No se encuentra el sensor biometrico.
+2025-12-08 19:29:10,577 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 19:29:24,140 [INFO] ESP32 reporta nueva huella registrada: ID 7
+2025-12-08 19:32:52,039 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 19:32:52,409 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 19:32:52,410 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 19:32:52,597 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000...
+2025-12-08 19:33:18,817 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 19:33:29,195 [INFO] ESP32 reporta nueva huella registrada: ID 8
+2025-12-08 19:33:59,522 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 19:34:12,409 [INFO] ESP32 reporta nueva huella registrada: ID 9
+2025-12-08 19:38:32,697 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 19:38:44,397 [INFO] ESP32 reporta nueva huella registrada: ID 10
+2025-12-08 19:53:52,793 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 19:53:53,149 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 19:53:53,149 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 19:53:53,321 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000...
+2025-12-08 20:04:20,960 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 20:04:21,578 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 20:04:21,579 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 20:04:21,908 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 20:09:09,476 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 20:09:09,884 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 20:09:09,885 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 20:09:10,109 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 20:10:00,248 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 20:10:23,596 [INFO] ESP32 reporta nueva huella registrada: ID 11
+2025-12-08 20:10:33,565 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 20:10:55,443 [INFO] ESP32 reporta nueva huella registrada: ID 12
+2025-12-08 20:12:31,528 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 20:12:31,918 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 20:12:31,919 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 20:12:32,154 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 20:14:44,334 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 20:14:44,698 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 20:14:44,699 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 20:14:44,930 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 20:17:38,895 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 20:17:58,276 [INFO] ESP32 reporta nueva huella registrada: ID 13
+2025-12-08 20:21:44,910 [INFO] Asistencia registrada: 4 - entrada
+2025-12-08 20:21:44,910 [INFO] Asistencia biométrica: Cesar Alberto Paredes Canales (entrada)
+2025-12-08 20:21:49,514 [WARNING] Anti-rebote activado para Cesar Alberto Paredes Canales (Intento duplicado en 5s)
+2025-12-08 20:29:16,770 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 20:29:17,130 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 20:29:17,131 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 20:29:17,425 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 20:29:29,824 [WARNING] Solicitud de formateo de sensor recibida.
+2025-12-08 20:29:35,446 [INFO] El ESP32 confirma: Sensor biométrico formateado.
+2025-12-08 20:29:35,458 [INFO] Base de datos local sincronizada (Huellas desvinculadas).
+2025-12-08 20:29:49,226 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 20:30:12,005 [INFO] ESP32 reporta nueva huella registrada: ID 1
+2025-12-08 20:30:17,559 [INFO] Asistencia registrada: 4 - entrada
+2025-12-08 20:30:17,559 [INFO] Asistencia biométrica: Cesar Alberto Paredes Canales (entrada)
+2025-12-08 20:30:42,429 [WARNING] Anti-rebote activado para Cesar Alberto Paredes Canales (Intento duplicado en 25s)
+2025-12-08 20:34:51,274 [INFO] Modo enrolamiento activado. Esperando al ESP32...
+2025-12-08 20:34:56,797 [INFO] Asistencia registrada: 4 - salida
+2025-12-08 20:34:56,798 [INFO] Asistencia biométrica: Cesar Alberto Paredes Canales (salida)
+2025-12-08 20:35:10,414 [INFO] ESP32 reporta nueva huella registrada: ID 2
+2025-12-08 20:35:44,320 [INFO] Asistencia registrada: 1 - entrada
+2025-12-08 20:35:44,320 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (entrada)
+2025-12-08 20:37:37,067 [INFO] Asistencia registrada: 1 - salida
+2025-12-08 20:37:37,068 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (salida)
+2025-12-08 20:39:22,110 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 20:39:22,473 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 20:39:22,474 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 20:39:22,761 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 20:42:52,296 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 20:42:52,664 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 20:42:52,665 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 20:42:52,935 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 20:44:21,456 [INFO] Asistencia registrada: 1 - entrada
+2025-12-08 20:44:21,457 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (entrada)
+2025-12-08 20:44:38,875 [INFO] Asistencia registrada: 1 - salida
+2025-12-08 20:44:54,024 [WARNING] Anti-rebote activado para Enrique Mauricio Caceres Paladino (Intento duplicado en 16s)
+2025-12-08 20:45:33,557 [INFO] Asistencia registrada: 1 - entrada
+2025-12-08 20:45:33,557 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (entrada)
+2025-12-08 20:46:26,116 [WARNING] Anti-rebote activado para Enrique Mauricio Caceres Paladino (Intento duplicado en 53s)
+2025-12-08 20:46:55,985 [INFO] Asistencia registrada: 1 - salida
+2025-12-08 20:46:55,985 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (salida)
+2025-12-08 20:47:19,657 [INFO] Asistencia registrada: 1 - entrada
+2025-12-08 20:47:19,658 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (entrada)
+2025-12-08 20:47:30,202 [INFO] Asistencia registrada: 1 - entrada
+2025-12-08 20:48:06,953 [WARNING] Anti-rebote activado para Enrique Mauricio Caceres Paladino (Intento duplicado en 36s)
+2025-12-08 20:48:16,882 [WARNING] Anti-rebote activado para Enrique Mauricio Caceres Paladino (Intento duplicado en 46s)
+2025-12-08 20:48:45,488 [INFO] Asistencia registrada: 1 - entrada
+2025-12-08 20:48:45,488 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (entrada)
+2025-12-08 20:48:57,957 [WARNING] Anti-rebote activado para Enrique Mauricio Caceres Paladino (Intento duplicado en 12s)
+2025-12-08 20:49:12,385 [WARNING] Anti-rebote activado para Enrique Mauricio Caceres Paladino (Intento duplicado en 27s)
+2025-12-08 20:49:20,783 [WARNING] Anti-rebote activado para Enrique Mauricio Caceres Paladino (Intento duplicado en 35s)
+2025-12-08 20:49:41,674 [WARNING] Anti-rebote activado para Enrique Mauricio Caceres Paladino (Intento duplicado en 56s)
+2025-12-08 20:49:51,198 [INFO] Asistencia registrada: 1 - salida
+2025-12-08 20:49:51,198 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (salida)
+2025-12-08 20:50:39,241 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 20:50:39,588 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 20:50:39,589 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 20:50:39,843 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 20:51:26,547 [INFO] Asistencia registrada: 1 - entrada
+2025-12-08 20:51:26,548 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (entrada)
+2025-12-08 20:51:35,930 [INFO] Asistencia registrada: 1 - salida
+2025-12-08 20:51:35,931 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (salida)
+2025-12-08 21:49:25,655 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 21:49:26,036 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 21:49:26,037 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 21:49:26,282 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 21:51:06,700 [INFO] Nueva orden recibida vía API: f22b4fd5-2344-47c3-a891-f6ee825d675c
+2025-12-08 21:51:06,703 [INFO] Orden 136 creada exitosamente (Atomicidad garantizada).
+2025-12-08 21:51:06,930 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 21:51:28,429 [INFO] Nueva orden recibida vía API: 9e04428e-1786-46c0-b542-f8329fc06910
+2025-12-08 21:51:28,433 [INFO] Orden 137 creada exitosamente (Atomicidad garantizada).
+2025-12-08 21:51:28,735 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 21:51:46,547 [INFO] Nueva orden recibida vía API: 9d2990f0-a145-4d71-a3a7-9a035e5ebf07
+2025-12-08 21:51:46,549 [INFO] Orden 138 creada exitosamente (Atomicidad garantizada).
+2025-12-08 21:51:46,844 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 21:52:00,182 [INFO] Cuenta separada creada: 5-1
+2025-12-08 21:52:00,182 [INFO] Cuenta separada exitosamente en Mesa 5+8
+2025-12-08 21:52:32,777 [INFO] Cuenta separada creada: 6-1
+2025-12-08 21:52:32,778 [INFO] Cuenta separada exitosamente en Mesa 6
+2025-12-08 22:08:08,969 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 22:08:09,292 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 22:08:09,293 [INFO] Reporte generado. Total: C$4175.00
+2025-12-08 22:08:09,531 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 22:10:35,735 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:10:37,033 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:10:37,420 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:10:37,748 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:10:38,057 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:10:48,382 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:10:49,388 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:10:49,777 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:10:50,134 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:10:50,384 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:11:04,875 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:11:07,733 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:11:11,530 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:11:15,689 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:11:18,961 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-08 22:36:39,571 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 22:36:39,932 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 22:36:39,933 [INFO] Reporte generado. Total: C$6479.00
+2025-12-08 22:36:40,201 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 22:37:29,726 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 22:37:30,123 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 22:37:30,124 [INFO] Reporte generado. Total: C$6479.00
+2025-12-08 22:37:30,392 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 22:37:58,158 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 22:37:58,563 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 22:37:58,564 [INFO] Reporte generado. Total: C$6479.00
+2025-12-08 22:37:58,828 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 22:43:11,962 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 22:43:12,337 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 22:43:12,338 [INFO] Reporte generado. Total: C$6479.00
+2025-12-08 22:43:12,559 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 22:53:40,903 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 22:53:41,257 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 22:53:41,258 [INFO] Reporte generado. Total: C$6479.00
+2025-12-08 22:53:41,485 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 23:42:51,534 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 23:42:51,894 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 23:42:51,895 [INFO] Reporte generado. Total: C$6479.00
+2025-12-08 23:42:52,150 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 23:47:45,501 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 23:47:45,846 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 23:47:45,847 [INFO] Reporte generado. Total: C$6479.00
+2025-12-08 23:47:46,075 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 23:47:59,194 [WARNING] Solicitud de formateo de sensor recibida.
+2025-12-08 23:48:05,542 [INFO] El ESP32 confirma: Sensor biométrico formateado.
+2025-12-08 23:48:05,545 [INFO] Base de datos local sincronizada (Huellas desvinculadas).
+2025-12-08 23:48:27,102 [INFO] Modo enrolamiento activado.
+2025-12-08 23:48:41,533 [INFO] ESP32 reporta nueva huella registrada: ID 1
+2025-12-08 23:50:17,130 [INFO] Asistencia registrada: 10 - entrada
+2025-12-08 23:50:17,130 [INFO] Asistencia biométrica: Kenia Reyes (entrada)
+2025-12-08 23:50:32,326 [INFO] Asistencia registrada: 10 - salida
+2025-12-08 23:50:32,326 [INFO] Asistencia biométrica: Kenia Reyes (salida)
+2025-12-08 23:50:35,370 [INFO] Asistencia registrada: 10 - entrada
+2025-12-08 23:50:35,371 [INFO] Asistencia biométrica: Kenia Reyes (entrada)
+2025-12-08 23:50:41,207 [INFO] Asistencia registrada: 10 - salida
+2025-12-08 23:50:41,208 [INFO] Asistencia biométrica: Kenia Reyes (salida)
+2025-12-08 23:51:32,200 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 23:51:32,550 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 23:51:32,551 [INFO] Reporte generado. Total: C$6479.00
+2025-12-08 23:51:32,773 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 23:51:50,279 [INFO] Modo enrolamiento activado.
+2025-12-08 23:52:01,825 [INFO] ESP32 reporta nueva huella registrada: ID 2
+2025-12-08 23:52:15,831 [INFO] Asistencia registrada: 1 - entrada
+2025-12-08 23:52:15,831 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (entrada)
+2025-12-08 23:52:28,018 [INFO] Asistencia registrada: 1 - salida
+2025-12-08 23:52:28,018 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (salida)
+2025-12-08 23:54:31,167 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-08 23:54:31,518 [INFO] Generando reporte visual para 2025-12-08
+2025-12-08 23:54:31,519 [INFO] Reporte generado. Total: C$6479.00
+2025-12-08 23:54:31,764 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-08 23:54:53,423 [INFO] Asistencia registrada: 1 - entrada
+2025-12-08 23:54:53,423 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (entrada)
+2025-12-08 23:55:02,588 [INFO] Asistencia registrada: 1 - salida
