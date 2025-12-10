@@ -62,6 +62,60 @@ if (window.location.pathname.startsWith('/kds/')) {
         }
     });
 
+    socket.on('kds_message_alert', (data) => {
+        if (data.destino === 'all' || data.destino === DESTINO) {
+            showToastNotification(data.mesa_key, data.mensaje);
+        }
+    });
+
+    function showToastNotification(mesa, mensaje) {
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #ff9800; /* Naranja */
+            color: white;
+            padding: 20px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 10000;
+            text-align: center;
+            font-family: sans-serif;
+            border: 2px solid white;
+            min-width: 300px;
+            animation: slideDown 0.5s ease-out;
+        `;
+        
+        toast.innerHTML = `
+            <div style="font-size: 24px; font-weight: 900; margin-bottom: 5px;">MESA ${mesa}</div>
+            <div style="font-size: 18px; font-weight: 500;">${mensaje}</div>
+            <div style="font-size: 12px; margin-top: 5px; opacity: 0.8;">Mensaje del Mesero</div>
+        `;
+
+        try {
+            const audio = new Audio('/static/notification.mp3'); 
+        } catch(e) {}
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.5s';
+            setTimeout(() => toast.remove(), 500);
+        }, 10000);
+    }
+    
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = `
+        @keyframes slideDown {
+            from { top: -100px; opacity: 0; }
+            to { top: 20px; opacity: 1; }
+        }
+    `;
+    document.head.appendChild(styleSheet);
+
     async function loadOrders() {
         try {
             const res = await fetch(`/api/kds-orders/${DESTINO}`);

@@ -10,6 +10,26 @@ class ApiService {
     return prefs.getString('server_url');
   }
 
+  Future<bool> updateItemNote(int idDetalle, String nota) async {
+    final baseUrl = await getServerUrl();
+    if (baseUrl == null) return false;
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/update-item-note'),
+        headers: _getHeaders(),
+        body: json.encode({
+          'id_detalle': idDetalle,
+          'nota': nota,
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Update Note: $e");
+      return false;
+    }
+  }
+
   Future<bool> splitOrder(String mesaKey, List<Map<String, dynamic>> items) async {
     final baseUrl = await getServerUrl();
     if (baseUrl == null) return false;
@@ -46,7 +66,6 @@ class ApiService {
       return false;
     }
   }
-
 
   Future<bool> removeItems(String mesaKey, List<Map<String, dynamic>> items) async {
     final baseUrl = await getServerUrl();

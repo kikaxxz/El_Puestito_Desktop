@@ -369,3 +369,20 @@ Query:
 2025-12-08 23:54:53,423 [INFO] Asistencia registrada: 1 - entrada
 2025-12-08 23:54:53,423 [INFO] Asistencia biométrica: Enrique Mauricio Caceres Paladino (entrada)
 2025-12-08 23:55:02,588 [INFO] Asistencia registrada: 1 - salida
+2025-12-10 01:39:52,980 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-10 01:39:53,787 [INFO] Generando reporte visual para 2025-12-10
+2025-12-10 01:39:53,788 [INFO] Reporte generado. Total: C$0.00
+2025-12-10 01:39:54,059 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-10 01:40:41,818 [INFO] Nueva orden recibida vía API: 06aaaafa-ec91-42c3-88e7-8bdf87f322a9
+2025-12-10 01:40:41,821 [INFO] Orden 141 creada exitosamente (Atomicidad garantizada).
+2025-12-10 01:40:42,079 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-10 01:41:02,177 [INFO] Nota actualizada para item 350: Salsa aparte
+2025-12-10 01:48:05,931 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-10 01:48:13,801 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-10 01:48:40,721 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-10 02:08:42,091 [INFO] Nueva orden recibida vía API: e5da3c19-ee70-4833-aaa2-c6efb2b0fc15
+2025-12-10 02:08:42,094 [INFO] Orden 142 creada exitosamente (Atomicidad garantizada).
+2025-12-10 02:08:42,328 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-10 02:09:13,559 [INFO] Orden Mesa 2 marcada lista en cocina (vía Web)
+2025-12-10 02:09:20,605 [INFO] Acceso KDS web autorizado para: barra
+2025-12-10 02:09:23,250 [INFO] Orden Mesa 2 marcada lista en barra (vía Web)

@@ -468,3 +468,50 @@ def biometric_clear_success():
         logger.error(f"Error limpiando BD local: {e}")
 
     return jsonify({"status": "ok"})
+
+@api_bp.route('/api/send-kds-message', methods=['POST'])
+@require_auth
+def send_kds_message():
+    worker = current_app.worker
+    data = request.json
+    
+    mesa_key = data.get('mesa_key')
+    mensaje = data.get('mensaje')
+    destino = data.get('destino')
+    
+    if not mesa_key or not mensaje or not destino:
+        return jsonify({"error": "Datos incompletos"}), 400
+        
+    logger.info(f"Mensaje KDS recibido para {destino}: {mensaje} (Mesa {mesa_key})")
+    
+    worker.socketio.emit('kds_message_alert', {
+        'mesa_key': mesa_key,
+        'mensaje': mensaje,
+        'destino': destino,
+        'timestamp': datetime.datetime.now().isoformat()
+    })
+    
+    return jsonify({"status": "sent"}), 200
+
+@api_bp.route('/api/update-item-note', methods=['POST'])
+@require_auth
+def update_item_note_endpoint():
+    worker = current_app.worker
+    data = request.json
+    
+    id_detalle = data.get('id_detalle')
+    nota = data.get('nota')
+    
+    if not id_detalle:
+        return jsonify({"error": "Faltan datos"}), 400
+        
+    success = worker.data_manager.update_item_note(id_detalle, nota)
+    
+    if success:
+        logger.info(f"Nota actualizada para item {id_detalle}: {nota}")
+        worker.socketio.emit('kds_update', {'destino': 'all'})
+        worker.socketio.emit('mesas_actualizadas', worker.data_manager.get_active_orders_caja())
+        worker.ordenes_modificadas.emit()
+        return jsonify({"status": "success"}), 200
+    else:
+        return jsonify({"error": "Error BD"}), 500

@@ -1002,3 +1002,12 @@ class DataManager:
         rows = cursor.fetchall()
         
         return [dict(row) for row in rows]
+    
+    def update_item_note(self, id_detalle, nota):
+        """Actualiza la nota de un ítem específico en una orden activa."""
+        try:
+            self.execute("UPDATE orden_detalle SET notas = ? WHERE id_detalle = ?", (nota, id_detalle))
+            return True
+        except Exception as e:
+            print(f"Error actualizando nota: {e}")
+            return False

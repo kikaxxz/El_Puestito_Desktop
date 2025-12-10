@@ -186,12 +186,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
+  // --- AQUÍ ESTÁ EL CAMBIO CLAVE PARA NOTAS POR ÍTEM ---
   Widget _buildItemCard(dynamic item) {
     final int idDetalle = item['id_detalle']; 
     final int maxQty = item['cantidad'];
     final String estado = item['estado_item'] ?? 'pendiente'; 
     final bool isLocked = estado == 'listo'; 
     final int currentSel = _selectedQuantities[idDetalle] ?? 0;
+    
+    // Leemos la nota que viene del servidor
+    final String notaActual = item['notas'] ?? ''; 
     
     final double precioUnitario = double.tryParse(item['precio_unitario'].toString()) ?? 0.0;
     final double subtotalItem = precioUnitario * maxQty;
@@ -202,71 +206,156 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
-        child: Row(
+        child: Column(
           children: [
-            Icon(
-              isLocked ? Icons.check_circle : Icons.timer,
-              color: isLocked ? Colors.green : Colors.orange,
+            Row(
+              children: [
+                Icon(
+                  isLocked ? Icons.check_circle : Icons.timer,
+                  color: isLocked ? Colors.green : Colors.orange,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['nombre'], 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 16,
+                          color: isLocked ? Colors.grey : Colors.black
+                        )
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "C\$ ${precioUnitario.toStringAsFixed(2)} x $maxQty",
+                        style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                // BOTÓN DE NOTA (LÁPIZ)
+                IconButton(
+                  icon: Icon(
+                    notaActual.isNotEmpty ? Icons.comment : Icons.add_comment_outlined,
+                    color: notaActual.isNotEmpty ? Colors.blue : Colors.grey,
+                  ),
+                  tooltip: "Agregar nota (ej: sin cebolla)",
+                  onPressed: () => _showNoteDialog(idDetalle, notaActual, item['nombre']),
+                ),
+              ],
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item['nombre'], 
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold, 
-                      fontSize: 16,
-                      color: isLocked ? Colors.grey : Colors.black
-                    )
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "C\$ ${precioUnitario.toStringAsFixed(2)} x $maxQty",
-                    style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
-                  ),
-                  Text(
-                    "Total: C\$ ${subtotalItem.toStringAsFixed(2)}  |  ${isLocked ? 'LISTO' : 'PENDIENTE'}",
-                    style: TextStyle(
-                      color: isLocked ? Colors.green.shade700 : Colors.orange.shade800,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12
-                    )
-                  ),
-                ],
+            
+            // MOSTRAR LA NOTA VISUALMENTE
+            if (notaActual.isNotEmpty)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 5, left: 34, bottom: 5),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.yellow.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.yellow.shade300)
+                ),
+                child: Text(
+                  "📝 $notaActual",
+                  style: TextStyle(fontStyle: FontStyle.italic, color: Colors.brown.shade800),
+                ),
               ),
-            ),
+
             if (!isLocked) 
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle_outline),
-                    color: currentSel > 0 ? Colors.red : Colors.grey,
-                    onPressed: currentSel > 0 
-                      ? () => setState(() => _selectedQuantities[idDetalle] = currentSel - 1)
-                      : null,
-                  ),
-                  Text(
-                    "$currentSel",
-                    style: TextStyle(
-                      fontSize: 18, 
-                      fontWeight: FontWeight.bold,
-                      color: currentSel > 0 ? Colors.blue : Colors.black
+              Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      "Total: C\$ ${subtotalItem.toStringAsFixed(2)}   |   ${isLocked ? 'LISTO' : 'PENDIENTE'}",
+                      style: TextStyle(
+                        color: isLocked ? Colors.green.shade700 : Colors.orange.shade800,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline),
-                    color: currentSel < maxQty ? Colors.green : Colors.grey,
-                    onPressed: currentSel < maxQty 
-                      ? () => setState(() => _selectedQuantities[idDetalle] = currentSel + 1)
-                      : null,
-                  ),
-                ],
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline),
+                      color: currentSel > 0 ? Colors.red : Colors.grey,
+                      onPressed: currentSel > 0 
+                        ? () => setState(() => _selectedQuantities[idDetalle] = currentSel - 1)
+                        : null,
+                    ),
+                    Text(
+                      "$currentSel",
+                      style: TextStyle(
+                        fontSize: 18, 
+                        fontWeight: FontWeight.bold,
+                        color: currentSel > 0 ? Colors.blue : Colors.black
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      color: currentSel < maxQty ? Colors.green : Colors.grey,
+                      onPressed: currentSel < maxQty 
+                        ? () => setState(() => _selectedQuantities[idDetalle] = currentSel + 1)
+                        : null,
+                    ),
+                  ],
+                ),
               )
           ],
         ),
       ),
+    );
+  }
+
+  void _showNoteDialog(int idDetalle, String currentNote, String itemName) {
+    final txtController = TextEditingController(text: currentNote);
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Nota para: $itemName"),
+        content: TextField(
+          controller: txtController,
+          decoration: const InputDecoration(
+            hintText: "Ej: Sin cebolla, Salsa aparte...",
+            border: OutlineInputBorder()
+          ),
+          maxLines: 2,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancelar"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              setState(() => _isLoading = true);
+              
+              final api = ApiService();
+              final success = await api.updateItemNote(idDetalle, txtController.text.trim());
+              
+              if (mounted) {
+                setState(() => _isLoading = false);
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Nota actualizada"), duration: Duration(seconds: 1))
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Error al guardar nota"), backgroundColor: Colors.red)
+                  );
+                }
+              }
+            },
+            child: const Text("Guardar"),
+          )
+        ],
+      )
     );
   }
 

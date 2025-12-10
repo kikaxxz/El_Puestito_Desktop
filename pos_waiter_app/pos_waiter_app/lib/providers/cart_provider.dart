@@ -7,6 +7,7 @@ class CartItem {
   final int cantidad;
   final double precio;
   final String imagen;
+  final String notas; 
 
   CartItem({
     required this.id,
@@ -14,6 +15,7 @@ class CartItem {
     required this.cantidad,
     required this.precio,
     required this.imagen,
+    this.notas = '',
   });
 }
 
@@ -37,6 +39,24 @@ class CartProvider with ChangeNotifier {
     return total;
   }
 
+  void updateNote(String productId, String note) {
+    if (_items.containsKey(productId)) {
+      _items.update(
+        productId,
+        (existing) => CartItem(
+          id: existing.id,
+          nombre: existing.nombre,
+          cantidad: existing.cantidad,
+          precio: existing.precio,
+          imagen: existing.imagen,
+          notas: note, 
+        ),
+      );
+      notifyListeners();
+    }
+  }
+
+
   void addItem(Platillo platillo) {
     if (_items.containsKey(platillo.id)) {
       _items.update(
@@ -47,6 +67,7 @@ class CartProvider with ChangeNotifier {
           cantidad: existingCartItem.cantidad + 1,
           precio: existingCartItem.precio,
           imagen: existingCartItem.imagen,
+          notas: existingCartItem.notas, 
         ),
       );
     } else {
@@ -58,6 +79,7 @@ class CartProvider with ChangeNotifier {
           cantidad: 1,
           precio: platillo.precio,
           imagen: platillo.imagen,
+          notas: '', 
         ),
       );
     }
@@ -69,7 +91,7 @@ class CartProvider with ChangeNotifier {
       return;
     }
     if (_items[platilloId]!.cantidad > 1) {
-       _items.update(
+      _items.update(
         platilloId,
         (existingCartItem) => CartItem(
           id: existingCartItem.id,
@@ -77,6 +99,7 @@ class CartProvider with ChangeNotifier {
           cantidad: existingCartItem.cantidad - 1,
           precio: existingCartItem.precio,
           imagen: existingCartItem.imagen,
+          notas: existingCartItem.notas,
         ),
       );
     } else {
