@@ -2,7 +2,7 @@ import os
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel, 
     QTableWidget, QHeaderView, QTableWidgetItem, QPushButton, QMessageBox,
-    QScrollArea, QGridLayout, QButtonGroup, QFrame
+    QScrollArea, QGridLayout, QButtonGroup, QFrame, QScroller
 )
 from PyQt6.QtCore import Qt, QSize
 
@@ -65,6 +65,9 @@ class CajaPage(QWidget):
         self.scroll_mesas.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll_mesas.setStyleSheet("background: transparent; border: none;")
         
+        QScroller.grabGesture(self.scroll_mesas.viewport(), QScroller.ScrollerGestureType.TouchGesture)
+        QScroller.grabGesture(self.scroll_mesas.viewport(), QScroller.ScrollerGestureType.LeftMouseButtonGesture)
+
         self.mesas_container = QWidget()
         self.mesas_grid = QGridLayout(self.mesas_container)
         self.mesas_grid.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -93,6 +96,9 @@ class CajaPage(QWidget):
         self.tabla_cuenta.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.tabla_cuenta.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         
+        QScroller.grabGesture(self.tabla_cuenta.viewport(), QScroller.ScrollerGestureType.TouchGesture)
+        QScroller.grabGesture(self.tabla_cuenta.viewport(), QScroller.ScrollerGestureType.LeftMouseButtonGesture)
+
         total_frame = QFrame()
         total_frame.setStyleSheet("""
             background-color: #2b2b2b; 
@@ -147,18 +153,19 @@ class CajaPage(QWidget):
 
     def load_active_orders(self):
         """Recarga las mesas y reconstruye el Grid."""
-        mesa_previa = self.mesa_actual
-        
-        self.ordenes_activas = {}
-        
-        while self.mesas_grid.count():
-            item = self.mesas_grid.takeAt(0)
-            widget = item.widget()
-            if widget:
-                self.mesas_button_group.removeButton(widget) 
-                widget.deleteLater()
-        
+        self.mesas_container.setUpdatesEnabled(False)
         try:
+            mesa_previa = self.mesa_actual
+            
+            while self.mesas_grid.count():
+                item = self.mesas_grid.takeAt(0)
+                widget = item.widget()
+                if widget:
+                    self.mesas_button_group.removeButton(widget) 
+                    widget.deleteLater()
+            
+            self.ordenes_activas = {}
+            
             self.ordenes_activas = self.app_controller.data_manager.get_active_orders_caja()
             sorted_keys = sorted(self.ordenes_activas.keys())
 
@@ -180,7 +187,7 @@ class CajaPage(QWidget):
                     self._llenar_tabla_detalle(orden)
                 
                 col += 1
-                if col > 1:
+                if col > 1: 
                     col = 0
                     row += 1
             
@@ -191,6 +198,8 @@ class CajaPage(QWidget):
         except Exception as e:
             print(f"Error cargando órdenes: {e}")
             self.ordenes_activas = {}
+        finally:
+            self.mesas_container.setUpdatesEnabled(True)
 
     def _formatear_nombre_mesa(self, mesa_key):
         """Helper para que el texto del botón se vea bonito."""
@@ -222,6 +231,7 @@ class CajaPage(QWidget):
 
     def _llenar_tabla_detalle(self, orden):
         """Llena la tabla derecha."""
+        self.tabla_cuenta.setUpdatesEnabled(False)
         items = orden.get('items', [])
         self.tabla_cuenta.setRowCount(len(items))
         
@@ -250,6 +260,7 @@ class CajaPage(QWidget):
             self.tabla_cuenta.setItem(row, 3, item_sub)
             
         self.total_label.setText(f"C$ {total:,.2f}")
+        self.tabla_cuenta.setUpdatesEnabled(True)
 
     def cobrar_cuenta(self):
         btn_seleccionado = self.mesas_button_group.checkedButton()

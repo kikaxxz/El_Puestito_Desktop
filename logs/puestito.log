@@ -386,3 +386,52 @@ Query:
 2025-12-10 02:09:13,559 [INFO] Orden Mesa 2 marcada lista en cocina (vía Web)
 2025-12-10 02:09:20,605 [INFO] Acceso KDS web autorizado para: barra
 2025-12-10 02:09:23,250 [INFO] Orden Mesa 2 marcada lista en barra (vía Web)
+2025-12-17 15:48:19,576 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-17 15:48:19,948 [INFO] Generando reporte visual para 2025-12-17
+2025-12-17 15:48:19,949 [INFO] Reporte generado. Total: C$0.00
+2025-12-17 15:48:20,184 [INFO] Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...
+2025-12-17 16:09:38,461 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-17 16:09:38,853 [INFO] Generando reporte visual para 2025-12-17
+2025-12-17 16:09:38,853 [INFO] Reporte generado. Total: C$0.00
+2025-12-17 16:10:36,812 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-17 16:10:37,171 [INFO] Generando reporte visual para 2025-12-17
+2025-12-17 16:10:37,172 [INFO] Reporte generado. Total: C$0.00
+2025-12-17 16:10:55,105 [INFO] Nueva orden recibida vía API: 9f10c0eb-45fe-4702-a597-a3c332c2f973
+2025-12-17 16:10:55,108 [INFO] Orden 143 creada exitosamente (Atomicidad garantizada).
+2025-12-17 16:10:55,316 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-17 16:11:19,147 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-17 16:11:21,296 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-17 16:13:55,191 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-17 16:13:55,564 [INFO] Generando reporte visual para 2025-12-17
+2025-12-17 16:13:55,565 [INFO] Reporte generado. Total: C$1750.00
+2025-12-17 16:15:03,612 [INFO] Acceso KDS web autorizado para: cocina
+2025-12-17 16:30:26,165 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-17 16:30:26,513 [INFO] Generando reporte visual para 2025-12-17
+2025-12-17 16:30:26,514 [INFO] Reporte generado. Total: C$1750.00
+2025-12-17 16:31:02,680 [INFO] Nueva orden recibida vía API: a6347e01-a7de-42f6-995f-0ac7e71c0ce2
+2025-12-17 16:31:02,683 [INFO] Orden 144 creada exitosamente (Atomicidad garantizada).
+2025-12-17 16:31:02,893 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-17 16:32:14,813 [INFO] Nueva orden recibida vía API: 9f80c4f6-7751-4e19-ad41-ce53b759b451
+2025-12-17 16:32:14,818 [INFO] Orden 145 creada exitosamente (Atomicidad garantizada).
+2025-12-17 16:32:15,671 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-17 16:32:32,425 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-17 16:32:35,763 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-17 16:32:46,927 [INFO] Generando reporte visual para 2025-12-18
+2025-12-17 16:32:46,928 [INFO] Reporte generado. Total: C$0.00
+2025-12-17 16:32:47,310 [INFO] Generando reporte visual para 2025-12-17
+2025-12-17 16:32:47,311 [INFO] Reporte generado. Total: C$13478.00
+2025-12-17 16:32:48,876 [INFO] Generando reporte visual para 2025-12-16
+2025-12-17 16:32:48,877 [INFO] Reporte generado. Total: C$0.00
+2025-12-17 16:32:49,194 [INFO] Generando reporte visual para 2025-12-17
+2025-12-17 16:32:49,195 [INFO] Reporte generado. Total: C$13478.00
+2025-12-17 16:33:11,530 [INFO] Acceso KDS web autorizado para: cocina
+2025-12-17 16:33:23,619 [INFO] Nueva orden recibida vía API: 9576e7fd-4fe7-4c60-9d47-35a722ac6055
+2025-12-17 16:33:23,623 [INFO] Orden 146 creada exitosamente (Atomicidad garantizada).
+2025-12-17 16:33:23,699 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-17 16:33:34,734 [INFO] Orden Mesa 6 marcada lista en cocina (vía Web)
+2025-12-17 16:33:54,709 [INFO] Retransmitiendo evento: mesas_actualizadas
+2025-12-17 16:39:19,304 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-17 16:39:19,741 [INFO] Generando reporte visual para 2025-12-17
+2025-12-17 16:39:19,742 [INFO] Reporte generado. Total: C$14108.00
+2025-12-17 16:39:28,953 [INFO] Acceso KDS web autorizado para: cocina
+2025-12-17 16:39:54,017 [INFO] Acceso KDS web autorizado para: barra

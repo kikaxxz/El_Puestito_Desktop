@@ -3,7 +3,7 @@ import json
 import datetime
 import time
 from functools import wraps
-from flask import Blueprint, request, jsonify, send_from_directory, render_template, current_app
+from flask import Blueprint, request, jsonify, send_from_directory, render_template, current_app, session, redirect, url_for
 from logger_setup import setup_logger
 
 logger = setup_logger()
@@ -48,8 +48,10 @@ def index():
 def kds_view(destino):
     if destino not in ['cocina', 'barra']:
         return "Destino no válido", 404
-    return render_template('kds_view.html', destino=destino, api_key=current_app.worker.API_KEY)
+    if session.get('kds_access') != destino:
+        return redirect(url_for('api.index'))
 
+    return render_template('kds_view.html', destino=destino, api_key=current_app.worker.API_KEY)
 @api_bp.route('/reportes-web')
 def view_reportes():
     return render_template('reportes_dashboard.html')
@@ -63,6 +65,7 @@ def validar_pin():
     
     if destino:
         logger.info(f"Acceso KDS web autorizado para: {destino}")
+        session['kds_access'] = destino 
         return jsonify({"status": "success", "redirect": f"/kds/{destino}"})
     else:
         logger.warning("Intento de PIN incorrecto en KDS web")

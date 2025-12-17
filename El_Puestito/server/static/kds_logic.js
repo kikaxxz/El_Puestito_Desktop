@@ -95,7 +95,8 @@ if (window.location.pathname.startsWith('/kds/')) {
         `;
 
         try {
-            const audio = new Audio('/static/notification.mp3'); 
+            const audio = new Audio('/static/notification.mp3');
+            audio.play().catch(e => console.log("Audio bloqueado por el navegador (falta interacción previa)"));
         } catch(e) {}
 
         document.body.appendChild(toast);

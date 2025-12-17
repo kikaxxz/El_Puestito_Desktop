@@ -1,7 +1,7 @@
 import os
 import json
 import datetime
-import threading
+import logging
 from PyQt6.QtCore import QObject, pyqtSignal
 from flask import Flask
 from flask_socketio import SocketIO
@@ -15,17 +15,15 @@ TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templat
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 
 class ServerWorker(QObject):
-    class ServerShutdownException(Exception):
-        pass
-
     asistencia_recibida = pyqtSignal(dict)
     nueva_orden_recibida = pyqtSignal(dict)
     kds_estado_cambiado = pyqtSignal(str)
     ordenes_modificadas = pyqtSignal()
+    server_error = pyqtSignal(str)
 
     def __init__(self, data_manager):
         super().__init__()
-        self.data_manager = data_manager 
+        self.data_manager = data_manager
         self.config = self._load_config()
         self.API_KEY = self.config.get('api_key', 'puestito_seguro_2025')
         
@@ -45,45 +43,51 @@ class ServerWorker(QObject):
         self.enroll_status = {"step": 0, "message": "Esperando inicio..."}
 
         self.app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
-        self.app.worker = self 
+        self.app.secret_key = 'super_secreto_el_puestito_2025'
+        self.app.worker = self
         self.app.register_blueprint(api_bp)
-        self.socketio = SocketIO(self.app, cors_allowed_origins="*", async_mode='threading')
+
+        self.socketio = SocketIO(
+            self.app, 
+            cors_allowed_origins="*", 
+            async_mode='threading',
+            manage_session=False
+        )
 
     def _load_config(self):
         try:
             path = os.path.join(BASE_DIR, "assets", "config.json")
             if not os.path.exists(path):
-                logger.warning("config.json no encontrado, usando valores por defecto.")
                 return {}
             with open(path, 'r') as f:
                 return json.load(f)
         except Exception as e:
-            logger.error(f"Error crítico cargando config.json: {e}")
+            logger.error(f"Error cargando config: {e}")
             return {}
 
     def forzar_actualizacion_kds(self, destino):
-        logger.info(f"Enviando actualización forzada a KDS Web: {destino}")
-        self.socketio.emit('kds_update', {'destino': destino})
-        self.socketio.emit('mesas_actualizadas', self.data_manager.get_active_orders_caja())
-            
+        try:
+            self.socketio.emit('kds_update', {'destino': destino})
+            self.socketio.emit('mesas_actualizadas', self.data_manager.get_active_orders_caja())
+        except Exception as e:
+            logger.error(f"Error emitiendo socket: {e}")
+
     def _validate_order_items(self, orden):
         try:
             available_ids = self.data_manager.get_available_menu_items()
             items_en_orden = orden.get("items", [])
             for item_in_order in items_en_orden:
-                item_id = item_in_order.get("item_id") 
+                item_id = item_in_order.get("item_id")
                 if item_id not in available_ids:
                     item_nombre = item_in_order.get("nombre", "Desconocido")
                     return False, f"El platillo '{item_nombre}' ya no está disponible."
             return True, ""
-        except Exception as e:
-            logger.error(f"Error validando orden: {e}")
+        except Exception:
             return False, "Error interno al validar el menú."
         
     def _registrar_evento(self, emp_id, tipo):
         ts = datetime.datetime.now().isoformat(timespec='seconds')
         self.data_manager.add_attendance_event(emp_id, tipo, ts)
-        logger.info(f"Asistencia registrada: {emp_id} - {tipo}")
         self.asistencia_recibida.emit({
             "employee_id": emp_id, "event_type": tipo, "timestamp": ts
         })
@@ -93,11 +97,14 @@ class ServerWorker(QObject):
 
     def start_server(self):
         try:
-            logger.info("Iniciando servidor Flask/SocketIO en puerto 5000 (Modo Threading)...")
-            self.socketio.run(self.app, 
-                            host='0.0.0.0', 
-                            port=5000, 
-                            allow_unsafe_werkzeug=True, 
-                            log_output=False) 
+            self.socketio.run(
+                self.app, 
+                host='0.0.0.0', 
+                port=5000, 
+                allow_unsafe_werkzeug=True, 
+                log_output=True,
+                use_reloader=False
+            )
         except Exception as e:
-            logger.critical(f"Fallo fatal en el servidor: {e}", exc_info=True)
+            logger.critical(f"Fallo en servidor: {e}")
+            self.server_error.emit(str(e))
