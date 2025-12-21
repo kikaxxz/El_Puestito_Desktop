@@ -264,3 +264,70 @@ QLabel#menu_item_label {
 QLabel#menu_item_image {
     background-color: transparent;
 }
+
+/* --- ESTILOS PARA DIÁLOGOS (NUEVO) --- */
+
+QDialog {
+    background-color: #1b1c1f; /* Mismo fondo que tu sidebar/paneles */
+    color: #f3f4f6;
+}
+
+/* Campos de texto dentro del diálogo */
+#dialog_input {
+    background-color: #2a2b30;
+    border: 1px solid #3a3c42;
+    border-radius: 6px;
+    padding: 8px;
+    color: white;
+    font-size: 14px;
+}
+#dialog_input:focus {
+    border: 1px solid #f76606; /* Naranja al enfocar */
+    background-color: #333;
+}
+
+/* Botón Secundario (Gris) para Cancelar / Subir Foto */
+#secondary_button {
+    background-color: #2a2c32;
+    color: #bfc2c7;
+    border: 1px solid #3a3c42;
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-weight: bold;
+    font-size: 14px;
+}
+#secondary_button:hover {
+    background-color: #3a3c42;
+    color: white;
+}
+#secondary_button:pressed {
+    background-color: #1e1f22;
+}
+
+/* Cuadro de previsualización de imagen */
+#img_preview {
+    background-color: #141416;
+    border: 2px dashed #3a3c42;
+    border-radius: 8px;
+    color: #777;
+    font-weight: bold;
+}
+
+#blue_button {
+    background-color: #2980B9; /* Azul profesional */
+    color: white;
+    padding: 12px 20px;      /* Mismo padding que el naranja */
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;         /* Misma fuente */
+    font-weight: bold;
+    min-height: 40px;        /* Misma altura mínima */
+}
+
+#blue_button:hover {
+    background-color: #3498DB; /* Azul más claro al pasar mouse */
+}
+
+#blue_button:pressed {
+    background-color: #1F618D; /* Azul oscuro al presionar */
+}

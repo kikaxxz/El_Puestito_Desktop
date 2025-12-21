@@ -1011,3 +1011,23 @@ class DataManager:
         except Exception as e:
             print(f"Error actualizando nota: {e}")
             return False
+
+    def ensure_promo_category(self):
+        """Asegura que exista la categoría Promociones para guardar los combos."""
+        self.execute("INSERT OR IGNORE INTO menu_categorias (nombre, destino) VALUES ('Promociones', 'cocina')")
+        cat = self.fetchone("SELECT id_categoria FROM menu_categorias WHERE nombre = 'Promociones'")
+        return cat['id_categoria'] if cat else None
+
+    def create_combo_item(self, nombre, precio, descripcion_contenido, imagen_path):
+        """Crea el combo como un item único en el menú."""
+        id_cat = self.ensure_promo_category()
+        
+        import uuid
+        new_id = f"COMBO_{str(uuid.uuid4())[:6]}"
+        
+        return self.execute(
+            """INSERT INTO menu_items 
+               (id_item, id_categoria, nombre, precio, descripcion, imagen, disponible)
+               VALUES (?, ?, ?, ?, ?, ?, 1)""",
+            (new_id, id_cat, nombre, precio, descripcion_contenido, imagen_path)
+        )

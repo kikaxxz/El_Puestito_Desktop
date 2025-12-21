@@ -435,3 +435,40 @@ Query:
 2025-12-17 16:39:19,742 [INFO] Reporte generado. Total: C$14108.00
 2025-12-17 16:39:28,953 [INFO] Acceso KDS web autorizado para: cocina
 2025-12-17 16:39:54,017 [INFO] Acceso KDS web autorizado para: barra
+2025-12-21 11:44:16,427 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-21 11:44:26,800 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-21 11:48:34,744 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-21 11:48:35,461 [INFO] Generando reporte visual para 2025-12-21
+2025-12-21 11:48:35,463 [INFO] Reporte generado. Total: C$0.00
+2025-12-21 11:51:16,332 [INFO] Retransmitiendo evento: configuracion_actualizada
+2025-12-21 11:51:16,338 [INFO] Notificación de configuración enviada al servidor.
+2025-12-21 11:55:35,042 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-21 11:55:35,430 [INFO] Generando reporte visual para 2025-12-21
+2025-12-21 11:55:35,431 [INFO] Reporte generado. Total: C$0.00
+2025-12-21 11:56:00,156 [INFO] Retransmitiendo evento: configuracion_actualizada
+2025-12-21 11:56:00,163 [INFO] Notificación de configuración enviada al servidor.
+2025-12-21 12:06:34,815 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-21 12:06:35,207 [INFO] Generando reporte visual para 2025-12-21
+2025-12-21 12:06:35,208 [INFO] Reporte generado. Total: C$0.00
+2025-12-21 12:10:06,043 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-21 12:10:06,439 [INFO] Generando reporte visual para 2025-12-21
+2025-12-21 12:10:06,440 [INFO] Reporte generado. Total: C$0.00
+2025-12-21 12:10:28,960 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-21 12:10:29,376 [INFO] Generando reporte visual para 2025-12-21
+2025-12-21 12:10:29,377 [INFO] Reporte generado. Total: C$0.00
+2025-12-21 12:10:58,626 [INFO] Generando reporte visual para 2025-12-20
+2025-12-21 12:10:58,627 [INFO] Reporte generado. Total: C$0.00
+2025-12-21 12:10:59,051 [INFO] Generando reporte visual para 2025-12-19
+2025-12-21 12:10:59,052 [INFO] Reporte generado. Total: C$0.00
+2025-12-21 12:10:59,498 [INFO] Generando reporte visual para 2025-12-18
+2025-12-21 12:10:59,501 [INFO] Reporte generado. Total: C$0.00
+2025-12-21 12:10:59,930 [INFO] Generando reporte visual para 2025-12-17
+2025-12-21 12:10:59,934 [INFO] Reporte generado. Total: C$14108.00
+2025-12-21 12:27:45,022 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-21 12:27:45,415 [INFO] Generando reporte visual para 2025-12-21
+2025-12-21 12:27:45,416 [INFO] Reporte generado. Total: C$0.00
+2025-12-21 12:37:41,969 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2025-12-21 12:37:42,466 [INFO] Generando reporte visual para 2025-12-21
+2025-12-21 12:37:42,467 [INFO] Reporte generado. Total: C$0.00
+2025-12-21 12:38:44,519 [INFO] Retransmitiendo evento: configuracion_actualizada
+2025-12-21 12:38:44,525 [INFO] Notificación de configuración enviada al servidor.
