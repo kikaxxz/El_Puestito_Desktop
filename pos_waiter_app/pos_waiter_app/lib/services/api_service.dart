@@ -3,11 +3,29 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String apiKey = "puestito_seguro_2025"; 
 
   Future<String?> getServerUrl() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('server_url');
+  }
+
+  Future<String> getApiKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('api_key') ?? 'puestito_seguro_2025';
+  }
+
+  Future<void> saveServerConfig(String url, String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('server_url', url);
+    await prefs.setString('api_key', key);
+  }
+
+  Future<Map<String, String>> _getHeaders() async {
+    final apiKey = await getApiKey();
+    return {
+      'Content-Type': 'application/json',
+      'X-API-KEY': apiKey,
+    };
   }
 
   Future<bool> updateItemNote(int idDetalle, String nota) async {
@@ -15,9 +33,10 @@ class ApiService {
     if (baseUrl == null) return false;
 
     try {
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/api/update-item-note'),
-        headers: _getHeaders(),
+        headers: headers,
         body: json.encode({
           'id_detalle': idDetalle,
           'nota': nota,
@@ -35,9 +54,10 @@ class ApiService {
     if (baseUrl == null) return false;
     
     try {
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/api/split-order'),
-        headers: _getHeaders(),
+        headers: headers,
         body: json.encode({
           'mesa_key': mesaKey,
           'items': items,
@@ -55,9 +75,10 @@ class ApiService {
     if (baseUrl == null) return false;
     
     try {
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/api/cancel-order'),
-        headers: _getHeaders(),
+        headers: headers,
         body: json.encode({'mesa_key': mesaKey}),
       );
       return response.statusCode == 200;
@@ -72,9 +93,10 @@ class ApiService {
     if (baseUrl == null) return false;
     
     try {
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/api/remove-items'),
-        headers: _getHeaders(),
+        headers: headers,
         body: json.encode({
           'mesa_key': mesaKey,
           'items': items,
@@ -87,18 +109,12 @@ class ApiService {
     }
   }
 
-  Map<String, String> _getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-      'X-API-KEY': apiKey, 
-    };
-  }
-
   Future<Map<String, dynamic>?> getMenu() async {
     final baseUrl = await getServerUrl();
     if (baseUrl == null) return null;
     try {
-      final response = await http.get(Uri.parse('$baseUrl/menu'), headers: _getHeaders());
+      final headers = await _getHeaders();
+      final response = await http.get(Uri.parse('$baseUrl/menu'), headers: headers);
       return (response.statusCode == 200) ? json.decode(response.body) : null;
     } catch (e) {
       print("Error Menu: $e");
@@ -111,9 +127,10 @@ class ApiService {
     if (baseUrl == null) return {'exito': false, 'msg': 'URL no configurada'};
 
     try {
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/nueva-orden'),
-        headers: _getHeaders(),
+        headers: headers,
         body: json.encode(ordenData),
       );
 
@@ -132,7 +149,8 @@ class ApiService {
     final baseUrl = await getServerUrl();
     if (baseUrl == null) return null;
     try {
-      final response = await http.get(Uri.parse('$baseUrl/configuracion'), headers: _getHeaders());
+      final headers = await _getHeaders();
+      final response = await http.get(Uri.parse('$baseUrl/configuracion'), headers: headers);
       return (response.statusCode == 200) ? json.decode(response.body) : null;
     } catch (_) { return null; }
   }
@@ -141,7 +159,8 @@ class ApiService {
     final baseUrl = await getServerUrl();
     if (baseUrl == null) return null;
     try {
-      final response = await http.get(Uri.parse('$baseUrl/estado-mesas'), headers: _getHeaders());
+      final headers = await _getHeaders();
+      final response = await http.get(Uri.parse('$baseUrl/estado-mesas'), headers: headers);
       return (response.statusCode == 200) ? json.decode(response.body) : null;
     } catch (_) { return null; }
   }

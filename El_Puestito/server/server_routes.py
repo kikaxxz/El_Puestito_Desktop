@@ -308,14 +308,17 @@ def trigger_update():
     worker = current_app.worker
     data = request.json
     event_name = data.get('event')
-    payload_data = data.get('data') 
+    payload_data = data.get('data')
     
     logger.info(f"Retransmitiendo evento: {event_name}")
     
     if event_name == 'mesas_actualizadas':
-        time.sleep(0.1) 
-        table_state_payload = worker.data_manager.get_active_orders_caja()
-        worker.socketio.emit('mesas_actualizadas', table_state_payload)
+        def emit_update():
+            worker.socketio.sleep(0.1)
+            table_state_payload = worker.data_manager.get_active_orders_caja()
+            worker.socketio.emit('mesas_actualizadas', table_state_payload)
+            
+        worker.socketio.start_background_task(emit_update)
         
     elif event_name == 'menu_actualizado':
         worker.socketio.emit('menu_actualizado', {'mensaje': 'Menú cambiado'})

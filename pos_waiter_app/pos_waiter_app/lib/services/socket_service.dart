@@ -9,7 +9,6 @@ class SocketService with ChangeNotifier {
   Map<String, dynamic> _mesasState = {}; 
   final ApiService _apiService = ApiService();
 
-
   bool get isConnected => _isConnected;
   Map<String, dynamic> get mesas => _mesasState;
 
@@ -18,14 +17,14 @@ class SocketService with ChangeNotifier {
 
   Stream<void> get menuActualizadoStream => _menuController.stream;
   Stream<void> get configUpdatedStream => _configController.stream;
+
   Future<void> initService() async {
     await _fetchInitialData(); 
     await _connectSocket();    
   }
 
-
   Future<void> refreshTables() async {
-    print("SocketService: Refrescando mesas vía HTTP...");
+    print("SocketService: Refrescando mesas via HTTP...");
     await _fetchInitialData();
   }
 
@@ -41,6 +40,8 @@ class SocketService with ChangeNotifier {
     final serverUrl = await _apiService.getServerUrl();
     if (serverUrl == null) return;
 
+    final apiKey = await _apiService.getApiKey();
+
     if (_socket != null) {
       _socket!.disconnect();
       _socket!.dispose();
@@ -51,7 +52,7 @@ class SocketService with ChangeNotifier {
         'transports': ['websocket'],
         'autoConnect': true,
         'extraHeaders': {
-          'X-API-KEY': ApiService.apiKey 
+          'X-API-KEY': apiKey 
         }
       });
 
@@ -68,7 +69,7 @@ class SocketService with ChangeNotifier {
       });
 
       _socket!.on('mesas_actualizadas', (data) {
-        print("Socket: Evento 'mesas_actualizadas' recibido.");
+        print("Socket: Evento mesas_actualizadas recibido.");
         if (data is Map<String, dynamic>) {
           _mesasState = data;
           notifyListeners(); 
@@ -78,12 +79,11 @@ class SocketService with ChangeNotifier {
       _socket!.on('menu_actualizado', (_) => _menuController.add(null));
 
       _socket!.on('configuracion_actualizada', (_) {
-      print("Socket: Evento 'configuracion_actualizada' recibido.");
+        print("Socket: Evento configuracion_actualizada recibido.");
         _configController.add(null);
-
       });
     } catch (e) {
-      print("Socket Error: $e");
+      print("Socket Error: \$e");
     }
   }
 

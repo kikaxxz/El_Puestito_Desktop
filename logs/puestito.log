@@ -472,3 +472,36 @@ Query:
 2025-12-21 12:37:42,467 [INFO] Reporte generado. Total: C$0.00
 2025-12-21 12:38:44,519 [INFO] Retransmitiendo evento: configuracion_actualizada
 2025-12-21 12:38:44,525 [INFO] Notificación de configuración enviada al servidor.
+2026-03-01 17:52:54,818 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2026-03-01 17:52:55,488 [INFO] Generando reporte visual para 2026-03-01
+2026-03-01 17:52:55,490 [INFO] Reporte generado. Total: C$0.00
+2026-03-01 17:56:29,561 [INFO] Nueva orden recibida vía API: e6bac991-d4d6-44ee-a0ad-916adea9e091
+2026-03-01 17:56:29,565 [INFO] Orden 147 creada exitosamente (Atomicidad garantizada).
+2026-03-01 17:56:29,714 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-01 18:00:17,280 [INFO] Acceso KDS web autorizado para: barra
+2026-03-01 18:00:29,361 [INFO] Acceso KDS web autorizado para: cocina
+2026-03-01 18:00:40,118 [INFO] Orden Mesa 1 marcada lista en cocina (vía Web)
+2026-03-01 18:03:54,932 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-01 18:04:13,300 [INFO] Orden Mesa 1 marcada lista en barra (vía Web)
+2026-03-01 18:04:21,373 [INFO] Acceso KDS web autorizado para: cocina
+2026-03-15 14:26:13,738 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2026-03-15 14:26:14,568 [INFO] Generando reporte visual para 2026-03-15
+2026-03-15 14:26:14,569 [INFO] Reporte generado. Total: C$0.00
+2026-03-15 14:26:54,588 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-15 21:16:09,627 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2026-03-15 21:16:10,391 [INFO] Generando reporte visual para 2026-03-15
+2026-03-15 21:16:10,392 [INFO] Reporte generado. Total: C$4320.00
+2026-03-15 21:32:01,635 [INFO] Nueva orden recibida vía API: dcb9fd93-b5ff-42be-a2da-6a89a3d669a8
+2026-03-15 21:32:01,647 [INFO] Orden 148 creada exitosamente (Atomicidad garantizada).
+2026-03-15 21:32:01,769 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-15 21:32:33,320 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-15 21:32:51,148 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-19 14:55:06,463 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2026-03-19 14:55:07,664 [INFO] Generando reporte visual para 2026-03-19
+2026-03-19 14:55:07,666 [INFO] Reporte generado. Total: C$0.00
+2026-03-19 14:57:47,924 [INFO] Generando reporte visual para 2025-11-13
+2026-03-19 14:57:47,925 [INFO] Reporte generado. Total: C$0.00
+2026-03-19 14:57:48,698 [INFO] Generando reporte visual para 2025-11-14
+2026-03-19 14:57:48,699 [INFO] Reporte generado. Total: C$0.00
+2026-03-19 14:57:49,832 [INFO] Generando reporte visual para 2025-11-15
+2026-03-19 14:57:49,833 [INFO] Reporte generado. Total: C$2473.00

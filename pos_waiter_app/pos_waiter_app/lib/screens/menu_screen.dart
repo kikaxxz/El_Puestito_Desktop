@@ -33,7 +33,6 @@ class _MenuScreenState extends State<MenuScreen> {
 
     final socketService = Provider.of<SocketService>(context, listen: false);
     _menuSubscription = socketService.menuActualizadoStream.listen((_) {
-      print("MenuScreen: Actualizando menú por evento socket...");
       Future.delayed(const Duration(milliseconds: 250), _loadMenuFromServer);
     });
 
@@ -212,9 +211,22 @@ class _MenuScreenState extends State<MenuScreen> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(icon: const Icon(Icons.remove_circle), onPressed: () => cart.removeSingleItem(platillo.id)),
-            Consumer<CartProvider>(builder: (_, c, __) => Text('${c.items[platillo.id]?.cantidad ?? 0}')),
-            IconButton(icon: const Icon(Icons.add_circle), onPressed: () => cart.addItem(platillo)),
+            IconButton(
+              icon: const Icon(Icons.remove_circle), 
+              onPressed: () => cart.removePlatilloId(platillo.id)
+            ),
+            Consumer<CartProvider>(
+              builder: (_, c, __) {
+                final int qty = c.items.values
+                    .where((item) => item.id == platillo.id)
+                    .fold(0, (sum, item) => sum + item.cantidad);
+                return Text('$qty');
+              }
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_circle), 
+              onPressed: () => cart.addItem(platillo)
+            ),
           ],
         ),
       ),

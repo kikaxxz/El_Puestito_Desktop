@@ -76,7 +76,7 @@ class _CartScreenState extends State<CartScreen> {
     }
   }
 
-  void _showNoteDialog(BuildContext context, String itemId, String currentNote, String itemName) {
+  void _showNoteDialog(BuildContext context, String cartKey, String currentNote, String itemName) {
     final txtController = TextEditingController(text: currentNote);
     
     showDialog(
@@ -99,7 +99,7 @@ class _CartScreenState extends State<CartScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              Provider.of<CartProvider>(context, listen: false).updateNote(itemId, txtController.text.trim());
+              Provider.of<CartProvider>(context, listen: false).updateNote(cartKey, txtController.text.trim());
               Navigator.pop(ctx);
             },
             child: const Text("Guardar"),
@@ -123,7 +123,9 @@ class _CartScreenState extends State<CartScreen> {
             child: ListView.builder(
               itemCount: cart.items.length,
               itemBuilder: (ctx, i) {
-                final item = cart.items.values.toList()[i];
+                final cartKey = cart.items.keys.elementAt(i);
+                final item = cart.items[cartKey]!;
+                
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   child: Padding(
@@ -159,12 +161,12 @@ class _CartScreenState extends State<CartScreen> {
                             TextButton.icon(
                               icon: Icon(item.notas.isEmpty ? Icons.note_add_outlined : Icons.edit_note),
                               label: Text(item.notas.isEmpty ? "Agregar Nota" : "Editar Nota"),
-                              onPressed: () => _showNoteDialog(context, item.id, item.notas, item.nombre),
+                              onPressed: () => _showNoteDialog(context, cartKey, item.notas, item.nombre),
                             ),
                             const Spacer(),
                             IconButton(
                               icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-                              onPressed: () => cart.removeSingleItem(item.id),
+                              onPressed: () => cart.removeSingleItem(cartKey),
                             ),
                             Text("${item.cantidad}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                             IconButton(

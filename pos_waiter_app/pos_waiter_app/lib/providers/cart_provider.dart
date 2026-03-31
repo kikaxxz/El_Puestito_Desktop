@@ -7,7 +7,7 @@ class CartItem {
   final int cantidad;
   final double precio;
   final String imagen;
-  final String notas; 
+  final String notas;
 
   CartItem({
     required this.id,
@@ -17,10 +17,27 @@ class CartItem {
     required this.imagen,
     this.notas = '',
   });
+  
+  CartItem copyWith({
+    String? id,
+    String? nombre,
+    int? cantidad,
+    double? precio,
+    String? imagen,
+    String? notas,
+  }) {
+    return CartItem(
+      id: id ?? this.id,
+      nombre: nombre ?? this.nombre,
+      cantidad: cantidad ?? this.cantidad,
+      precio: precio ?? this.precio,
+      imagen: imagen ?? this.imagen,
+      notas: notas ?? this.notas,
+    );
+  }
 }
 
 class CartProvider with ChangeNotifier {
-
   Map<String, CartItem> _items = {};
 
   Map<String, CartItem> get items {
@@ -39,77 +56,91 @@ class CartProvider with ChangeNotifier {
     return total;
   }
 
-  void updateNote(String productId, String note) {
-    if (_items.containsKey(productId)) {
-      _items.update(
-        productId,
-        (existing) => CartItem(
-          id: existing.id,
-          nombre: existing.nombre,
-          cantidad: existing.cantidad,
-          precio: existing.precio,
-          imagen: existing.imagen,
-          notas: note, 
-        ),
-      );
+  void updateNote(String cartKey, String note) {
+    if (_items.containsKey(cartKey)) {
+      final existingItem = _items[cartKey]!;
+      if (existingItem.cantidad > 1) {
+        _items.update(
+          cartKey,
+          (item) => item.copyWith(cantidad: item.cantidad - 1),
+        );
+        final newKey = DateTime.now().microsecondsSinceEpoch.toString();
+        _items[newKey] = existingItem.copyWith(cantidad: 1, notas: note);
+      } else {
+        _items.update(
+          cartKey,
+          (item) => item.copyWith(notas: note),
+        );
+      }
       notifyListeners();
     }
   }
 
-
   void addItem(Platillo platillo) {
-    if (_items.containsKey(platillo.id)) {
+    String? targetKey;
+    _items.forEach((key, item) {
+      if (item.id == platillo.id && item.notas.isEmpty) {
+        targetKey = key;
+      }
+    });
+
+    if (targetKey != null) {
       _items.update(
-        platillo.id,
-        (existingCartItem) => CartItem(
-          id: existingCartItem.id,
-          nombre: existingCartItem.nombre,
-          cantidad: existingCartItem.cantidad + 1,
-          precio: existingCartItem.precio,
-          imagen: existingCartItem.imagen,
-          notas: existingCartItem.notas, 
-        ),
+        targetKey!,
+        (existing) => existing.copyWith(cantidad: existing.cantidad + 1),
       );
     } else {
+      final newKey = DateTime.now().microsecondsSinceEpoch.toString();
       _items.putIfAbsent(
-        platillo.id,
+        newKey,
         () => CartItem(
           id: platillo.id,
           nombre: platillo.nombre,
           cantidad: 1,
           precio: platillo.precio,
           imagen: platillo.imagen,
-          notas: '', 
         ),
       );
-    }
-    notifyListeners();
-  }
-  
-  void removeSingleItem(String platilloId) {
-    if (!_items.containsKey(platilloId)) {
-      return;
-    }
-    if (_items[platilloId]!.cantidad > 1) {
-      _items.update(
-        platilloId,
-        (existingCartItem) => CartItem(
-          id: existingCartItem.id,
-          nombre: existingCartItem.nombre,
-          cantidad: existingCartItem.cantidad - 1,
-          precio: existingCartItem.precio,
-          imagen: existingCartItem.imagen,
-          notas: existingCartItem.notas,
-        ),
-      );
-    } else {
-      _items.remove(platilloId);
     }
     notifyListeners();
   }
 
-  void removeItem(String platilloId) {
-    _items.remove(platilloId);
+  void removeSingleItem(String cartKey) {
+    if (!_items.containsKey(cartKey)) return;
+    
+    if (_items[cartKey]!.cantidad > 1) {
+      _items.update(
+        cartKey,
+        (existing) => existing.copyWith(cantidad: existing.cantidad - 1),
+      );
+    } else {
+      _items.remove(cartKey);
+    }
+    notifyListeners();
+  }
+
+  void removePlatilloId(String platilloId) {
+    String? targetKey;
+    
+    _items.forEach((key, item) {
+      if (item.id == platilloId && item.notas.isEmpty) {
+        targetKey = key;
+      }
+    });
+
+    if (targetKey == null) {
+      _items.forEach((key, item) {
+        if (item.id == platilloId) targetKey = key;
+      });
+    }
+
+    if (targetKey != null) {
+      removeSingleItem(targetKey!);
+    }
+  }
+
+  void removeItem(String cartKey) {
+    _items.remove(cartKey);
     notifyListeners();
   }
 
