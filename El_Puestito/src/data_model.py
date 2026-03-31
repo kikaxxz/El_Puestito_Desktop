@@ -3,7 +3,9 @@ import os
 import threading
 import json
 import datetime
+import uuid
 from logger_setup import setup_logger
+
 logger = setup_logger()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -15,7 +17,7 @@ class DataManager:
     def __init__(self, db_path):
         self.db_path = db_path
         self.local = threading.local()
-        print(f"DataManager inicializado. Conectando a: {self.db_path}")
+        logger.info(f"DataManager inicializado. Conectando a: {self.db_path}")
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("PRAGMA journal_mode=WAL;")
 
@@ -24,7 +26,6 @@ class DataManager:
         self.run_migration_if_needed()
 
     def get_conn(self):
-        """Obtiene o crea una conexión a la BD para el hilo actual."""
         if not hasattr(self.local, 'conn'):
             self.local.conn = sqlite3.connect(self.db_path, check_same_thread=False)
             self.local.conn.row_factory = sqlite3.Row
@@ -32,13 +33,11 @@ class DataManager:
         return self.local.conn
 
     def close_conn_for_thread(self):
-        """Cierra la conexión para el hilo actual."""
         if hasattr(self.local, 'conn'):
             self.local.conn.close()
             del self.local.conn
 
     def execute(self, query, params=()):
-        """Ejecuta una consulta de escritura (INSERT, UPDATE, DELETE)."""
         try:
             conn = self.get_conn()
             cursor = conn.cursor()
@@ -50,7 +49,6 @@ class DataManager:
             return None
 
     def fetchone(self, query, params=()):
-        """Busca un solo registro."""
         try:
             conn = self.get_conn()
             cursor = conn.cursor()
@@ -58,11 +56,10 @@ class DataManager:
             row = cursor.fetchone()
             return dict(row) if row else None
         except sqlite3.Error as e:
-            print(f"Error en DataManager.fetchone: {e}\nQuery: {query}")
+            logger.error(f"Error en DataManager.fetchone: {e}\nQuery: {query}")
             return None
 
     def fetchall(self, query, params=()):
-        """Busca todos los registros que coinciden."""
         try:
             conn = self.get_conn()
             cursor = conn.cursor()
@@ -70,12 +67,11 @@ class DataManager:
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
         except sqlite3.Error as e:
-            print(f"Error en DataManager.fetchall: {e}\nQuery: {query}")
+            logger.error(f"Error en DataManager.fetchall: {e}\nQuery: {query}")
             return []
 
     def create_tables(self):
-        """Crea la estructura base si no existe."""
-        print("Verificando tablas...")
+        logger.info("Verificando tablas de la base de datos...")
         self.execute("""
         CREATE TABLE IF NOT EXISTS empleados (
             id_empleado TEXT PRIMARY KEY,
@@ -146,10 +142,6 @@ class DataManager:
         """)
 
     def _check_and_update_schema(self):
-        """
-        Verifica si la BD existente necesita actualizaciones de estructura.
-        Esto permite actualizar el código sin borrar la base de datos.
-        """
         try:
             conn = self.get_conn()
             cursor = conn.cursor()
@@ -158,14 +150,12 @@ class DataManager:
             columns = [info[1] for info in cursor.fetchall()]
             
             if 'destino' not in columns:
-                print("Esquema desactualizado detectado: Falta columna 'destino' en menu_categorias.")
-                print("Aplicando migración de esquema...")
+                logger.info("Esquema desactualizado detectado: Falta columna 'destino' en menu_categorias.")
+                logger.info("Aplicando migración de esquema...")
                 
                 self.execute("ALTER TABLE menu_categorias ADD COLUMN destino TEXT DEFAULT 'cocina';")
-                
                 self._migrate_hardcoded_destinations_to_db()
-                
-                print("Esquema actualizado y destinos migrados exitosamente.")
+                logger.info("Esquema actualizado y destinos migrados exitosamente.")
 
             cursor.execute("PRAGMA table_info(empleados)")
             columns_emp = [info[1] for info in cursor.fetchall()]
@@ -177,10 +167,9 @@ class DataManager:
                 logger.info("Columna 'fingerprint_id' agregada correctamente.")
 
         except Exception as e:
-            print(f"Error verificando/actualizando esquema: {e}")
+            logger.error(f"Error verificando o actualizando esquema: {e}")
 
     def link_fingerprint_to_employee(self, employee_id, fingerprint_id):
-        """Asocia un ID de huella del sensor a un empleado."""
         try:
             self.execute("UPDATE empleados SET fingerprint_id = NULL WHERE fingerprint_id = ?", (fingerprint_id,))
             return self.execute("UPDATE empleados SET fingerprint_id = ? WHERE id_empleado = ?", (fingerprint_id, employee_id))
@@ -192,13 +181,9 @@ class DataManager:
         return self.fetchone("SELECT * FROM empleados WHERE fingerprint_id = ?", (fingerprint_id,))
 
     def _migrate_hardcoded_destinations_to_db(self):
-        """
-        Usa la antigua lista de prefijos para categorizar 
-        automáticamente las categorías existentes como 'barra'.
-        """
         PREFIJOS_ANTIGUOS = ("MIC", "OBA", "BSA", "CER", "RTD")
         
-        print("🔄 Migrando lógica de prefijos a base de datos...")
+        logger.info("Migrando lógica de prefijos a base de datos...")
         categorias = self.fetchall("SELECT id_categoria, nombre FROM menu_categorias")
         
         for cat in categorias:
@@ -214,22 +199,18 @@ class DataManager:
                     break
             
             if es_barra:
-                print(f"   -> Categoría '{cat['nombre']}' detectada como BARRA. Actualizando BD.")
+                logger.info(f"Categoría '{cat['nombre']}' detectada como BARRA. Actualizando BD.")
                 self.execute("UPDATE menu_categorias SET destino = 'barra' WHERE id_categoria = ?", (cat_id,))
 
     def run_migration_if_needed(self):
-        """
-        Revisa si la base de datos está vacía y, de ser así,
-        importa los datos desde los archivos JSON en Assets.
-        """
         if not self.fetchone("SELECT id_empleado FROM empleados LIMIT 1"):
-            print("Base de datos vacía detectada. Iniciando migración de datos desde JSON...")
+            logger.info("Base de datos vacía detectada. Iniciando migración de datos desde JSON...")
             self._migrate_employees()
             self._migrate_attendance_history()
             self._migrate_menu()
-            print("✅ Migración de datos completada.")
+            logger.info("Migración de datos completada.")
         else:
-            print("Base de datos ya poblada. No se requiere migración.")
+            logger.info("Base de datos ya poblada. No se requiere migración.")
 
 
     def _migrate_employees(self):
@@ -243,11 +224,11 @@ class DataManager:
                     "INSERT OR IGNORE INTO empleados (id_empleado, nombre, rol, deviceId) VALUES (?, ?, ?, ?)",
                     (emp.get('id'), emp.get('nombre'), emp.get('rol'), emp.get('deviceId'))
                 )
-            print(f"Migrados {len(data)} empleados desde {json_path}")
+            logger.info(f"Migrados {len(data)} empleados desde {json_path}")
         except FileNotFoundError:
-            print(f"No se encontró {json_path} para migrar empleados.")
+            logger.warning(f"No se encontró {json_path} para migrar empleados.")
         except Exception as e:
-            print(f"Error migrando empleados: {e}")
+            logger.error(f"Error migrando empleados: {e}")
 
     def _migrate_attendance_history(self):
         json_path = os.path.join(JSON_ASSETS_DIR, "asistencia_historico.json")
@@ -260,14 +241,13 @@ class DataManager:
                     "INSERT INTO eventos_asistencia (id_empleado, timestamp, tipo) VALUES (?, ?, ?)",
                     (ev.get('employee_id'), ev.get('timestamp'), ev.get('type'))
                 )
-            print(f"Migrados {len(data)} eventos de asistencia desde {json_path}")
+            logger.info(f"Migrados {len(data)} eventos de asistencia desde {json_path}")
         except FileNotFoundError:
-            print(f"No se encontró {json_path} para migrar historial.")
+            logger.warning(f"No se encontró {json_path} para migrar historial.")
         except Exception as e:
-            print(f"Error migrando historial de asistencia: {e}")
+            logger.error(f"Error migrando historial de asistencia: {e}")
 
     def _migrate_menu(self):
-        """Importa datos desde menu.json, asignando destino por defecto."""
         json_path = os.path.join(JSON_ASSETS_DIR, "menu.json")
         try:
             with open(json_path, "r", encoding='utf-8') as f:
@@ -298,13 +278,11 @@ class DataManager:
                     item_count += 1
             
             self._migrate_hardcoded_destinations_to_db()
-
-            print(f"Migrados {item_count} items de menú desde {json_path}")
+            logger.info(f"Migrados {item_count} items de menú desde {json_path}")
         except FileNotFoundError:
-            print(f"No se encontró {json_path} para migrar menú.")
+            logger.warning(f"No se encontró {json_path} para migrar menú.")
         except Exception as e:
-            print(f"Error migrando menú: {e}")
-
+            logger.error(f"Error migrando menú: {e}")
 
     def get_employees(self):
         return self.fetchall("SELECT * FROM empleados ORDER BY nombre;")
@@ -316,14 +294,12 @@ class DataManager:
         return self.fetchone("SELECT * FROM empleados WHERE deviceId = ?;", (device_id,))
         
     def add_employee(self, id, nombre, rol, fingerprint_id=None):
-        """Ahora acepta el ID de la huella opcionalmente."""
         return self.execute(
             "INSERT INTO empleados (id_empleado, nombre, rol, fingerprint_id) VALUES (?, ?, ?, ?);", 
             (id, nombre, rol, fingerprint_id)
         )
 
     def update_employee(self, id_original, new_id, new_name, new_rol, fingerprint_id=None):
-        """Actualiza también la huella."""
         return self.execute(
             "UPDATE empleados SET id_empleado = ?, nombre = ?, rol = ?, fingerprint_id = ? WHERE id_empleado = ?;", 
             (new_id, new_name, new_rol, fingerprint_id, id_original)
@@ -333,7 +309,7 @@ class DataManager:
         try:
             return self.execute("DELETE FROM empleados WHERE id_empleado = ?;", (employee_id,))
         except sqlite3.IntegrityError:
-            print(f"No se puede borrar empleado {employee_id}, tiene historial.")
+            logger.warning(f"No se puede borrar empleado {employee_id}, tiene historial.")
             return None
 
     def link_device_to_employee(self, employee_id, device_id):
@@ -354,9 +330,7 @@ class DataManager:
     def clear_all_attendance_history(self):
         return self.execute("DELETE FROM eventos_asistencia;")
 
-
     def get_menu_with_categories(self):
-        """Retorna el menú completo incluyendo el destino de impresión."""
         categorias = self.fetchall("SELECT * FROM menu_categorias ORDER BY nombre;")
         items = self.fetchall("SELECT * FROM menu_items;")
         
@@ -412,9 +386,6 @@ class DataManager:
         return total_ventas, items_vendidos
     
     def get_sales_history_range(self, start_date=None, end_date=None, days=30):
-        """
-        Obtiene ventas totales por día. Versión blindada para fechas.
-        """
         conn = self.get_conn()
         cursor = conn.cursor()
         
@@ -452,10 +423,10 @@ class DataManager:
             return {"fechas": fechas, "totales": totales}
 
         except ValueError as e:
-            print(f"Error de formato de fecha en DataManager: {e}")
+            logger.error(f"Error de formato de fecha en historial de ventas: {e}")
             return {"fechas": [], "totales": []}
         except Exception as e:
-            print(f"Error general en historial: {e}")
+            logger.error(f"Error general en historial de ventas: {e}")
             return {"fechas": [], "totales": []}
 
     def add_attendance_events_batch(self, events_list):
@@ -466,7 +437,9 @@ class DataManager:
             cursor.executemany(query, events_list)
             conn.commit()
             return True
-        except sqlite3.Error: return False
+        except sqlite3.Error as e: 
+            logger.error(f"Error insertando eventos de asistencia en bloque: {e}")
+            return False
     
     def get_events_for_today(self):
         today_str = datetime.date.today().isoformat()
@@ -483,10 +456,6 @@ class DataManager:
         return self.fetchone("SELECT id_orden FROM ordenes WHERE client_uuid = ?;", (client_uuid,)) is not None
 
     def _get_destinations_map(self, item_ids):
-        """
-        Helper eficiente para obtener el destino de múltiples items.
-        Retorna un dict: { 'id_item': 'barra', 'id_item_2': 'cocina' }
-        """
         if not item_ids:
             return {}
             
@@ -501,10 +470,6 @@ class DataManager:
         return {row['id_item']: row['destino'] for row in rows}
 
     def create_new_order(self, orden_completa):
-        """
-        Crea una nueva orden con transacción atómica explícita.
-        Si algo falla (ej: menu cambia, error de red), se deshace todo.
-        """
         conn = self.get_conn()
         
         try:
@@ -562,17 +527,14 @@ class DataManager:
             
         except sqlite3.Error as e:
             conn.rollback()
-            print(f"Error CRÍTICO creando orden. Se hizo ROLLBACK. Causa: {e}")
+            logger.error(f"Error CRÍTICO creando orden. Se hizo ROLLBACK. Causa: {e}")
             return None
         except Exception as e:
             conn.rollback()
-            print(f"Error lógico creando orden. Rollback ejecutado. Causa: {e}")
+            logger.error(f"Error lógico creando orden. Rollback ejecutado. Causa: {e}")
             return None
 
     def get_active_orders_caja(self):
-        """
-        Obtiene el estado de todas las mesas activas.
-        """
         query = """
         SELECT
             o.id_orden, o.mesa_key, o.fecha_apertura,
@@ -682,9 +644,8 @@ class DataManager:
             
         except sqlite3.Error as e:
             conn.rollback()
-            print(f"Error al separar cuenta: {e}")
+            logger.error(f"Error al separar cuenta: {e}")
             return False
-        
         
     def remove_items_from_order(self, mesa_key, items_to_remove):
         conn = self.get_conn()
@@ -714,17 +675,10 @@ class DataManager:
             return True
         except sqlite3.Error as e:
             conn.rollback()
-            print(f"Error removing items: {e}")
+            logger.error(f"Error removiendo items: {e}")
             return False
         
     def _cleanup_empty_order(self, mesa_key, id_orden):
-        """
-        Verifica si una orden quedó vacía y la cierra automáticamente si corresponde.
-        Reglas:
-        - Subcuentas (1-1): Se cierran.
-        - Mesas simples (1): Se cierran.
-        - Grupos (1+2): NO se cierran para mantener la unión visual en el mapa.
-        """
         try:
             conn = self.get_conn()
             cursor = conn.cursor()
@@ -747,7 +701,7 @@ class DataManager:
                 return True
                 
         except Exception as e:
-            print(f"Error en limpieza automática: {e}")
+            logger.error(f"Error en limpieza automática: {e}")
         
         return False    
     
@@ -810,6 +764,7 @@ class DataManager:
         
     def mark_barra_order_ready(self, mesa_key):
         return self._mark_order_items_ready(mesa_key, 'barra')
+    
     def cancel_order_by_key(self, mesa_key):
         conn = self.get_conn()
         cursor = conn.cursor()
@@ -836,13 +791,10 @@ class DataManager:
             
         except sqlite3.Error as e:
             conn.rollback()
-            print(f"Error cancelando orden: {e}")
+            logger.error(f"Error cancelando orden: {e}")
             return False
 
     def complete_order(self, mesa_key):
-        """
-        Cierra una orden activa y realiza limpieza automática de 'cuentas fantasmas'.
-        """
         orden_a_cerrar = self.get_active_orders_caja().get(mesa_key)
         if not orden_a_cerrar:
             return None
@@ -875,14 +827,11 @@ class DataManager:
                             )
                             
             except Exception as e:
-                print(f"Error en validación de limpieza automática: {e}")
+                logger.error(f"Error en validación de limpieza automática: {e}")
 
         return orden_a_cerrar
     
     def get_top_products_range(self, start_date=None, end_date=None):
-        """
-        Obtiene los 5 productos más vendidos en un rango de fechas específico.
-        """
         conn = self.get_conn()
         cursor = conn.cursor()
         
@@ -914,25 +863,20 @@ class DataManager:
         return [dict(row) for row in rows]
     
     def update_item_note(self, id_detalle, nota):
-        """Actualiza la nota de un ítem específico en una orden activa."""
         try:
             self.execute("UPDATE orden_detalle SET notas = ? WHERE id_detalle = ?", (nota, id_detalle))
             return True
         except Exception as e:
-            print(f"Error actualizando nota: {e}")
+            logger.error(f"Error actualizando nota: {e}")
             return False
 
     def ensure_promo_category(self):
-        """Asegura que exista la categoría Promociones para guardar los combos."""
         self.execute("INSERT OR IGNORE INTO menu_categorias (nombre, destino) VALUES ('Promociones', 'cocina')")
         cat = self.fetchone("SELECT id_categoria FROM menu_categorias WHERE nombre = 'Promociones'")
         return cat['id_categoria'] if cat else None
 
     def create_combo_item(self, nombre, precio, descripcion_contenido, imagen_path):
-        """Crea el combo como un item único en el menú."""
         id_cat = self.ensure_promo_category()
-        
-        import uuid
         new_id = f"COMBO_{str(uuid.uuid4())[:6]}"
         
         return self.execute(

@@ -505,3 +505,195 @@ Query:
 2026-03-19 14:57:48,699 [INFO] Reporte generado. Total: C$0.00
 2026-03-19 14:57:49,832 [INFO] Generando reporte visual para 2025-11-15
 2026-03-19 14:57:49,833 [INFO] Reporte generado. Total: C$2473.00
+2026-03-31 16:18:53,799 [INFO] Configuración cargada desde C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\config.json
+2026-03-31 16:18:53,800 [INFO] DataManager inicializado. Conectando a: C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\puestito.db
+2026-03-31 16:18:53,824 [INFO] Verificando tablas de la base de datos...
+2026-03-31 16:18:53,834 [INFO] Base de datos ya poblada. No se requiere migración.
+2026-03-31 16:18:53,834 [INFO] Verificando tablas de la base de datos...
+2026-03-31 16:18:53,835 [INFO] Base de datos ya poblada. No se requiere migración.
+2026-03-31 16:18:53,838 [INFO] [AppController] Inicializado con API Key cargada y URL: http://127.0.0.1:5000
+2026-03-31 16:18:53,887 [INFO] Creando páginas de la interfaz...
+2026-03-31 16:18:53,916 [INFO] Refrescando tabla de asistencia desde la BD...
+2026-03-31 16:18:53,918 [INFO] [AttendancePage] Conectada a la senal lista_empleados_actualizada.
+2026-03-31 16:18:53,993 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2026-03-31 16:18:53,993 [INFO] Refrescando tabla de empleados desde la BD...
+2026-03-31 16:18:54,636 [INFO] Generando reporte visual para 2026-03-31
+2026-03-31 16:18:54,637 [INFO] Reporte generado. Total: C$0.00
+2026-03-31 16:18:54,637 [INFO] Intentando cargar la hoja de estilos desde: C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\style.qss
+2026-03-31 16:18:54,673 [INFO] Creando ServerWorker en Hilo Principal...
+2026-03-31 16:18:54,808 [INFO] Creando ServerThread...
+2026-03-31 16:18:54,809 [INFO] Servidor de asistencia iniciado en segundo plano.
+2026-03-31 16:19:41,795 [INFO] Acceso cancelado por el usuario
+2026-03-31 16:20:40,473 [INFO] Generando QR para la dirección: http://192.168.1.25:5000
+2026-03-31 16:21:06,869 [INFO] Acceso cancelado por el usuario
+2026-03-31 16:21:35,313 [INFO] Nueva orden recibida vía API: 619ce0b9-ef96-466b-9c0e-da21c55b40df
+2026-03-31 16:21:35,314 [INFO] [Controller] Procesando nueva orden...
+2026-03-31 16:21:35,316 [INFO] Orden 149 creada exitosamente (Atomicidad garantizada).
+2026-03-31 16:21:35,416 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-31 16:21:50,713 [INFO] Nueva orden recibida vía API: f7faa42a-dfb2-42ca-b3a7-38c5929da8c5
+2026-03-31 16:21:50,714 [INFO] [Controller] Procesando nueva orden...
+2026-03-31 16:21:50,715 [INFO] Orden 150 creada exitosamente (Atomicidad garantizada).
+2026-03-31 16:21:50,848 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-31 16:22:21,428 [INFO] Generando QR para la dirección: http://192.168.1.25:5000
+2026-03-31 16:22:44,471 [INFO] Acceso KDS web autorizado para: cocina
+2026-03-31 16:23:01,649 [INFO] Orden Mesa 2 marcada lista en cocina (vía Web)
+2026-03-31 16:23:01,650 [INFO] Actualizando vista de escritorio por cambio en Web (cocina)
+2026-03-31 16:24:15,499 [INFO] [Controller] Cobrando mesa 2...
+2026-03-31 16:24:15,501 [INFO] Mesa 2 cerrada en BD.
+2026-03-31 16:24:15,521 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-31 16:24:33,207 [INFO] Nueva orden recibida vía API: e1d7c30b-3e45-4ded-b307-0196f2da6304
+2026-03-31 16:24:33,208 [INFO] [Controller] Procesando nueva orden...
+2026-03-31 16:24:33,211 [INFO] Orden 151 creada exitosamente (Atomicidad garantizada).
+2026-03-31 16:24:33,285 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-31 16:24:58,514 [INFO] Acceso KDS web autorizado para: cocina
+2026-03-31 16:25:03,731 [INFO] Nueva orden recibida vía API: 21b7e7f2-6bfc-46a2-b795-8b047246f72b
+2026-03-31 16:25:03,733 [INFO] [Controller] Procesando nueva orden...
+2026-03-31 16:25:03,735 [INFO] Orden 152 creada exitosamente (Atomicidad garantizada).
+2026-03-31 16:25:03,781 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-31 16:25:13,524 [INFO] Orden Mesa 6 marcada lista en cocina (vía Web)
+2026-03-31 16:25:13,525 [INFO] Actualizando vista de escritorio por cambio en Web (cocina)
+2026-03-31 16:25:13,974 [INFO] Orden Mesa 3 marcada lista en cocina (vía Web)
+2026-03-31 16:25:13,975 [INFO] Actualizando vista de escritorio por cambio en Web (cocina)
+2026-03-31 16:25:24,866 [INFO] [Controller] Cobrando mesa 6...
+2026-03-31 16:25:24,869 [INFO] Mesa 6 cerrada en BD.
+2026-03-31 16:25:24,887 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-31 16:25:26,555 [INFO] [Controller] Cobrando mesa 3...
+2026-03-31 16:25:26,556 [INFO] Mesa 3 cerrada en BD.
+2026-03-31 16:25:26,578 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-31 16:25:37,204 [INFO] Nueva orden recibida vía API: 9d254380-b34f-47d9-8856-b25dabe54268
+2026-03-31 16:25:37,205 [INFO] [Controller] Procesando nueva orden...
+2026-03-31 16:25:37,208 [INFO] Orden 153 creada exitosamente (Atomicidad garantizada).
+2026-03-31 16:25:37,240 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-31 16:25:46,530 [INFO] Limpieza automática: Orden 7 vacía. Cerrando...
+2026-03-31 16:25:46,531 [INFO] Cuenta separada exitosamente en Mesa 7
+2026-03-31 16:25:52,480 [INFO] Cuenta separada exitosamente en Mesa 7-1
+2026-03-31 16:26:02,552 [INFO] [Controller] Cobrando mesa 7-1...
+2026-03-31 16:26:02,554 [INFO] Mesa 7-1 cerrada en BD.
+2026-03-31 16:26:02,588 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-31 16:26:04,165 [INFO] [Controller] Cobrando mesa 7-2...
+2026-03-31 16:26:04,169 [INFO] Mesa 7-2 cerrada en BD.
+2026-03-31 16:26:04,198 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-31 16:26:07,244 [INFO] Cerrando la aplicación...
+2026-03-31 16:26:07,244 [INFO] Deteniendo el hilo del servidor...
+2026-03-31 16:26:07,244 [ERROR] Error deteniendo SocketIO: Working outside of request context.
+
+This typically means that you attempted to use functionality that needed
+an active HTTP request. Consult the documentation on testing for
+information about how to avoid this problem.
+2026-03-31 16:26:07,245 [INFO] Esperando finalización del hilo...
+2026-03-31 16:26:10,244 [WARNING] El hilo del servidor tardó demasiado en cerrarse, forzando terminación.
+2026-03-31 16:26:10,246 [INFO] Configuración guardada en C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\config.json
+2026-03-31 16:26:16,482 [INFO] Configuración cargada desde C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\config.json
+2026-03-31 16:26:16,483 [INFO] DataManager inicializado. Conectando a: C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\puestito.db
+2026-03-31 16:26:16,488 [INFO] Verificando tablas de la base de datos...
+2026-03-31 16:26:16,500 [INFO] Base de datos ya poblada. No se requiere migración.
+2026-03-31 16:26:16,500 [INFO] Verificando tablas de la base de datos...
+2026-03-31 16:26:16,501 [INFO] Base de datos ya poblada. No se requiere migración.
+2026-03-31 16:26:16,502 [INFO] [AppController] Inicializado con API Key cargada y URL: http://127.0.0.1:5000
+2026-03-31 16:26:16,536 [INFO] Creando páginas de la interfaz...
+2026-03-31 16:26:16,560 [INFO] Refrescando tabla de asistencia desde la BD...
+2026-03-31 16:26:16,562 [INFO] [AttendancePage] Conectada a la senal lista_empleados_actualizada.
+2026-03-31 16:26:16,609 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2026-03-31 16:26:16,609 [INFO] Refrescando tabla de empleados desde la BD...
+2026-03-31 16:26:17,004 [INFO] Generando reporte visual para 2026-03-31
+2026-03-31 16:26:17,005 [INFO] Reporte generado. Total: C$3410.00
+2026-03-31 16:26:17,006 [INFO] Intentando cargar la hoja de estilos desde: C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\style.qss
+2026-03-31 16:26:17,038 [INFO] Creando ServerWorker en Hilo Principal...
+2026-03-31 16:26:17,173 [INFO] Creando ServerThread...
+2026-03-31 16:26:17,174 [INFO] Servidor de asistencia iniciado en segundo plano.
+2026-03-31 16:26:39,374 [INFO] Acceso cancelado por el usuario
+2026-03-31 16:26:52,719 [INFO] Nueva orden recibida vía API: e499933c-2b5c-46a8-b160-05f6aaa280b4
+2026-03-31 16:26:52,721 [INFO] [Controller] Procesando nueva orden...
+2026-03-31 16:26:52,723 [INFO] Orden 156 creada exitosamente (Atomicidad garantizada).
+2026-03-31 16:26:52,810 [INFO] Retransmitiendo evento: mesas_actualizadas
+2026-03-31 16:27:00,521 [INFO] Limpieza automática: Orden 1 vacía. Cerrando...
+2026-03-31 16:27:00,521 [INFO] Items eliminados de Mesa 1
+2026-03-31 16:27:10,293 [INFO] Cerrando la aplicación...
+2026-03-31 16:27:10,293 [INFO] Deteniendo el hilo del servidor...
+2026-03-31 16:27:10,294 [ERROR] Error deteniendo SocketIO: Working outside of request context.
+
+This typically means that you attempted to use functionality that needed
+an active HTTP request. Consult the documentation on testing for
+information about how to avoid this problem.
+2026-03-31 16:27:10,294 [INFO] Esperando finalización del hilo...
+2026-03-31 16:27:13,307 [WARNING] El hilo del servidor tardó demasiado en cerrarse, forzando terminación.
+2026-03-31 16:27:13,308 [INFO] Configuración guardada en C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\config.json
+2026-03-31 16:27:17,465 [INFO] Configuración cargada desde C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\config.json
+2026-03-31 16:27:17,467 [INFO] DataManager inicializado. Conectando a: C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\puestito.db
+2026-03-31 16:27:36,504 [INFO] Configuración cargada desde C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\config.json
+2026-03-31 16:27:36,505 [INFO] DataManager inicializado. Conectando a: C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\puestito.db
+2026-03-31 16:27:36,518 [INFO] Verificando tablas de la base de datos...
+2026-03-31 16:27:36,528 [INFO] Base de datos ya poblada. No se requiere migración.
+2026-03-31 16:27:36,528 [INFO] Verificando tablas de la base de datos...
+2026-03-31 16:27:36,528 [INFO] Base de datos ya poblada. No se requiere migración.
+2026-03-31 16:27:36,530 [INFO] [AppController] Inicializado con API Key cargada y URL: http://127.0.0.1:5000
+2026-03-31 16:27:36,558 [INFO] Creando páginas de la interfaz...
+2026-03-31 16:27:36,578 [INFO] Refrescando tabla de asistencia desde la BD...
+2026-03-31 16:27:36,580 [INFO] [AttendancePage] Conectada a la senal lista_empleados_actualizada.
+2026-03-31 16:27:36,613 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2026-03-31 16:27:36,613 [INFO] Refrescando tabla de empleados desde la BD...
+2026-03-31 16:27:36,966 [INFO] Generando reporte visual para 2026-03-31
+2026-03-31 16:27:36,967 [INFO] Reporte generado. Total: C$3410.00
+2026-03-31 16:27:36,968 [INFO] Intentando cargar la hoja de estilos desde: C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\style.qss
+2026-03-31 16:27:36,995 [INFO] Creando ServerWorker en Hilo Principal...
+2026-03-31 16:27:37,100 [INFO] Creando ServerThread...
+2026-03-31 16:27:37,100 [INFO] Servidor de asistencia iniciado en segundo plano.
+2026-03-31 16:27:54,437 [INFO] Item PIC010 marcado como: Agotado
+2026-03-31 16:27:55,363 [INFO] Item PIC010 marcado como: Disponible
+2026-03-31 16:27:56,602 [INFO] Item PIC010 marcado como: Agotado
+2026-03-31 16:27:56,980 [INFO] Item PIC010 marcado como: Disponible
+2026-03-31 16:28:06,082 [INFO] Item PIC010 marcado como: Agotado
+2026-03-31 16:28:06,490 [INFO] Item PIC010 marcado como: Disponible
+2026-03-31 16:28:06,763 [INFO] Item PIC010 marcado como: Agotado
+2026-03-31 16:28:08,494 [INFO] Item PIC010 marcado como: Disponible
+2026-03-31 16:28:28,773 [INFO] Retransmitiendo evento: configuracion_actualizada
+2026-03-31 16:28:28,776 [INFO] Notificación de configuración enviada al servidor.
+2026-03-31 16:28:42,616 [INFO] Item PIC010 marcado como: Agotado
+2026-03-31 16:28:42,970 [INFO] Item PIC010 marcado como: Disponible
+2026-03-31 16:28:56,479 [INFO] Retransmitiendo evento: configuracion_actualizada
+2026-03-31 16:28:56,480 [INFO] Notificación de configuración enviada al servidor.
+2026-03-31 16:29:23,001 [INFO] Abriendo dashboard web: http://127.0.0.1:5000/reportes-web
+2026-03-31 16:31:18,332 [INFO] Retransmitiendo evento: configuracion_actualizada
+2026-03-31 16:31:18,334 [INFO] Notificación de configuración enviada al servidor.
+2026-03-31 16:31:52,035 [INFO] Retransmitiendo evento: configuracion_actualizada
+2026-03-31 16:31:52,036 [INFO] Notificación de configuración enviada al servidor.
+2026-03-31 16:32:18,635 [INFO] Reporte de asistencia exportado a: C:/Users/KikaXxz/Downloads/asistencia_2026-03-31.csv
+2026-03-31 16:33:51,786 [INFO] Acceso cancelado por el usuario
+2026-03-31 16:33:53,017 [INFO] Cerrando la aplicación...
+2026-03-31 16:33:53,018 [INFO] Deteniendo el hilo del servidor...
+2026-03-31 16:33:53,018 [ERROR] Error deteniendo SocketIO: Working outside of request context.
+
+This typically means that you attempted to use functionality that needed
+an active HTTP request. Consult the documentation on testing for
+information about how to avoid this problem.
+2026-03-31 16:33:53,018 [INFO] Esperando finalización del hilo...
+2026-03-31 16:33:56,028 [WARNING] El hilo del servidor tardó demasiado en cerrarse, forzando terminación.
+2026-03-31 16:33:56,030 [INFO] Configuración guardada en C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\config.json
+2026-03-31 16:36:27,963 [INFO] Configuración cargada desde C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\config.json
+2026-03-31 16:36:27,964 [INFO] DataManager inicializado. Conectando a: C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\puestito.db
+2026-03-31 16:36:27,982 [INFO] Verificando tablas de la base de datos...
+2026-03-31 16:36:27,992 [INFO] Base de datos ya poblada. No se requiere migración.
+2026-03-31 16:36:27,992 [INFO] Verificando tablas de la base de datos...
+2026-03-31 16:36:27,992 [INFO] Base de datos ya poblada. No se requiere migración.
+2026-03-31 16:36:27,993 [INFO] [AppController] Inicializado con API Key cargada y URL: http://127.0.0.1:5000
+2026-03-31 16:36:28,021 [INFO] Creando páginas de la interfaz...
+2026-03-31 16:36:28,043 [INFO] Refrescando tabla de asistencia desde la BD...
+2026-03-31 16:36:28,046 [INFO] [AttendancePage] Conectada a la senal lista_empleados_actualizada.
+2026-03-31 16:36:28,079 [INFO] Cargando datos iniciales de AdminPage desde la BD...
+2026-03-31 16:36:28,080 [INFO] Refrescando tabla de empleados desde la BD...
+2026-03-31 16:36:28,431 [INFO] Generando reporte visual para 2026-03-31
+2026-03-31 16:36:28,432 [INFO] Reporte generado. Total: C$3410.00
+2026-03-31 16:36:28,433 [INFO] Intentando cargar la hoja de estilos desde: C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\style.qss
+2026-03-31 16:36:28,459 [INFO] Creando ServerWorker en Hilo Principal...
+2026-03-31 16:36:28,565 [INFO] Creando ServerThread...
+2026-03-31 16:36:28,565 [INFO] Servidor de asistencia iniciado en segundo plano.
+2026-03-31 16:36:42,049 [INFO] Cerrando la aplicación...
+2026-03-31 16:36:42,049 [INFO] Deteniendo el hilo del servidor...
+2026-03-31 16:36:42,050 [ERROR] Error deteniendo SocketIO: Working outside of request context.
+
+This typically means that you attempted to use functionality that needed
+an active HTTP request. Consult the documentation on testing for
+information about how to avoid this problem.
+2026-03-31 16:36:42,050 [INFO] Esperando finalización del hilo...
+2026-03-31 16:36:45,062 [WARNING] El hilo del servidor tardó demasiado en cerrarse, forzando terminación.
+2026-03-31 16:36:45,064 [INFO] Configuración guardada en C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\assets\config.json

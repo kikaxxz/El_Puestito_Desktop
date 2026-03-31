@@ -4,13 +4,17 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSlot
 from widgets.order_ticket import OrderTicket
+from logger_setup import setup_logger
+
+logger = setup_logger()
 
 class CocinaPage(QWidget):
     def __init__(self, controller, main_window):
         super().__init__()
         self.controller = controller
         self.main_window = main_window
-        self.tickets_en_pantalla = {} 
+        self.tickets_en_pantalla = {}
+        self.columnas_grid = 4
         self.setup_ui()
         
         self.controller.ordenes_actualizadas.connect(self.load_active_orders)
@@ -42,43 +46,44 @@ class CocinaPage(QWidget):
 
     @pyqtSlot()
     def load_active_orders(self):
-        datos_ordenes = self.controller.data_manager.get_active_cocina_orders()
-        ordenes_actuales = { str(orden['numero_mesa']): orden for orden in datos_ordenes }
-        
-        ids_bd = set(ordenes_actuales.keys())
-        ids_pantalla = set(self.tickets_en_pantalla.keys())
-
-        a_borrar = ids_pantalla - ids_bd
-        for mesa_key in a_borrar:
-            self._eliminar_widget_memoria(mesa_key)
-
-        a_agregar = ids_bd - ids_pantalla
-        for mesa_key in a_agregar:
-            self._crear_widget_memoria(mesa_key, ordenes_actuales[mesa_key])
+        try:
+            datos_ordenes = self.controller.data_manager.get_active_cocina_orders()
+            ordenes_actuales = { str(orden['numero_mesa']): orden for orden in datos_ordenes }
             
-        a_actualizar = ids_bd.intersection(ids_pantalla)
-        for mesa_key in a_actualizar:
-            self._eliminar_widget_memoria(mesa_key)
-            self._crear_widget_memoria(mesa_key, ordenes_actuales[mesa_key])
+            ids_bd = set(ordenes_actuales.keys())
+            ids_pantalla = set(self.tickets_en_pantalla.keys())
 
-        self._reorganizar_grid()
+            a_borrar = ids_pantalla - ids_bd
+            for mesa_key in a_borrar:
+                self._eliminar_widget_memoria(mesa_key)
+
+            a_agregar = ids_bd - ids_pantalla
+            for mesa_key in a_agregar:
+                self._crear_widget_memoria(mesa_key, ordenes_actuales[mesa_key])
+                
+            a_actualizar = ids_bd.intersection(ids_pantalla)
+            for mesa_key in a_actualizar:
+                self.tickets_en_pantalla[mesa_key].update_data(ordenes_actuales[mesa_key])
+
+            self._reorganizar_grid()
+        except Exception as e:
+            logger.error(f"Error cargando comandas activas de cocina: {e}")
 
     def _crear_widget_memoria(self, key, datos):
-        """Crea el widget y lo guarda en el diccionario, pero NO lo agrega al grid todavía."""
-        ticket_widget = OrderTicket(datos) 
-        ticket_widget.btn_listo.clicked.connect(lambda: self._marcar_listo(key))
-        self.tickets_en_pantalla[key] = ticket_widget
+        try:
+            ticket_widget = OrderTicket(datos) 
+            ticket_widget.btn_listo.clicked.connect(lambda: self._marcar_listo(key))
+            self.tickets_en_pantalla[key] = ticket_widget
+        except Exception as e:
+            logger.error(f"Error instanciando widget de orden {key}: {e}")
 
     def _eliminar_widget_memoria(self, key):
-        """Elimina el widget del diccionario y lo destruye."""
         if key in self.tickets_en_pantalla:
             widget = self.tickets_en_pantalla.pop(key)
             widget.setParent(None)
             widget.deleteLater() 
 
     def _reorganizar_grid(self):
-        """Limpia el layout visualmente y reubica todos los widgets en orden."""
-
         while self.grid_layout.count():
             item = self.grid_layout.takeAt(0)
             widget = item.widget()
@@ -91,13 +96,14 @@ class CocinaPage(QWidget):
             widget = self.tickets_en_pantalla[key]
             
             if widget:
-                row = i // 4
-                col = i % 4
+                row = i // self.columnas_grid
+                col = i % self.columnas_grid
                 self.grid_layout.addWidget(widget, row, col)
 
     def _marcar_listo(self, mesa_key):
-        self.controller.data_manager.mark_cocina_order_ready(mesa_key)
-        
-        self.load_active_orders()
-        
-        self.controller.notificar_cambios_mesas()
+        try:
+            self.controller.data_manager.mark_cocina_order_ready(mesa_key)
+            self.load_active_orders()
+            self.controller.notificar_cambios_mesas()
+        except Exception as e:
+            logger.error(f"Error al marcar como lista la comanda {mesa_key}: {e}")

@@ -1,4 +1,5 @@
 import os
+import json
 from PyQt6.QtWidgets import QWidget, QLabel, QGraphicsOpacityEffect
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import (
@@ -8,6 +9,9 @@ from PyQt6.QtCore import (
 
 from widgets.role_card import RoleCard
 from widgets.pin_dialog import PinDialog 
+from logger_setup import setup_logger
+
+logger = setup_logger()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -50,12 +54,11 @@ class RoleSelectionPage(QWidget):
     def _load_pins_from_config(self):
         try:
             path = os.path.join(BASE_DIR, "assets", "config.json")
-            import json
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 return data.get("seguridad", {}).get("pines", {})
         except Exception as e:
-            print(f"Error cargando pines: {e}")
+            logger.critical(f"Error cargando pines: {e}")
             return {
                 "Cajero": "3333",
                 "Administrador": "9999",
@@ -64,19 +67,15 @@ class RoleSelectionPage(QWidget):
             }    
 
     def handle_card_click(self, card, role_name):
-        """
-        Intermediario: Pide el PIN y, si es correcto, inicia la animación.
-        """
         correct_pin = self.ROLE_PINS.get(role_name)
         
         dialog = PinDialog(correct_pin, role_name, parent=self)
         if dialog.exec():
             self.start_animation(card)
         else:
-            print("Acceso cancelado por el usuario")
+            logger.info("Acceso cancelado por el usuario")
 
     def showEvent(self, event):
-        """Se llama cada vez que la página se muestra."""
         super().showEvent(event)
         if not self._initial_setup_done:
             self.setup_initial_positions()
@@ -84,14 +83,11 @@ class RoleSelectionPage(QWidget):
         self.reset_state()
     
     def resizeEvent(self, event):
-        """Se llama cuando la ventana principal cambia de tamaño."""
         super().resizeEvent(event)
         if self._initial_setup_done:
             self.recenter_elements()
 
     def setup_initial_positions(self):
-        """Calcula la posición inicial de las tarjetas."""
-        
         for card in self.all_cards:
             card.adjustSize()
 
@@ -109,7 +105,6 @@ class RoleSelectionPage(QWidget):
         self.cards_container.setFixedSize(total_width, card_height)
     
     def recenter_elements(self):
-        """Recalcula el centro de la página y reposiciona los elementos."""
         if not self.isVisible():
             return
             
@@ -123,7 +118,6 @@ class RoleSelectionPage(QWidget):
         self.cards_container.move(cards_container_x, cards_container_y)
 
     def reset_state(self):
-        """Restaura la página a su estado inicial antes de la animación."""
         if not self._initial_setup_done:
             return
             
@@ -142,8 +136,6 @@ class RoleSelectionPage(QWidget):
             card.show()
 
     def start_animation(self, selected_card):
-        """Inicia la secuencia de animación completa."""
-
         original_selected_card_pos_in_container = selected_card.pos()
         global_pos = selected_card.mapToGlobal(QPoint(0, 0))
         selected_card_page_pos = self.mapFromGlobal(global_pos)
@@ -211,8 +203,6 @@ class RoleSelectionPage(QWidget):
         self.current_animation_group.start()
 
     def on_animation_finished(self, selected_card, original_pos_in_container):
-        """Se llama al final. Devuelve la tarjeta a su contenedor y emite la señal."""
-        
         selected_card.setParent(self.cards_container)
         selected_card.move(original_pos_in_container)
         selected_card.show()

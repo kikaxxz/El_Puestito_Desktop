@@ -68,6 +68,12 @@
             font-weight: bold;
         }
         .filter-btn:hover { background: #d65500; }
+        .error-message {
+            color: #ff4444;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -81,6 +87,7 @@
             <span style="color: white;">a</span>
             <input type="date" id="dateEnd" class="dark-input">
             <button onclick="applyFilter()" class="filter-btn">Filtrar</button>
+            <div id="filterError" class="error-message"></div>
         </div>
 
         <button onclick="window.close()" class="logout-btn" style="margin-left: 20px;">Cerrar</button>
@@ -120,11 +127,15 @@
         const socket = io();
 
         socket.on('connect', () => {
-            console.log("🟢 Conectado para recibir actualizaciones en tiempo real");
+            console.log("Conectado para recibir actualizaciones en tiempo real");
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error("Error de conexión Socket.IO:", error);
         });
 
         socket.on('mesas_actualizadas', () => {
-            console.log("💰 Nueva venta detectada. Actualizando gráficas...");
+            console.log("Nueva venta detectada. Actualizando gráficas...");
             
             const start = document.getElementById('dateStart').value;
             const end = document.getElementById('dateEnd').value;
@@ -145,6 +156,7 @@
 
         const dateStartInput = document.getElementById('dateStart');
         const dateEndInput = document.getElementById('dateEnd');
+        const filterErrorElement = document.getElementById('filterError');
 
         dateStartInput.addEventListener('change', function() {
             dateEndInput.min = this.value;
@@ -161,19 +173,22 @@
                 }
 
                 const response = await fetch(url);
-                if (response.status !== 200) throw new Error(`Error HTTP: ${response.status}`);
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
 
                 const data = await response.json();
                 if (data.error) {
-                    alert("Error del servidor: " + data.error);
-                    return;
+                    throw new Error(data.error);
                 }
                 
                 renderDashboard(data, start, end);
+                filterErrorElement.style.display = 'none';
 
             } catch (error) {
-                console.error("Error JS:", error);
-                alert("Ocurrió un error al cargar los datos.");
+                console.error("Error cargando datos:", error);
+                filterErrorElement.textContent = "Error al cargar los datos. Por favor, intente de nuevo.";
+                filterErrorElement.style.display = 'block';
             }
         }
 
@@ -181,7 +196,8 @@
             const start = dateStartInput.value;
             const end = dateEndInput.value;
             if(!start || !end) {
-                alert("Por favor seleccione ambas fechas");
+                filterErrorElement.textContent = "Por favor seleccione ambas fechas";
+                filterErrorElement.style.display = 'block';
                 return;
             }
             loadData(start, end);

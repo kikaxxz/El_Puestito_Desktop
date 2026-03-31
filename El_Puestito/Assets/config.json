@@ -1,6 +1,5 @@
 {
     "total_mesas": 10,
-    "api_key": "puestito_seguro_2025",
     "seguridad": {
         "pines": {
             "Cajero": "3333",
@@ -26,5 +25,6 @@
             "hora": 35.4,
             "minuto": 0.59
         }
-    }
+    },
+    "api_key": "puestito_seguro_2025"
 }

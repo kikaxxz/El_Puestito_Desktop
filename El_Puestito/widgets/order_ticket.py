@@ -5,6 +5,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
+from logger_setup import setup_logger
+
+logger = setup_logger()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -31,22 +34,17 @@ class OrderTicket(QFrame):
         main_layout.setSpacing(10)
         
         header_layout = QHBoxLayout()
-        mesa_str = str(orden_data.get('numero_mesa', '?'))
         
-        mesa_label = QLabel(f"Mesa {mesa_str}")
-        mesa_label.setObjectName("ticket_header")
-        mesa_label.setStyleSheet("font-size: 20px; font-weight: 900; color: #ffffff;")
+        self.mesa_label = QLabel()
+        self.mesa_label.setObjectName("ticket_header")
+        self.mesa_label.setStyleSheet("font-size: 20px; font-weight: 900; color: #ffffff;")
         
-        header_layout.addWidget(mesa_label)
+        header_layout.addWidget(self.mesa_label)
         header_layout.addStretch()
         
-        if 'fecha_apertura' in orden_data:
-            try:
-                hora = orden_data['fecha_apertura'].split('T')[1][:5]
-                time_label = QLabel(hora)
-                time_label.setStyleSheet("background-color: #444; padding: 4px 8px; border-radius: 5px; font-weight: bold;")
-                header_layout.addWidget(time_label)
-            except: pass
+        self.time_label = QLabel()
+        self.time_label.setStyleSheet("background-color: #444; padding: 4px 8px; border-radius: 5px; font-weight: bold;")
+        header_layout.addWidget(self.time_label)
 
         main_layout.addLayout(header_layout)
         
@@ -57,17 +55,14 @@ class OrderTicket(QFrame):
         main_layout.addWidget(line)
         
         items_container = QWidget()
-        items_layout = QVBoxLayout(items_container)
-        items_layout.setContentsMargins(0, 5, 0, 5)
-        items_layout.setSpacing(12) 
+        self.items_layout = QVBoxLayout(items_container)
+        self.items_layout.setContentsMargins(0, 5, 0, 5)
+        self.items_layout.setSpacing(12) 
         
-        for item in orden_data.get('items', []):
-            self._add_item_row(items_layout, item)
-            
         main_layout.addWidget(items_container)
         main_layout.addStretch()
         
-        self.btn_listo = QPushButton("✓ MARCAR LISTO")
+        self.btn_listo = QPushButton("MARCAR LISTO")
         self.btn_listo.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_listo.setObjectName("btn_listo")
         self.btn_listo.setFixedHeight(45)
@@ -88,6 +83,32 @@ class OrderTicket(QFrame):
             }
         """)
         main_layout.addWidget(self.btn_listo)
+
+        self.update_data(self.datos)
+
+    def update_data(self, nueva_orden_data):
+        self.datos = nueva_orden_data
+        mesa_str = str(self.datos.get('numero_mesa', '?'))
+        self.mesa_label.setText(f"Mesa {mesa_str}")
+
+        if 'fecha_apertura' in self.datos:
+            try:
+                hora = self.datos['fecha_apertura'].split('T')[1][:5]
+                self.time_label.setText(hora)
+                self.time_label.show()
+            except Exception as e:
+                logger.error(f"Error parseando fecha_apertura: {e}")
+                self.time_label.hide()
+        else:
+            self.time_label.hide()
+
+        while self.items_layout.count():
+            child = self.items_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
+        for item in self.datos.get('items', []):
+            self._add_item_row(self.items_layout, item)
 
     def _add_item_row(self, layout, item):
         row_widget = QWidget()
@@ -115,7 +136,7 @@ class OrderTicket(QFrame):
                 pix_loaded = True
         
         if not pix_loaded:
-            img_label.setText("🍽️") 
+            img_label.setText("IMG") 
             
         row_layout.addWidget(img_label)
         
@@ -134,7 +155,7 @@ class OrderTicket(QFrame):
         
         nota = item.get('notas', '')
         if nota:
-            lbl_nota = QLabel(f"📝 {nota}")
+            lbl_nota = QLabel(nota)
             lbl_nota.setWordWrap(True)
             lbl_nota.setStyleSheet("color: #ff9800; font-weight: bold; font-style: italic; font-size: 13px; margin-top: 2px;")
             info_layout.addWidget(lbl_nota)

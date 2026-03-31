@@ -4,6 +4,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSlot
 from widgets.order_ticket import OrderTicket
+from logger_setup import setup_logger
+
+logger = setup_logger()
 
 class BarraPage(QWidget):
     def __init__(self, controller, main_window):
@@ -11,6 +14,7 @@ class BarraPage(QWidget):
         self.controller = controller
         self.main_window = main_window
         self.tickets_en_pantalla = {}
+        self.columnas_grid = 4
         self.setup_ui()
         self.controller.ordenes_actualizadas.connect(self.load_active_orders)
 
@@ -41,31 +45,37 @@ class BarraPage(QWidget):
 
     @pyqtSlot()
     def load_active_orders(self):
-        datos_ordenes = self.controller.data_manager.get_active_barra_orders()
-        ordenes_actuales = { str(orden['numero_mesa']): orden for orden in datos_ordenes }
-        
-        ids_bd = set(ordenes_actuales.keys())
-        ids_pantalla = set(self.tickets_en_pantalla.keys())
-
-        a_borrar = ids_pantalla - ids_bd
-        for mesa_key in a_borrar:
-            self._eliminar_widget_memoria(mesa_key)
-
-        a_agregar = ids_bd - ids_pantalla
-        for mesa_key in a_agregar:
-            self._crear_widget_memoria(mesa_key, ordenes_actuales[mesa_key])
-
-        a_actualizar = ids_bd.intersection(ids_pantalla)
-        for mesa_key in a_actualizar:
-            self._eliminar_widget_memoria(mesa_key)
-            self._crear_widget_memoria(mesa_key, ordenes_actuales[mesa_key])
+        try:
+            datos_ordenes = self.controller.data_manager.get_active_barra_orders()
+            ordenes_actuales = { str(orden['numero_mesa']): orden for orden in datos_ordenes }
             
-        self._reorganizar_grid()
+            ids_bd = set(ordenes_actuales.keys())
+            ids_pantalla = set(self.tickets_en_pantalla.keys())
+
+            a_borrar = ids_pantalla - ids_bd
+            for mesa_key in a_borrar:
+                self._eliminar_widget_memoria(mesa_key)
+
+            a_agregar = ids_bd - ids_pantalla
+            for mesa_key in a_agregar:
+                self._crear_widget_memoria(mesa_key, ordenes_actuales[mesa_key])
+
+            a_actualizar = ids_bd.intersection(ids_pantalla)
+            for mesa_key in a_actualizar:
+                self._eliminar_widget_memoria(mesa_key)
+                self._crear_widget_memoria(mesa_key, ordenes_actuales[mesa_key])
+                
+            self._reorganizar_grid()
+        except Exception as e:
+            logger.error(f"Error cargando comandas activas de barra: {e}")
 
     def _crear_widget_memoria(self, key, datos):
-        ticket_widget = OrderTicket(datos)
-        ticket_widget.btn_listo.clicked.connect(lambda: self._marcar_listo(key))
-        self.tickets_en_pantalla[key] = ticket_widget
+        try:
+            ticket_widget = OrderTicket(datos)
+            ticket_widget.btn_listo.clicked.connect(lambda: self._marcar_listo(key))
+            self.tickets_en_pantalla[key] = ticket_widget
+        except Exception as e:
+            logger.error(f"Error instanciando widget de orden {key}: {e}")
         
     def _eliminar_widget_memoria(self, key):
         if key in self.tickets_en_pantalla:
@@ -85,11 +95,14 @@ class BarraPage(QWidget):
         for i, key in enumerate(keys_ordenadas):
             widget = self.tickets_en_pantalla[key]
             if widget:
-                row = i // 4
-                col = i % 4
+                row = i // self.columnas_grid
+                col = i % self.columnas_grid
                 self.grid_layout.addWidget(widget, row, col)
 
     def _marcar_listo(self, mesa_key):
-        self.controller.data_manager.mark_barra_order_ready(mesa_key)
-        self.load_active_orders()
-        self.controller.notificar_cambios_mesas()
+        try:
+            self.controller.data_manager.mark_barra_order_ready(mesa_key)
+            self.load_active_orders()
+            self.controller.notificar_cambios_mesas()
+        except Exception as e:
+            logger.error(f"Error al marcar como lista la comanda {mesa_key}: {e}")

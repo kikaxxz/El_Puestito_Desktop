@@ -1,22 +1,18 @@
 import sys
 import os
 import json
-import requests
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QStackedWidget, QMessageBox
 )
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt, pyqtSignal, QSize, QPoint
+from PyQt6.QtCore import Qt, pyqtSignal
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
 try:
     from data_model import DataManager, DB_PATH
 except ImportError:
-    print("Error: No se pudo encontrar 'data_model.py'.")
-    print("Asegurarse de que exista en la carpeta 'src/'.")
     sys.exit(1)
-
 
 from server.server_worker import ServerWorker
 from server.server_thread import ServerThread
@@ -28,6 +24,9 @@ from views.role_selection_page import RoleSelectionPage
 from views.admin_page import AdminPage
 from widgets.qr_code_dialog import QRCodeDialog
 from src.app_controller import AppController
+from logger_setup import setup_logger
+
+logger = setup_logger()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -58,13 +57,20 @@ class MainWindow(QMainWindow):
         self.sidebar = self.create_sidebar()
         self.stacked_widget = QStackedWidget()
 
-        print("Creando páginas de la interfaz...")
+        logger.info("Creando páginas de la interfaz...")
         self.page_attendance = AttendancePage(self.app_controller)
         self.page_role_selection = RoleSelectionPage() 
-        self.page_cocina = CocinaPage(self.app_controller,self)
+        self.page_cocina = CocinaPage(self.app_controller, self)
         self.page_caja = CajaPage(self.app_controller)
-        self.page_barra = BarraPage(self.app_controller,self) 
+        self.page_barra = BarraPage(self.app_controller, self) 
         self.page_admin = AdminPage(self.app_controller, self.app_config)
+
+        self.role_pages_map = {
+            "Cocinero": self.page_cocina,
+            "Cajero": self.page_caja,
+            "Barra": self.page_barra,
+            "Administrador": self.page_admin
+        }
 
         self.stacked_widget.addWidget(self.page_attendance)
         self.stacked_widget.addWidget(self.page_role_selection)
@@ -88,20 +94,19 @@ class MainWindow(QMainWindow):
         
         self.load_stylesheet("style.qss")
 
-        print("Creando ServerWorker en Hilo Principal...")
+        logger.info("Creando ServerWorker en Hilo Principal...")
         self.server_worker = ServerWorker(self.data_manager) 
 
-        print("Creando ServerThread...")
+        logger.info("Creando ServerThread...")
         self.thread = ServerThread(worker_instance=self.server_worker)
         
-        self.server_worker.asistencia_recibida.connect(self.actualizar_tabla_asistencia)
         self.server_worker.nueva_orden_recibida.connect(self.app_controller.procesar_nueva_orden)
         self.server_worker.ordenes_modificadas.connect(self.app_controller.ordenes_actualizadas.emit)
         self.server_worker.kds_estado_cambiado.connect(self.on_kds_externo_update)
         self.server_worker.asistencia_recibida.connect(self.app_controller.asistencia_recibida.emit)
 
         self.thread.start()
-        print("🚀 Servidor de asistencia iniciado en segundo plano.")
+        logger.info("Servidor de asistencia iniciado en segundo plano.")
 
     def update_and_save_config(self, updated_config):
         self.app_config = updated_config 
@@ -109,26 +114,40 @@ class MainWindow(QMainWindow):
 
     def load_app_config(self):
         self.config_file_path = os.path.join(BASE_DIR, "assets", "config.json")
+        default_config = {
+            "total_mesas": 10,
+            "seguridad": {
+                "pines": {
+                    "Cajero": "3333",
+                    "Administrador": "9999",
+                    "Cocinero": "1111",
+                    "Barra": "2222"
+                }
+            },
+            "roles_pago": {
+                "Mesero": {"minuto": 0.5},
+                "Cajera": {"minuto": 0.6},
+                "Jefe de Cocina": {"minuto": 0.8},
+                "Michelero": {"minuto": 0.5}
+            }
+        }
+
         try:
             with open(self.config_file_path, "r") as f:
-                self.app_config = json.load(f)
-            print(f"⚙️ Configuración cargada desde {self.config_file_path}")
+                loaded_config = json.load(f)
+                self.app_config = {**default_config, **loaded_config}
+            logger.info(f"Configuración cargada desde {self.config_file_path}")
         except (FileNotFoundError, json.JSONDecodeError):
-            print("⚠️ No se encontró config.json o está corrupto. Usando config por defecto.")
-            self.app_config = {"total_mesas": 10} 
+            logger.warning("No se encontró config.json o está corrupto. Usando config por defecto.")
+            self.app_config = default_config 
 
     def save_app_config(self):
         try:
             with open(self.config_file_path, "w") as f:
                 json.dump(self.app_config, f, indent=4)
-            print(f"Configuración guardada en {self.config_file_path}")
+            logger.info(f"Configuración guardada en {self.config_file_path}")
         except IOError:
-            print("Error al guardar la configuración.")
-    
-    def actualizar_tabla_asistencia(self, datos):
-        print(f"🔄 Señal recibida en MainWindow, pasando datos a la tabla: {datos}")
-        self.page_attendance.registrar_asistencia(datos)
-    
+            logger.error("Error al guardar la configuración.")
         
     def show_qr_dialog(self):
         dialog = QRCodeDialog(self)
@@ -145,9 +164,10 @@ class MainWindow(QMainWindow):
         sidebar_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
         logo_label = QLabel()
-        logo_path = os.path.join(BASE_DIR,"Assets","logo.png")
-        logo_pixmap = QPixmap(logo_path).scaledToWidth(150, Qt.TransformationMode.SmoothTransformation)
-        logo_label.setPixmap(logo_pixmap)
+        logo_path = os.path.join(BASE_DIR, "Assets", "logo.png")
+        if os.path.exists(logo_path):
+            logo_pixmap = QPixmap(logo_path).scaledToWidth(150, Qt.TransformationMode.SmoothTransformation)
+            logo_label.setPixmap(logo_pixmap)
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         self.btn_attendance = QPushButton("Control de Asistencia")
@@ -187,53 +207,48 @@ class MainWindow(QMainWindow):
         
     def handle_role_selection(self, role_name):
         self.current_role = role_name
-        if role_name == "Cocinero":
-            self.stacked_widget.setCurrentWidget(self.page_cocina)
-        elif role_name == "Cajero":
-            self.stacked_widget.setCurrentWidget(self.page_caja)
-        elif role_name == "Barra":
-            self.stacked_widget.setCurrentWidget(self.page_barra)
-        elif role_name == "Administrador":
-            self.stacked_widget.setCurrentWidget(self.page_admin)
+        target_page = self.role_pages_map.get(role_name)
+        
+        if target_page:
+            self.stacked_widget.setCurrentWidget(target_page)
+        else:
+            logger.warning(f"No hay una vista definida para el rol: {role_name}")
     
     def load_stylesheet(self, filename):
         try:
             absolute_path = os.path.join(BASE_DIR, "assets", filename) 
-            print(f"Intentando cargar la hoja de estilos desde: {absolute_path}")
+            logger.info(f"Intentando cargar la hoja de estilos desde: {absolute_path}")
 
-            with open(absolute_path, "r", encoding = "utf-8") as f:
+            with open(absolute_path, "r", encoding="utf-8") as f:
                 self.setStyleSheet(f.read())
                 
         except FileNotFoundError:
-            print(f"ADVERTENCIA: No se encontró el archivo de estilos '{filename}' en la ruta calculada.")
+            logger.warning(f"No se encontró el archivo de estilos '{filename}' en la ruta calculada.")
 
     def closeEvent(self, event):
-        print("Cerrando la aplicación...")
+        logger.info("Cerrando la aplicación...")
 
         if hasattr(self, 'thread') and self.thread.isRunning():
-            print("[MainThread] Deteniendo el hilo del servidor...")
-            print("[MainThread] Llamando a self.server_worker.stop_server()...")
-
+            logger.info("Deteniendo el hilo del servidor...")
             self.server_worker.stop_server() 
             
-            print("[MainThread] Esperando finalización del hilo (wait)...")
+            logger.info("Esperando finalización del hilo...")
             if not self.thread.wait(3000): 
-                print("[MainThread] ADVERTENCIA: El hilo del servidor tardó demasiado en cerrarse, forzando terminación.")
+                logger.warning("El hilo del servidor tardó demasiado en cerrarse, forzando terminación.")
                 self.thread.terminate() 
             else:
-                print("✅ [MainThread] Hilo del servidor detenido limpiamente.")
+                logger.info("Hilo del servidor detenido limpiamente.")
         
         self.save_app_config() 
         super().closeEvent(event)
 
     def on_kds_externo_update(self, destino):
-        """Se ejecuta cuando alguien toca 'LISTO' en la página web"""
-        print(f"Actualizando vista de escritorio por cambio en Web ({destino})")
+        logger.info(f"Actualizando vista de escritorio por cambio en Web ({destino})")
         
-        if destino == 'cocina' or destino == 'all':
+        if destino in ['cocina', 'all']:
             if hasattr(self, 'page_cocina'):
                 self.page_cocina.load_active_orders() 
 
-        if destino == 'barra' or destino == 'all':
+        if destino in ['barra', 'all']:
             if hasattr(self, 'page_barra'):
                 self.page_barra.load_active_orders()

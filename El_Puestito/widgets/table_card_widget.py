@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt
 
 class TableCardWidget(QFrame):
 
-    def __init__(self, table_number, parent=None):
+    def __init__(self, table_number: int, parent=None):
         super().__init__(parent)
         self.setObjectName("table_card")
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -12,8 +12,11 @@ class TableCardWidget(QFrame):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        number_label = QLabel(str(table_number))
-        number_label.setObjectName("table_card_number")
-        number_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.number_label = QLabel(str(table_number))
+        self.number_label.setObjectName("table_card_number")
+        self.number_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        layout.addWidget(number_label)
+        layout.addWidget(self.number_label)
+
+    def update_table_number(self, new_number: int):
+        self.number_label.setText(str(new_number))

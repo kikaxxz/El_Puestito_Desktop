@@ -25,7 +25,7 @@ class ServerWorker(QObject):
         super().__init__()
         self.data_manager = data_manager
         self.config = self._load_config()
-        self.API_KEY = self.config.get('api_key', 'puestito_seguro_2025')
+        self.API_KEY = self.config.get('api_key', os.environ.get('PUESTITO_API_KEY', os.urandom(24).hex()))
         
         seguridad = self.config.get('seguridad', {})
         self.PINS_ACCESO = seguridad.get('pines', {})
@@ -43,7 +43,7 @@ class ServerWorker(QObject):
         self.enroll_status = {"step": 0, "message": "Esperando inicio..."}
 
         self.app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
-        self.app.secret_key = 'super_secreto_el_puestito_2025'
+        self.app.secret_key = self.config.get('secret_key', os.environ.get('PUESTITO_SECRET_KEY', os.urandom(24).hex()))
         self.app.worker = self
         self.app.register_blueprint(api_bp)
 
@@ -93,7 +93,10 @@ class ServerWorker(QObject):
         })
 
     def stop_server(self):
-        pass
+        try:
+            self.socketio.stop()
+        except Exception as e:
+            logger.error(f"Error deteniendo SocketIO: {e}")
 
     def start_server(self):
         try:
@@ -101,7 +104,6 @@ class ServerWorker(QObject):
                 self.app, 
                 host='0.0.0.0', 
                 port=5000, 
-                allow_unsafe_werkzeug=True, 
                 log_output=True,
                 use_reloader=False
             )

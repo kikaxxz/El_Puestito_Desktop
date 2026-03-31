@@ -8,3 +8,9 @@ class ServerThread(QThread):
     def run(self):
         if self.worker:
             self.worker.start_server()
+
+    def stop(self):
+        if self.worker:
+            self.worker.stop_server()
+        self.quit()
+        self.wait()

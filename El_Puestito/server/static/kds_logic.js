@@ -26,16 +26,23 @@ async function submitPin() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({pin: currentPin})
         });
+        
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.message || "Error al validar PIN");
+        }
+
         const data = await res.json();
         
         if (data.status === 'success') {
             window.location.href = data.redirect;
         } else {
-            alert("PIN Incorrecto");
+            console.error("Error validando PIN:", data.message);
             clearPin();
         }
     } catch (e) {
-        alert("Error de conexión");
+        console.error("Error de conexión:", e.message);
+        clearPin();
     }
 }
 
@@ -45,19 +52,30 @@ if (window.location.pathname.startsWith('/kds/')) {
     const alertOverlay = document.getElementById('disconnect-alert');
 
     socket.on('connect', () => {
-        console.log("🟢 Conectado al WebSocket");
+        console.log("Conectado al WebSocket");
         if(alertOverlay) alertOverlay.style.display = 'none';
         loadOrders();
     });
 
+    socket.on('connect_error', (error) => {
+        console.error("Error de conexión al WebSocket:", error);
+        if(alertOverlay) {
+            alertOverlay.style.display = 'flex';
+            alertOverlay.querySelector('.alert-msg').textContent = "Error de conexión al servidor.";
+        }
+    });
+
     socket.on('disconnect', () => {
-        console.warn("🔴 Desconectado del WebSocket");
-        if(alertOverlay) alertOverlay.style.display = 'flex';
+        console.warn("Desconectado del WebSocket");
+        if(alertOverlay) {
+            alertOverlay.style.display = 'flex';
+            alertOverlay.querySelector('.alert-msg').textContent = "Intentando reconectar con el servidor...";
+        }
     });
 
     socket.on('kds_update', (data) => {
         if (data.destino === 'all' || data.destino === DESTINO) {
-            console.log("🔔 Actualización recibida");
+            console.log("Actualización recibida");
             loadOrders();
         }
     });
@@ -75,7 +93,7 @@ if (window.location.pathname.startsWith('/kds/')) {
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: #ff9800; /* Naranja */
+            background-color: #ff9800;
             color: white;
             padding: 20px 40px;
             border-radius: 12px;
@@ -97,7 +115,9 @@ if (window.location.pathname.startsWith('/kds/')) {
         try {
             const audio = new Audio('/static/notification.mp3');
             audio.play().catch(e => console.log("Audio bloqueado por el navegador (falta interacción previa)"));
-        } catch(e) {}
+        } catch(e) {
+            console.error("Error al reproducir audio:", e);
+        }
 
         document.body.appendChild(toast);
 
@@ -120,7 +140,9 @@ if (window.location.pathname.startsWith('/kds/')) {
     async function loadOrders() {
         try {
             const res = await fetch(`/api/kds-orders/${DESTINO}`);
-            if (!res.ok) throw new Error("Error HTTP al cargar órdenes");
+            if (!res.ok) {
+                 throw new Error(`Error HTTP: ${res.status} al cargar órdenes`);
+            }
             
             const orders = await res.json();
             renderTickets(orders);
@@ -192,16 +214,21 @@ if (window.location.pathname.startsWith('/kds/')) {
         btn.style.backgroundColor = '#555';
 
         try {
-            await fetch('/api/kds-complete', {
+            const response = await fetch('/api/kds-complete', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-KEY': API_KEY
+                    'X-API-KEY': typeof API_KEY !== 'undefined' ? API_KEY : '' 
                 },
                 body: JSON.stringify({ mesa_key: mesaKey, destino: DESTINO })
             });
+
+            if (!response.ok) {
+                 const errorData = await response.json().catch(() => ({}));
+                 throw new Error(errorData.message || "Error al completar la orden");
+            }
         } catch (e) {
-            alert("Error de conexión al completar orden");
+            console.error("Error de conexión al completar orden:", e);
             btn.disabled = false;
             btn.innerHTML = originalText;
             btn.style.backgroundColor = ''; 

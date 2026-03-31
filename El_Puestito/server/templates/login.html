@@ -33,11 +33,13 @@
                 <button class="num-btn" onclick="typePin(0)">0</button>
                 <button class="num-btn enter" onclick="submitPin()">➜</button>
             </div>
+            <div id="loginError" style="color: #ff4444; margin-top: 15px; font-size: 14px; min-height: 20px;"></div>
         </div>
     </div>
 
     <script>
         let pin = "";
+        const errorDisplay = document.getElementById('loginError');
         
         function updateDots() {
             const dots = document.querySelectorAll('.dot');
@@ -48,10 +50,10 @@
         }
 
         function typePin(num) {
+            errorDisplay.textContent = ""; 
             if (pin.length < 4) {
                 pin += num;
                 updateDots();
-                // Auto-submit si llega a 4 (opcional, mejor manual para evitar errores)
                 if (pin.length === 4) submitPin(); 
             }
         }
@@ -61,29 +63,44 @@
             updateDots();
         }
 
+        function showErrorAnimation(message) {
+            errorDisplay.textContent = message;
+            document.querySelector('.login-card').animate([
+                { transform: 'translateX(0)' },
+                { transform: 'translateX(-10px)' },
+                { transform: 'translateX(10px)' },
+                { transform: 'translateX(0)' }
+            ], { duration: 300 });
+            clearPin();
+        }
+
         async function submitPin() {
             if (pin.length !== 4) return;
+            
+            errorDisplay.textContent = "Verificando...";
+            
             try {
                 const res = await fetch('/api/validar-pin', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({pin: pin})
                 });
+                
+                if (!res.ok) {
+                    const errorData = await res.json().catch(() => ({}));
+                    throw new Error(errorData.message || "Error de servidor");
+                }
+
                 const data = await res.json();
+                
                 if (data.status === 'success') {
                     window.location.href = data.redirect;
                 } else {
-                    // Animación de error (vibración)
-                    document.querySelector('.login-card').animate([
-                        { transform: 'translateX(0)' },
-                        { transform: 'translateX(-10px)' },
-                        { transform: 'translateX(10px)' },
-                        { transform: 'translateX(0)' }
-                    ], { duration: 300 });
-                    clearPin();
+                    showErrorAnimation(data.message || "PIN Incorrecto");
                 }
             } catch (e) {
                 console.error(e);
+                showErrorAnimation(e.message || "Error de conexión");
             }
         }
     </script>

@@ -3,7 +3,7 @@ import json
 import datetime
 import random
 import requests
-import shutil 
+import shutil
 from fpdf import FPDF
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget,
@@ -12,12 +12,12 @@ from PyQt6.QtWidgets import (
     QTabWidget, QGridLayout, QSizePolicy, QTreeWidget, QTreeWidgetItem,
     QCheckBox, QGraphicsOpacityEffect, QTreeWidgetItemIterator,
     QCalendarWidget, QDateEdit, QFileDialog, QLayout, QFormLayout, 
-    QComboBox, QDoubleSpinBox, QTextEdit, QAbstractItemView, QSpinBox
+    QComboBox, QDoubleSpinBox, QTextEdit, QAbstractItemView, QSpinBox,
+    QProgressBar
 )
 
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QDesktopServices, QPixmap
 from PyQt6.QtCore import QUrl, QTimer, Qt, pyqtSignal, QDate
-from PyQt6.QtGui import QPixmap
 from widgets.table_card_widget import TableCardWidget
 from widgets.platillo_item import PlatilloItemWidget
 from logger_setup import setup_logger
@@ -28,11 +28,12 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class EmployeeFormDialog(QDialog):
-    def __init__(self, parent=None, employee_data=None, available_roles=[], api_key=""):
+    def __init__(self, parent=None, employee_data=None, available_roles=[], api_key="", server_url=""):
         super().__init__(parent)
         self.setWindowTitle("Datos del Empleado")
         self.setFixedSize(400, 350)
         self.api_key = api_key
+        self.server_url = server_url
         self.fingerprint_id = employee_data.get('fingerprint_id') if employee_data else None
         
         layout = QVBoxLayout(self)
@@ -53,7 +54,6 @@ class EmployeeFormDialog(QDialog):
         layout.addLayout(form_layout)
         
         layout.addWidget(QLabel("--- Registro Biométrico ---"))
-        from PyQt6.QtWidgets import QProgressBar
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 3) 
         self.progress_bar.setValue(0)
@@ -67,7 +67,6 @@ class EmployeeFormDialog(QDialog):
         self.lbl_finger_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_finger_status.setStyleSheet("font-size: 14px; font-weight: bold; color: #888;")
         self.update_finger_label()
-        
         
         self.btn_scan = QPushButton("Escanear Huella")
         self.btn_scan.setObjectName("blue_button")
@@ -115,9 +114,9 @@ class EmployeeFormDialog(QDialog):
 
     def start_scan_process(self):
         try:
-            url = 'http://127.0.0.1:5000/api/biometric/start-enroll'
+            url = f"{self.server_url}/api/biometric/start-enroll"
             headers = {'X-API-KEY': self.api_key}
-            requests.post(url, headers=headers)
+            requests.post(url, headers=headers, timeout=5)
             
             self.btn_scan.setEnabled(False)
             self.btn_scan.setText("Esperando sensor...")
@@ -126,14 +125,15 @@ class EmployeeFormDialog(QDialog):
             self.poll_timer.start() 
             
         except Exception as e:
+            logger.error(f"Error iniciando escaneo biometrico: {e}")
             QMessageBox.critical(self, "Error", f"No se pudo conectar al servidor: {e}")
             self.btn_scan.setEnabled(True)
             self.btn_scan.setText("Reintentar")
 
     def check_enroll_status(self):
         try:
-            url = 'http://127.0.0.1:5000/api/biometric/check-enroll-status'
-            resp = requests.get(url, timeout=1)
+            url = f"{self.server_url}/api/biometric/check-enroll-status"
+            resp = requests.get(url, timeout=2)
             
             if resp.status_code == 200:
                 data = resp.json()
@@ -163,7 +163,7 @@ class EmployeeFormDialog(QDialog):
                         self.lbl_finger_status.setStyleSheet("color: #ccc;")
 
         except Exception as e:
-            print(f"Error polling: {e}")
+            logger.error(f"Error revisando estado de enrolamiento: {e}")
 
     def get_data(self):
         return {
@@ -174,7 +174,6 @@ class EmployeeFormDialog(QDialog):
         }
 
 class CategoryFormDialog(QDialog):
-    """Diálogo simple para crear nuevas categorías."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Nueva Categoría")
@@ -200,7 +199,6 @@ class CategoryFormDialog(QDialog):
         }
 
 class MenuItemFormDialog(QDialog):
-    """Diálogo estructurado para usar con style.qss externo."""
     def __init__(self, parent=None, item_data=None, categories=[]):
         super().__init__(parent)
         self.setWindowTitle("Gestionar Platillo")
@@ -465,12 +463,12 @@ class ComboBuilderTab(QWidget):
         final_img = ""
         if self.image_path:
             try:
-                import shutil
                 ext = os.path.splitext(self.image_path)[1]
                 final_img = f"combo_{random.randint(1000,9999)}{ext}"
                 dest = os.path.join(BASE_DIR, "assets", final_img)
                 shutil.copy(self.image_path, dest)
-            except: pass
+            except Exception as e:
+                logger.error(f"Error copiando imagen de combo: {e}")
 
         self.app_controller.data_manager.create_combo_item(name, price, full_desc, final_img)
         self.combo_creado.emit()
@@ -491,9 +489,7 @@ class AdminPage(QWidget):
         
         self.app_controller = app_controller 
         self.employees_data = []
-        
         self.current_config = initial_config
-        
         self.ventas_file_path = os.path.join(BASE_DIR, "assets", "ventas_completadas.json")
         self.menu_file_path = os.path.join(BASE_DIR, "assets", "menu.json")
 
@@ -623,7 +619,6 @@ class AdminPage(QWidget):
         
         menu_layout.addLayout(menu_controls)
         
-        # Árbol del menú
         self.menu_tree = QTreeWidget()
         self.menu_tree.setObjectName("menu_tree")
         self.menu_tree.setColumnCount(1) 
@@ -729,7 +724,6 @@ class AdminPage(QWidget):
         
         self.tab_widget.addTab(reportes_tab, "Reportes")
 
-        # --- Tab Nómina ---
         payroll_tab = QWidget()
         payroll_layout = QVBoxLayout(payroll_tab)
         payroll_tab.setLayout(payroll_layout)
@@ -788,7 +782,6 @@ class AdminPage(QWidget):
         payroll_layout.addWidget(self.payroll_table)
         self.tab_widget.addTab(payroll_tab, "Nómina")
 
-        # --- Conexiones Generales ---
         self.btn_add_employee.clicked.connect(self.add_employee)
         self.btn_edit_employee.clicked.connect(self.edit_employee)
         self.btn_delete_employee.clicked.connect(self.delete_employee)
@@ -797,7 +790,6 @@ class AdminPage(QWidget):
         self.btn_add_table.clicked.connect(self.add_table)
         self.btn_remove_table.clicked.connect(self.remove_table)
         
-        # Conexiones nuevas del Menú
         self.btn_add_cat.clicked.connect(self.agregar_categoria)
         self.btn_add_item.clicked.connect(self.agregar_platillo)
         self.btn_edit_item.clicked.connect(self.editar_platillo)
@@ -811,15 +803,12 @@ class AdminPage(QWidget):
         self.btn_generate_random.clicked.connect(self.generate_random_attendance)
         self.payroll_table.itemSelectionChanged.connect(self.update_export_button_state)
 
-        # ---------------------------------------------------------------------
-        # IMPORTANTE: Cargar datos iniciales AL FINAL, cuando todos los widgets existen.
-        # ---------------------------------------------------------------------
         self._load_initial_data()
 
     def abrir_reportes_web(self):
-        url = "http://127.0.0.1:5000/reportes-web"
+        url = f"{self.app_controller.SERVER_URL}/reportes-web"
         QDesktopServices.openUrl(QUrl(url))
-        print(f"Abriendo dashboard web: {url}")
+        logger.info(f"Abriendo dashboard web: {url}")
 
     def _load_initial_data(self):
         logger.info("Cargando datos iniciales de AdminPage desde la BD...")
@@ -856,7 +845,7 @@ class AdminPage(QWidget):
             self._notify_server_config_change()
             self.config_updated.emit(self.current_config)
             
-            print(f"Mesa añadida. Total: {self.current_config['total_mesas']}")
+            logger.info(f"Mesa añadida. Total: {self.current_config['total_mesas']}")
         else:
             QMessageBox.information(self, "Límite Alcanzado", "Se ha alcanzado el número máximo de mesas (100).")
 
@@ -869,12 +858,12 @@ class AdminPage(QWidget):
             self._notify_server_config_change()
             self.config_updated.emit(self.current_config)
             
-            print(f"Mesa eliminada. Total: {self.current_config['total_mesas']}")
+            logger.info(f"Mesa eliminada. Total: {self.current_config['total_mesas']}")
         else:
             QMessageBox.warning(self, "Acción no permitida", "Debe haber al menos una mesa.")
 
     def refresh_employee_table(self):
-        print("Refrescando tabla de empleados desde la BD...")
+        logger.info("Refrescando tabla de empleados desde la BD...")
         self.employees_data = self.app_controller.get_todos_los_empleados()
         
         self.employee_table.setRowCount(0)
@@ -893,7 +882,7 @@ class AdminPage(QWidget):
             self.employee_table.setItem(row, 2, rol_item)
 
     def add_employee(self):
-        dialog = EmployeeFormDialog(self, available_roles=self.available_roles, api_key=self.app_controller.API_KEY)
+        dialog = EmployeeFormDialog(self, available_roles=self.available_roles, api_key=self.app_controller.API_KEY, server_url=self.app_controller.SERVER_URL)
         if dialog.exec():
             data = dialog.get_data()
             if not data['id'] or not data['nombre']: return 
@@ -905,7 +894,7 @@ class AdminPage(QWidget):
             result = self.app_controller.agregar_empleado(data['id'], data['nombre'], data['rol'], data['fingerprint_id'])
             
             if result:
-                print(f"✅ Empleado '{data['nombre']}' añadido con huella ID: {data['fingerprint_id']}")
+                logger.info(f"Empleado '{data['nombre']}' añadido con huella ID: {data['fingerprint_id']}")
                 self.refresh_employee_table()
             else:
                 QMessageBox.critical(self, "Error", "No se pudo añadir el empleado.")
@@ -922,7 +911,7 @@ class AdminPage(QWidget):
         original_employee = self.app_controller.data_manager.get_employee_by_id(original_id)
         if not original_employee: return
         
-        dialog = EmployeeFormDialog(self, employee_data=original_employee, available_roles=self.available_roles, api_key=self.app_controller.API_KEY)
+        dialog = EmployeeFormDialog(self, employee_data=original_employee, available_roles=self.available_roles, api_key=self.app_controller.API_KEY, server_url=self.app_controller.SERVER_URL)
         if dialog.exec():
             data = dialog.get_data()
             
@@ -932,7 +921,7 @@ class AdminPage(QWidget):
 
             self.app_controller.editar_empleado(original_id, data['id'], data['nombre'], data['rol'], data['fingerprint_id'])
             
-            print(f"Empleado editado. Huella ID: {data['fingerprint_id']}")
+            logger.info(f"Empleado editado. Huella ID: {data['fingerprint_id']}")
             self.refresh_employee_table()
 
     def delete_employee(self):
@@ -958,14 +947,13 @@ class AdminPage(QWidget):
                 QMessageBox.critical(self, "Error de Borrado", f"No se pudo eliminar a '{employee_name}'.\nEs probable que tenga un historial de asistencia vinculado.")
                 return
                 
-            print(f"Empleado '{employee_name}' (ID: {employee_id}) eliminado de la BD.")
+            logger.info(f"Empleado '{employee_name}' (ID: {employee_id}) eliminado de la BD.")
             
             self.refresh_employee_table()
             
         else:
-            print("Operación cancelada.")
+            logger.info("Operación cancelada.")
     
-    # --- GESTIÓN DE MENÚ Y LÓGICA (NUEVO) ---
 
     def load_menu_data(self):
         self.menu_tree.clear() 
@@ -978,8 +966,7 @@ class AdminPage(QWidget):
                 parent_item = QTreeWidgetItem(self.menu_tree)
                 parent_item.setText(0, categoria_nombre)
                 parent_item.setData(0, Qt.ItemDataRole.UserRole, "categoria")
-                parent_item.setFlags(parent_item.flags() & ~Qt.ItemFlag.ItemIsSelectable) # Categorías no seleccionables para edición simple
-                
+                parent_item.setFlags(parent_item.flags() & ~Qt.ItemFlag.ItemIsSelectable) 
                 for item_data in categoria_data.get("items", []):
                     child_item = QTreeWidgetItem(parent_item)
                     
@@ -994,7 +981,7 @@ class AdminPage(QWidget):
             self.menu_tree.expandAll()
             
         except Exception as e:
-            print(f"Error inesperado al cargar menú desde BD: {e}")
+            logger.error(f"Error inesperado al cargar menú desde BD: {e}")
             QMessageBox.critical(self, "Error de Menú", f"No se pudo cargar el menú desde la base de datos:\n{e}")
 
     def agregar_categoria(self):
@@ -1037,7 +1024,7 @@ class AdminPage(QWidget):
                     dest_path = os.path.join(BASE_DIR, "assets", final_img_name)
                     shutil.copy(data['imagen_path'], dest_path)
                 except Exception as e:
-                    print(f"Error copiando imagen: {e}")
+                    logger.error(f"Error copiando imagen: {e}")
 
             try:
                 self.app_controller.data_manager.execute(
@@ -1094,7 +1081,7 @@ class AdminPage(QWidget):
                         dest_path = os.path.join(BASE_DIR, "assets", final_img_name)
                         shutil.copy(new_data['imagen_path'], dest_path)
                     except Exception as e:
-                        print(f"Error copiando imagen: {e}")
+                        logger.error(f"Error copiando imagen: {e}")
 
             self.app_controller.data_manager.execute(
                 """UPDATE menu_items 
@@ -1158,7 +1145,7 @@ class AdminPage(QWidget):
                     self._notify_server_config_change()
 
     def save_menu_data(self):
-        print("Guardando disponibilidad del menú...")
+        logger.info("Guardando disponibilidad del menú...")
         updates_to_make = []
         iterator = QTreeWidgetItemIterator(self.menu_tree)
         while iterator.value():
@@ -1179,8 +1166,6 @@ class AdminPage(QWidget):
         except Exception as e:
             logger.error(f"Error guardando disponibilidad: {e}")
             QMessageBox.critical(self, "Error al Guardar", f"No se pudo actualizar:\n{e}")
-
-    # --- REPORTES Y OTROS ---
 
     def mostrar_reporte_del_dia(self):
         selected_date = self.calendar.selectedDate().toPyDate()
@@ -1215,7 +1200,7 @@ class AdminPage(QWidget):
         end_date_inclusive = end_date_q.toPyDate()
         end_date_exclusive = end_date_q.toPyDate() + datetime.timedelta(days=1)
 
-        print(f"Calculando nómina desde {start_date} hasta {end_date_inclusive}...")
+        logger.info(f"Calculando nómina desde {start_date} hasta {end_date_inclusive}...")
 
         payroll_rates = self.current_config.get("roles_pago", {})
         if not payroll_rates:
@@ -1231,7 +1216,7 @@ class AdminPage(QWidget):
         )
         
         if not attendance_history_rows:
-            print("No se encontró historial de asistencia en ese rango.")
+            logger.info("No se encontró historial de asistencia en ese rango.")
             self.payroll_table.setRowCount(0)
             return
 
@@ -1266,7 +1251,6 @@ class AdminPage(QWidget):
                 self.payroll_daily_details[emp_id] = {}
             if day_str not in self.payroll_daily_details[emp_id]:
                 self.payroll_daily_details[emp_id][day_str] = {"first_entry": None, "last_exit": None, "reg_mins": 0, "ot_mins": 0, "pay": 0.0}
-
 
             if entry_type == "entrada":
                 if self.payroll_daily_details[emp_id][day_str]["first_entry"] is None:
@@ -1323,9 +1307,9 @@ class AdminPage(QWidget):
                     last_entry_time = None 
                 else: 
                     if total_minutes_shift <= 0:
-                        print(f"Info: No se calculó tiempo pagable para {emp_id} el {day_str} (salida antes/igual a 12PM).")
+                        logger.info(f"No se calculó tiempo pagable para {emp_id} el {day_str} (salida antes/igual a 12PM).")
                     else:
-                        print(f"Advertencia: No se pudo calcular pago para {emp_id} el {day_str} (rol '{rol}' o tarifa inválida).")
+                        logger.warning(f"No se pudo calcular pago para {emp_id} el {day_str} (rol '{rol}' o tarifa inválida).")
                     self.payroll_daily_details[emp_id][day_str]["last_exit"] = ts 
                     last_entry_time = None
 
@@ -1377,7 +1361,7 @@ class AdminPage(QWidget):
             row += 1
             
         self.update_export_button_state()
-        print(f"Nómina calculada y mostrada para {len(payroll_results)} empleados. Detalles diarios guardados para PDF.")
+        logger.info(f"Nómina calculada y mostrada para {len(payroll_results)} empleados. Detalles diarios guardados para PDF.")
 
 
     def export_payroll_pdf(self):
@@ -1404,7 +1388,7 @@ class AdminPage(QWidget):
         start_date = start_date_q.toPyDate()
         end_date = end_date_q.toPyDate() 
 
-        print(f"Preparando PDF para {employee_name} (ID: {employee_id}) del {start_date} al {end_date}...")
+        logger.info(f"Preparando PDF para {employee_name} (ID: {employee_id}) del {start_date} al {end_date}...")
 
         employee_daily_details = self.payroll_daily_details.get(employee_id, {})
 
@@ -1416,7 +1400,7 @@ class AdminPage(QWidget):
         save_path, _ = QFileDialog.getSaveFileName(self, "Guardar PDF", default_filename, "PDF Files (*.pdf)")
 
         if not save_path:
-            print("Exportación cancelada por el usuario.")
+            logger.info("Exportación cancelada por el usuario.")
             return
 
         try:
@@ -1428,7 +1412,7 @@ class AdminPage(QWidget):
                 pdf.image(logo_path, x=5, y=5, w=50) 
                 pdf.ln(20) 
             else:
-                print(f"Advertencia: No se encontró el logo en {logo_path}")
+                logger.warning(f"No se encontró el logo en {logo_path}")
                 pdf.ln(20) 
 
             pdf.set_font("Arial", 'B', 16)
@@ -1502,11 +1486,11 @@ class AdminPage(QWidget):
             pdf.cell(0, 10, f"Pago Total del Período: C$ {total_period_pay:.2f}", 0, 1)
 
             pdf.output(save_path, "F")
-            print(f"✅ PDF guardado exitosamente en: {save_path}")
+            logger.info(f"PDF guardado exitosamente en: {save_path}")
             QMessageBox.information(self, "Éxito", f"El reporte PDF para {employee_name} se ha guardado correctamente.")
 
         except Exception as e:
-            print(f"Error al generar el PDF: {e}")
+            logger.error(f"Error al generar el PDF: {e}")
             QMessageBox.critical(self, "Error de PDF", f"Ocurrió un error al generar el archivo PDF:\n{e}")
 
     def generate_random_attendance(self):
@@ -1520,7 +1504,7 @@ class AdminPage(QWidget):
             QMessageBox.warning(self, "Fechas Inválidas", "La fecha de inicio no puede ser posterior a la fecha de fin.")
             return
             
-        print(f"Preparando para generar datos aleatorios desde {start_date} hasta {end_date}...")
+        logger.info(f"Preparando para generar datos aleatorios desde {start_date} hasta {end_date}...")
         
         confirm = QMessageBox.warning(self, "Confirmar Generación de Datos", 
                                     "Esto añadirá registros de entrada/salida aleatorios a la base de datos "
@@ -1531,7 +1515,7 @@ class AdminPage(QWidget):
                                     QMessageBox.StandardButton.No)
         
         if confirm == QMessageBox.StandardButton.No:
-            print("Operación cancelada.")
+            logger.info("Operación cancelada.")
             return
 
         current_employees = self.app_controller.data_manager.get_employees()
@@ -1572,23 +1556,23 @@ class AdminPage(QWidget):
                                     "salida"
                                 ))
                         except ValueError: 
-                            print(f"Error generando fecha para {emp_id} en {current_date}")
+                            logger.error(f"Error generando fecha para {emp_id} en {current_date}")
 
             current_date += datetime.timedelta(days=1)
 
         if not new_entries_batch:
-            print("No se generaron nuevos eventos.")
+            logger.info("No se generaron nuevos eventos.")
             QMessageBox.information(self, "Éxito", "No se generaron nuevos datos (posiblemente solo eran fines de semana).")
             return
 
         success = self.app_controller.data_manager.add_attendance_events_batch(new_entries_batch)
         
         if success:
-            print(f"{len(new_entries_batch)} registros aleatorios añadidos a la BD")
+            logger.info(f"{len(new_entries_batch)} registros aleatorios añadidos a la BD")
             QMessageBox.information(self, "Éxito", f"Se generaron y añadieron {len(new_entries_batch)//2} días de trabajo aleatorios al historial.")
             self.calculate_payroll()
         else:
-            print(f"Error al guardar el historial de asistencia en la BD.")
+            logger.error(f"Error al guardar el historial de asistencia en la BD.")
             QMessageBox.critical(self, "Error", "No se pudo guardar el archivo de historial de asistencia.")
 
     def update_export_button_state(self):
@@ -1596,7 +1580,6 @@ class AdminPage(QWidget):
         self.btn_export_pdf.setEnabled(has_selection)
 
     def _save_config_to_file(self):
-        """Guarda la configuración actual en el archivo JSON."""
         config_path = os.path.join(BASE_DIR, "assets", "config.json")
         try:
             with open(config_path, 'w') as f:
@@ -1607,9 +1590,8 @@ class AdminPage(QWidget):
             QMessageBox.critical(self, "Error", f"No se pudo guardar la configuración:\n{e}")
     
     def _notify_server_config_change(self):
-        """Avisa al servidor que la configuración ha cambiado, INCLUYENDO LA API KEY."""
         try:
-            url = 'http://127.0.0.1:5000/trigger_update'
+            url = f"{self.app_controller.SERVER_URL}/trigger_update"
             
             api_key = self.app_controller.API_KEY 
             headers = {
@@ -1618,7 +1600,7 @@ class AdminPage(QWidget):
             }
 
             payload = {'event': 'configuracion_actualizada'}
-            response = requests.post(url, json=payload, headers=headers)
+            response = requests.post(url, json=payload, headers=headers, timeout=2)
             
             if response.status_code == 200:
                 logger.info("Notificación de configuración enviada al servidor.")
@@ -1639,10 +1621,10 @@ class AdminPage(QWidget):
             try:
                 api_key = self.app_controller.API_KEY
                 
-                api_url = "http://127.0.0.1:5000/api/biometric/start-clear"
+                api_url = f"{self.app_controller.SERVER_URL}/api/biometric/start-clear"
                 headers = {'X-API-KEY': api_key}
                 
-                response = requests.post(api_url, headers=headers, timeout=2)
+                response = requests.post(api_url, headers=headers, timeout=5)
                 
                 if response.status_code == 200:
                     QMessageBox.information(self, "Orden Enviada", "El sensor se formateará en los próximos segundos.")
@@ -1650,4 +1632,5 @@ class AdminPage(QWidget):
                     QMessageBox.warning(self, "Error", f"El servidor no aceptó la orden. Código: {response.status_code}")
                     
             except Exception as e:
-                QMessageBox.critical(self, "Error de Conexión", f"No se pudo conectar con el servidor local:\n{str(e)}")
+                logger.error(f"Error formateando sensor: {e}")
+                QMessageBox.critical(self, "Error de Conexión", f"No se pudo conectar con el servidor:\n{str(e)}")

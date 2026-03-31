@@ -5,9 +5,11 @@ from PyQt6.QtWidgets import (
     QScrollArea, QGridLayout, QButtonGroup, QFrame, QScroller
 )
 from PyQt6.QtCore import Qt, QSize
+from logger_setup import setup_logger
+
+logger = setup_logger()
 
 class MesaCard(QPushButton):
-    """Botón personalizado que representa una mesa en la caja."""
     def __init__(self, text, mesa_key, parent=None):
         super().__init__(text, parent)
         self.mesa_key = mesa_key
@@ -27,8 +29,8 @@ class MesaCard(QPushButton):
                 text-align: center;
             }
             QPushButton#mesa_card:checked {
-                background-color: rgba(247, 102, 6, 0.2); /* Naranja translúcido */
-                border: 2px solid #f76606; /* Borde Naranja Neón */
+                background-color: rgba(247, 102, 6, 0.2);
+                border: 2px solid #f76606;
                 color: #ffffff;
             }
             QPushButton#mesa_card:hover:!checked {
@@ -44,6 +46,7 @@ class CajaPage(QWidget):
         self.app_controller = app_controller
         self.ordenes_activas = {}
         self.mesa_actual = None  
+        self.botones_mesas = {}
         
         self.mesas_button_group = QButtonGroup(self)
         self.mesas_button_group.setExclusive(True)
@@ -152,57 +155,59 @@ class CajaPage(QWidget):
         self.app_controller.ordenes_actualizadas.connect(self.load_active_orders)
 
     def load_active_orders(self):
-        """Recarga las mesas y reconstruye el Grid."""
         self.mesas_container.setUpdatesEnabled(False)
         try:
             mesa_previa = self.mesa_actual
             
+            nuevas_ordenes = self.app_controller.data_manager.get_active_orders_caja()
+            
+            ids_bd = set(nuevas_ordenes.keys())
+            ids_pantalla = set(self.botones_mesas.keys())
+            
+            a_borrar = ids_pantalla - ids_bd
+            for key in a_borrar:
+                btn = self.botones_mesas.pop(key)
+                self.mesas_button_group.removeButton(btn)
+                btn.deleteLater()
+            
+            a_agregar = ids_bd - ids_pantalla
+            for key in a_agregar:
+                display_text = self._formatear_nombre_mesa(key)
+                btn = MesaCard(display_text, key)
+                self.mesas_button_group.addButton(btn)
+                self.botones_mesas[key] = btn
+            
             while self.mesas_grid.count():
                 item = self.mesas_grid.takeAt(0)
-                widget = item.widget()
-                if widget:
-                    self.mesas_button_group.removeButton(widget) 
-                    widget.deleteLater()
+                if item.widget():
+                    item.widget().setParent(None)
             
-            self.ordenes_activas = {}
-            
-            self.ordenes_activas = self.app_controller.data_manager.get_active_orders_caja()
-            sorted_keys = sorted(self.ordenes_activas.keys())
-
+            sorted_keys = sorted(self.botones_mesas.keys())
             col = 0
             row = 0
-            
-            for mesa_key in sorted_keys:
-                orden = self.ordenes_activas[mesa_key]
-                if not orden['items']: continue
-
-                display_text = self._formatear_nombre_mesa(mesa_key)
-                
-                card = MesaCard(display_text, mesa_key)
-                self.mesas_button_group.addButton(card) 
-                self.mesas_grid.addWidget(card, row, col)
-                
-                if mesa_key == mesa_previa:
-                    card.setChecked(True)
-                    self._llenar_tabla_detalle(orden)
-                
+            for key in sorted_keys:
+                self.mesas_grid.addWidget(self.botones_mesas[key], row, col)
                 col += 1
-                if col > 1: 
+                if col > 1:
                     col = 0
                     row += 1
+                    
+            self.ordenes_activas = nuevas_ordenes
             
-            if mesa_previa and mesa_previa not in self.ordenes_activas:
+            if mesa_previa and mesa_previa in self.ordenes_activas:
+                self.botones_mesas[mesa_previa].setChecked(True)
+                self._llenar_tabla_detalle(self.ordenes_activas[mesa_previa])
+            else:
                 self._limpiar_tabla()
                 self.mesa_actual = None
 
         except Exception as e:
-            print(f"Error cargando órdenes: {e}")
+            logger.error(f"Error cargando ordenes: {e}")
             self.ordenes_activas = {}
         finally:
             self.mesas_container.setUpdatesEnabled(True)
 
     def _formatear_nombre_mesa(self, mesa_key):
-        """Helper para que el texto del botón se vea bonito."""
         base_key = mesa_key
         suffix = ""
         
@@ -212,13 +217,13 @@ class CajaPage(QWidget):
                 if len(parts) == 2 and parts[1].isdigit():
                     base_key = parts[0]
                     suffix = f"\n(Sub {parts[1]})"
-            except: pass 
+            except Exception as e: 
+                logger.warning(f"Error al formatear nombre: {e}")
 
         prefix = "Grupo" if "+" in base_key else "Mesa"
         return f"{prefix} {base_key}{suffix}"
 
     def al_seleccionar_mesa(self, button):
-        """Slot conectado al Click del ButtonGroup."""
         if not button: return
         
         mesa_key = button.mesa_key
@@ -230,7 +235,6 @@ class CajaPage(QWidget):
             self._limpiar_tabla()
 
     def _llenar_tabla_detalle(self, orden):
-        """Llena la tabla derecha."""
         self.tabla_cuenta.setUpdatesEnabled(False)
         items = orden.get('items', [])
         self.tabla_cuenta.setRowCount(len(items))
@@ -266,7 +270,7 @@ class CajaPage(QWidget):
         btn_seleccionado = self.mesas_button_group.checkedButton()
         
         if not btn_seleccionado: 
-            QMessageBox.warning(self, "Acción no válida", "Por favor, seleccione una mesa para cobrar.")
+            QMessageBox.warning(self, "Accion no valida", "Por favor, seleccione una mesa para cobrar.")
             return
         
         mesa_key = btn_seleccionado.mesa_key

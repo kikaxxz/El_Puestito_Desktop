@@ -2,6 +2,9 @@ import os
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QGraphicsOpacityEffect
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt, QPoint
+from logger_setup import setup_logger
+
+logger = setup_logger()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -21,14 +24,28 @@ class PlatilloItemWidget(QWidget):
         self.image_label.setFixedSize(50, 50) 
         self.image_label.setObjectName("menu_item_image")
         
-        imagen_path = os.path.join(BASE_DIR, "assets", item_data.get("imagen", "default.png"))
-        pixmap = QPixmap(imagen_path)
-        self.image_label.setPixmap(pixmap.scaled(50, 50, 
-            Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        imagen_nombre = item_data.get("imagen", "default.png")
+        if not imagen_nombre:
+            imagen_nombre = "default.png"
+            
+        imagen_path = os.path.join(BASE_DIR, "assets", imagen_nombre)
+        
+        if os.path.exists(imagen_path):
+            pixmap = QPixmap(imagen_path)
+            if not pixmap.isNull():
+                self.image_label.setPixmap(pixmap.scaled(
+                    50, 50, 
+                    Qt.AspectRatioMode.KeepAspectRatio, 
+                    Qt.TransformationMode.SmoothTransformation
+                ))
+        else:
+            self.image_label.setText("N/A")
+            self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.image_label.setStyleSheet("background-color: #444; border-radius: 5px; color: #fff; font-size: 12px; font-weight: bold;")
         
         layout.addWidget(self.image_label)
         
-        self.text_label = QLabel(item_data.get("nombre", "N/A"))
+        self.text_label = QLabel(item_data.get("nombre", "Desconocido"))
         self.text_label.setObjectName("menu_item_label")
         
         layout.addWidget(self.text_label)
@@ -41,7 +58,6 @@ class PlatilloItemWidget(QWidget):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def actualizarApariencia(self):
-        """Ajusta la opacidad basado en el estado 'disponible'."""
         if self.disponible:
             self.opacity_effect.setOpacity(1.0)
             self.text_label.setStyleSheet("text-decoration: none;")
@@ -50,8 +66,7 @@ class PlatilloItemWidget(QWidget):
             self.text_label.setStyleSheet("text-decoration: line-through;") 
 
     def mousePressEvent(self, event):
-        """Al hacer clic, cambia el estado y actualiza la apariencia."""
         self.disponible = not self.disponible
         self.actualizarApariencia()
-        print(f"Item {self.item_id} marcado como: {'Disponible' if self.disponible else 'Agotado'}")
+        logger.info(f"Item {self.item_id} marcado como: {'Disponible' if self.disponible else 'Agotado'}")
         super().mousePressEvent(event)
