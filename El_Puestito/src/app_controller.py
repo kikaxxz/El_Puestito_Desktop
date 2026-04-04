@@ -55,6 +55,31 @@ class AppController(QObject):
         if result: self.lista_empleados_actualizada.emit()
         return result
     
+    def save_config_to_file(self, config_data):
+        import json
+        import os
+        
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_path = os.path.join(base_dir, "assets", "config.json")
+        
+        try:
+            with open(config_path, 'w') as f:
+                json.dump(config_data, f, indent=4)
+            logger.info("Configuracion guardada en config.json")
+        except Exception as e:
+            logger.critical(f"Error guardando config.json: {e}")
+
+    def notify_server_config_change(self):
+        url = QUrl(f'{self.SERVER_URL}/trigger_update')
+        request = QNetworkRequest(url)
+        request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")
+        request.setRawHeader(b"X-API-KEY", self.API_KEY.encode('utf-8'))
+        
+        payload = json.dumps({'event': 'configuracion_actualizada'}).encode('utf-8')
+        
+        reply = self.network_manager.post(request, payload)
+        reply.finished.connect(lambda: self._handle_reply(reply))
+    
     def procesar_nueva_orden(self, orden_completa):
         logger.info("[Controller] Procesando nueva orden...")
         try:
