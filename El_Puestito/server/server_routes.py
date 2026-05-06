@@ -23,7 +23,7 @@ def require_auth(f):
         
         if token != worker.API_KEY:
             logger.warning(f"Intento de acceso no autorizado desde {request.remote_addr}")
-            return jsonify({"error": "Unauthorized", "message": "Falta API Key válida"}), 401
+            return jsonify({"error": "Unauthorized", "message": "Falta API Key valida"}), 401
         
         return f(*args, **kwargs)
     return decorated
@@ -35,7 +35,7 @@ def index():
 @api_bp.route('/kds/<destino>')
 def kds_view(destino):
     if destino not in ['cocina', 'barra']:
-        return "Destino no válido", 404
+        return "Destino no valido", 404
     if session.get('kds_access') != destino:
         return redirect(url_for('api.index'))
 
@@ -93,7 +93,7 @@ def complete_kds_order():
         elif destino == 'barra':
             worker.data_manager.mark_barra_order_ready(mesa_key)
         
-        logger.info(f"Orden Mesa {mesa_key} marcada lista en {destino} (vía Web)")
+        logger.info(f"Orden Mesa {mesa_key} marcada lista en {destino} (via Web)")
         
         worker.socketio.emit('kds_update', {'destino': destino})
         worker.kds_estado_cambiado.emit(destino)
@@ -136,7 +136,7 @@ def get_chart_data():
         })
 
     except Exception as e:
-        logger.error(f"Error generando datos para gráficas: {e}", exc_info=True)
+        logger.error(f"Error generando datos para graficas: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 @api_bp.route('/shutdown', methods=['POST'])
@@ -197,7 +197,7 @@ def get_configuracion():
         with open(config_path, 'r') as f:
             return jsonify(json.load(f))
     except Exception as e:
-        logger.error(f"Error sirviendo configuración: {e}")
+        logger.error(f"Error sirviendo configuracion: {e}")
         return jsonify({"error": "Error cargando config"}), 500
 
 @api_bp.route('/images/<path:filename>')
@@ -236,8 +236,8 @@ def get_menu():
         
         return jsonify(menu_filtrado)
     except Exception as e:
-        logger.error(f"Error sirviendo menú: {e}")
-        return jsonify({"error": "No se pudo cargar el menú"}), 500
+        logger.error(f"Error sirviendo menu: {e}")
+        return jsonify({"error": "No se pudo cargar el menu"}), 500
 
 @api_bp.route('/nueva-orden', methods=['POST'])
 @require_auth
@@ -254,7 +254,7 @@ def recibir_orden():
         if worker.data_manager.check_duplicate_order_id(order_id):
             return jsonify({"status": "ok_duplicate"}), 200
         
-        logger.info(f"Nueva orden recibida vía API: {order_id}")
+        logger.info(f"Nueva orden recibida via API: {order_id}")
         worker.nueva_orden_recibida.emit(orden) 
         worker.socketio.emit('kds_update', {'destino': 'all'})
 
@@ -330,7 +330,7 @@ def trigger_update():
         
         logger.info(f"Retransmitiendo evento: {event_name}")
         
-        if event_name == 'mesas_actualizadas':
+        if event_name in ['mesas_actualizadas', 'mesas_update']:
             def emit_update():
                 worker.socketio.sleep(0.1)
                 table_state_payload = worker.data_manager.get_active_orders_caja()
@@ -339,7 +339,7 @@ def trigger_update():
             worker.socketio.start_background_task(emit_update)
             
         elif event_name == 'menu_actualizado':
-            worker.socketio.emit('menu_actualizado', {'mensaje': 'Menú cambiado'})
+            worker.socketio.emit('menu_actualizado', {'mensaje': 'Menu cambiado'})
         
         else:
             if payload_data:
@@ -369,7 +369,7 @@ def cancel_order_endpoint():
             worker.socketio.emit('mesas_actualizadas', worker.data_manager.get_active_orders_caja())
             return jsonify({"status": "success"}), 200
         else:
-            return jsonify({"error": "No se pudo cancelar (¿Tiene productos?)"}), 400
+            return jsonify({"error": "No se pudo cancelar"}), 400
     except Exception as e:
         logger.error(f"Error en cancel_order_endpoint: {e}")
         return jsonify({"error": "Error interno"}), 500
@@ -499,7 +499,7 @@ def biometric_attendance():
         
         worker._registrar_evento(emp_id, tipo)
         
-        logger.info(f"Asistencia biométrica: {empleado['nombre']} ({tipo})")
+        logger.info(f"Asistencia biometrica: {empleado['nombre']} ({tipo})")
         return jsonify({"status": "success", "nombre": empleado['nombre'], "tipo": tipo})
     except Exception as e:
         logger.error(f"Error en biometric_attendance: {e}")
@@ -536,7 +536,7 @@ def start_clear_mode():
 def biometric_clear_success():
     try:
         worker = current_app.worker
-        logger.info("El ESP32 confirma: Sensor biométrico formateado.")
+        logger.info("El ESP32 confirma: Sensor biometrico formateado.")
         worker.clear_mode_active = False
         
         try:

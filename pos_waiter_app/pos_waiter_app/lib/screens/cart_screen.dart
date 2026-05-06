@@ -55,7 +55,9 @@ class _CartScreenState extends State<CartScreen> {
             'cantidad': item.cantidad,
             'precio_unitario': item.precio,
             'imagen': item.imagen,
-            'notas': item.notas, 
+            'notas': item.notas,
+            'id_cerveza': item.idCerveza,
+            'nombre_cerveza': item.nombreCerveza, 
           }).toList(),
     };
 
@@ -208,7 +210,7 @@ class _CartScreenState extends State<CartScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 15),
                             backgroundColor: Colors.orange,
                             foregroundColor: Colors.white
-                          ),
+                          ),  
                           child: const Text('Enviar Orden a Cocina', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         ),
                       ),

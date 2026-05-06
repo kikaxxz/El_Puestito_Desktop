@@ -153,6 +153,13 @@ class OrderTicket(QFrame):
         title.setStyleSheet("font-weight: bold; font-size: 15px; color: #fff;")
         info_layout.addWidget(title)
         
+        cerveza = item.get('nombre_cerveza')
+        if cerveza:
+            lbl_cerveza = QLabel(f"└ Cerveza: {cerveza}")
+            lbl_cerveza.setWordWrap(True)
+            lbl_cerveza.setStyleSheet("color: #00d26a; font-weight: bold; font-size: 13px; margin-left: 10px;")
+            info_layout.addWidget(lbl_cerveza)
+        
         nota = item.get('notas', '')
         if nota:
             lbl_nota = QLabel(nota)

@@ -120,7 +120,8 @@ class DataManager:
             estado TEXT NOT NULL DEFAULT 'activa',
             fecha_apertura DATETIME NOT NULL,
             fecha_cierre DATETIME,
-            client_uuid TEXT UNIQUE
+            client_uuid TEXT UNIQUE,
+            proformas_impresas INTEGER NOT NULL DEFAULT 0
         );
         """)
 
@@ -145,13 +146,20 @@ class DataManager:
         try:
             conn = self.get_conn()
             cursor = conn.cursor()
+
+            cursor.execute("PRAGMA table_info(orden_detalle)")
+            columns_det = [info[1] for info in cursor.fetchall()]
+            
+            if 'id_cerveza' not in columns_det:
+                self.execute("ALTER TABLE orden_detalle ADD COLUMN id_cerveza TEXT;")
+                self.execute("ALTER TABLE orden_detalle ADD COLUMN nombre_cerveza TEXT;")
             
             cursor.execute("PRAGMA table_info(menu_categorias)")
             columns = [info[1] for info in cursor.fetchall()]
             
             if 'destino' not in columns:
                 logger.info("Esquema desactualizado detectado: Falta columna 'destino' en menu_categorias.")
-                logger.info("Aplicando migración de esquema...")
+                logger.info("Aplicando migracion de esquema...")
                 
                 self.execute("ALTER TABLE menu_categorias ADD COLUMN destino TEXT DEFAULT 'cocina';")
                 self._migrate_hardcoded_destinations_to_db()
@@ -165,6 +173,14 @@ class DataManager:
                 self.execute("ALTER TABLE empleados ADD COLUMN fingerprint_id INTEGER;")
                 self.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_empleados_fingerprint ON empleados(fingerprint_id);")
                 logger.info("Columna 'fingerprint_id' agregada correctamente.")
+                
+            cursor.execute("PRAGMA table_info(ordenes)")
+            columns_ordenes = [info[1] for info in cursor.fetchall()]
+            
+            if 'proformas_impresas' not in columns_ordenes:
+                logger.info("Esquema: Falta columna 'proformas_impresas' en ordenes. Agregando...")
+                self.execute("ALTER TABLE ordenes ADD COLUMN proformas_impresas INTEGER NOT NULL DEFAULT 0;")
+                logger.info("Columna 'proformas_impresas' agregada correctamente.")
 
         except Exception as e:
             logger.error(f"Error verificando o actualizando esquema: {e}")
@@ -183,7 +199,7 @@ class DataManager:
     def _migrate_hardcoded_destinations_to_db(self):
         PREFIJOS_ANTIGUOS = ("MIC", "OBA", "BSA", "CER", "RTD")
         
-        logger.info("Migrando lógica de prefijos a base de datos...")
+        logger.info("Migrando logica de prefijos a base de datos...")
         categorias = self.fetchall("SELECT id_categoria, nombre FROM menu_categorias")
         
         for cat in categorias:
@@ -199,19 +215,18 @@ class DataManager:
                     break
             
             if es_barra:
-                logger.info(f"Categoría '{cat['nombre']}' detectada como BARRA. Actualizando BD.")
+                logger.info(f"Categoria '{cat['nombre']}' detectada como BARRA. Actualizando BD.")
                 self.execute("UPDATE menu_categorias SET destino = 'barra' WHERE id_categoria = ?", (cat_id,))
 
     def run_migration_if_needed(self):
         if not self.fetchone("SELECT id_empleado FROM empleados LIMIT 1"):
-            logger.info("Base de datos vacía detectada. Iniciando migración de datos desde JSON...")
+            logger.info("Base de datos vacia detectada. Iniciando migracion de datos desde JSON...")
             self._migrate_employees()
             self._migrate_attendance_history()
             self._migrate_menu()
-            logger.info("Migración de datos completada.")
+            logger.info("Migracion de datos completada.")
         else:
-            logger.info("Base de datos ya poblada. No se requiere migración.")
-
+            logger.info("Base de datos ya poblada. No se requiere migracion.")
 
     def _migrate_employees(self):
         json_path = os.path.join(JSON_ASSETS_DIR, "asistencia.json")
@@ -226,7 +241,7 @@ class DataManager:
                 )
             logger.info(f"Migrados {len(data)} empleados desde {json_path}")
         except FileNotFoundError:
-            logger.warning(f"No se encontró {json_path} para migrar empleados.")
+            logger.warning(f"No se encontro {json_path} para migrar empleados.")
         except Exception as e:
             logger.error(f"Error migrando empleados: {e}")
 
@@ -243,7 +258,7 @@ class DataManager:
                 )
             logger.info(f"Migrados {len(data)} eventos de asistencia desde {json_path}")
         except FileNotFoundError:
-            logger.warning(f"No se encontró {json_path} para migrar historial.")
+            logger.warning(f"No se encontro {json_path} para migrar historial.")
         except Exception as e:
             logger.error(f"Error migrando historial de asistencia: {e}")
 
@@ -278,11 +293,11 @@ class DataManager:
                     item_count += 1
             
             self._migrate_hardcoded_destinations_to_db()
-            logger.info(f"Migrados {item_count} items de menú desde {json_path}")
+            logger.info(f"Migrados {item_count} items de menu desde {json_path}")
         except FileNotFoundError:
-            logger.warning(f"No se encontró {json_path} para migrar menú.")
+            logger.warning(f"No se encontro {json_path} para migrar menu.")
         except Exception as e:
-            logger.error(f"Error migrando menú: {e}")
+            logger.error(f"Error migrando menu: {e}")
 
     def get_employees(self):
         return self.fetchall("SELECT * FROM empleados ORDER BY nombre;")
@@ -374,15 +389,25 @@ class DataManager:
         total_ventas = total_result['total'] if total_result and total_result['total'] else 0.0
 
         items_query = """
-        SELECT d.id_item_menu, m.nombre, SUM(d.cantidad) AS cantidad_total
-        FROM ordenes o
-        JOIN orden_detalle d ON o.id_orden = d.id_orden
-        JOIN menu_items m ON d.id_item_menu = m.id_item
-        WHERE o.estado = 'cerrada' AND DATE(o.fecha_cierre) = DATE(?)
-        GROUP BY d.id_item_menu, m.nombre
+        SELECT id_item, nombre, SUM(cant) AS cantidad_total
+        FROM (
+            SELECT d.id_item_menu AS id_item, m.nombre, d.cantidad AS cant
+            FROM ordenes o
+            JOIN orden_detalle d ON o.id_orden = d.id_orden
+            JOIN menu_items m ON d.id_item_menu = m.id_item
+            WHERE o.estado = 'cerrada' AND DATE(o.fecha_cierre) = DATE(?)
+            
+            UNION ALL
+            
+            SELECT d.id_cerveza AS id_item, d.nombre_cerveza AS nombre, d.cantidad AS cant
+            FROM ordenes o
+            JOIN orden_detalle d ON o.id_orden = d.id_orden
+            WHERE o.estado = 'cerrada' AND DATE(o.fecha_cierre) = DATE(?) AND d.id_cerveza IS NOT NULL
+        ) t
+        GROUP BY id_item, nombre
         ORDER BY cantidad_total DESC;
         """
-        items_vendidos = self.fetchall(items_query, (date_str,))
+        items_vendidos = self.fetchall(items_query, (date_str, date_str))
         return total_ventas, items_vendidos
     
     def get_sales_history_range(self, start_date=None, end_date=None, days=30):
@@ -487,7 +512,7 @@ class DataManager:
             client_uuid = orden_completa.get('order_id')
             
             cursor.execute(
-                "INSERT INTO ordenes (mesa_key, estado, fecha_apertura, client_uuid) VALUES (?, 'activa', ?, ?);",
+                "INSERT INTO ordenes (mesa_key, estado, fecha_apertura, client_uuid, proformas_impresas) VALUES (?, 'activa', ?, ?, 0);",
                 (mesa_key, timestamp, client_uuid)
             )
             id_orden = cursor.lastrowid
@@ -510,14 +535,16 @@ class DataManager:
                     item.get('nombre'),
                     item.get('imagen'),
                     item.get('notas', ''),
-                    destino 
+                    destino,
+                    item.get('id_cerveza'),
+                    item.get('nombre_cerveza') 
                 ))
             cursor.executemany(
                 """
                 INSERT INTO orden_detalle (
                     id_orden, id_item_menu, cantidad, precio_unitario_congelado,
-                    nombre_congelado, imagen_congelada, notas, destino
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                    nombre_congelado, imagen_congelada, notas, destino, id_cerveza, nombre_cerveza
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 detalle_batch
             )
@@ -527,11 +554,11 @@ class DataManager:
             
         except sqlite3.Error as e:
             conn.rollback()
-            logger.error(f"Error CRÍTICO creando orden. Se hizo ROLLBACK. Causa: {e}")
+            logger.error(f"Error CRITICO creando orden. Se hizo ROLLBACK. Causa: {e}")
             return None
         except Exception as e:
             conn.rollback()
-            logger.error(f"Error lógico creando orden. Rollback ejecutado. Causa: {e}")
+            logger.error(f"Error logico creando orden. Rollback ejecutado. Causa: {e}")
             return None
 
     def get_active_orders_caja(self):
@@ -542,7 +569,7 @@ class DataManager:
             d.cantidad, d.precio_unitario_congelado AS precio_unitario,
             d.nombre_congelado AS nombre, d.imagen_congelada AS imagen,
             d.notas, d.id_item_menu AS item_id,
-            d.estado_item
+            d.estado_item, d.nombre_cerveza
         FROM ordenes o
         LEFT JOIN orden_detalle d ON o.id_orden = d.id_orden
         WHERE o.estado = 'activa'
@@ -570,11 +597,18 @@ class DataManager:
                     'precio_unitario': row['precio_unitario'],
                     'imagen': row['imagen'],
                     'notas': row['notas'],
-                    'estado_item': row['estado_item']
+                    'estado_item': row['estado_item'],
+                    'nombre_cerveza': row['nombre_cerveza']
                 }
                 caja_data[mesa_key]['items'].append(item_dict)
                 
         return caja_data
+
+    def registrar_impresion_proforma(self, mesa_key):
+        return self.execute(
+            "UPDATE ordenes SET proformas_impresas = proformas_impresas + 1 WHERE mesa_key = ? AND estado = 'activa';",
+            (mesa_key,)
+        )
     
     def split_order(self, original_mesa_key, items_to_split):
         conn = self.get_conn()
@@ -608,7 +642,7 @@ class DataManager:
             
             new_uuid = f"{orden_orig['client_uuid']}_split_{datetime.datetime.now().timestamp()}"
             cursor.execute(
-                "INSERT INTO ordenes (mesa_key, estado, fecha_apertura, client_uuid) VALUES (?, 'activa', ?, ?)",
+                "INSERT INTO ordenes (mesa_key, estado, fecha_apertura, client_uuid, proformas_impresas) VALUES (?, 'activa', ?, ?, 0)",
                 (new_mesa_key, datetime.datetime.now().isoformat(), new_uuid)
             )
             id_nueva_orden = cursor.lastrowid
@@ -688,10 +722,10 @@ class DataManager:
 
             if remaining == 0:
                 if '+' in mesa_key:
-                    logger.info(f"Grupo {mesa_key} quedó vacío, pero se mantiene activo para preservar unión.")
+                    logger.info(f"Grupo {mesa_key} quedo vacio, pero se mantiene activo para preservar union.")
                     return False
 
-                logger.info(f"Limpieza automática: Orden {mesa_key} vacía. Cerrando...")
+                logger.info(f"Limpieza automatica: Orden {mesa_key} vacia. Cerrando...")
                 timestamp = datetime.datetime.now().isoformat()
                 cursor.execute(
                     "UPDATE ordenes SET estado = 'cancelada', fecha_cierre = ? WHERE id_orden = ?", 
@@ -701,7 +735,7 @@ class DataManager:
                 return True
                 
         except Exception as e:
-            logger.error(f"Error en limpieza automática: {e}")
+            logger.error(f"Error en limpieza automatica: {e}")
         
         return False    
     
@@ -713,7 +747,8 @@ class DataManager:
             d.nombre_congelado AS nombre,
             d.cantidad,
             d.notas,
-            d.imagen_congelada AS imagen
+            d.imagen_congelada AS imagen,
+            d.nombre_cerveza
         FROM ordenes o
         JOIN orden_detalle d ON o.id_orden = d.id_orden
         WHERE o.estado = 'activa'
@@ -736,7 +771,8 @@ class DataManager:
                 'nombre': item['nombre'],
                 'cantidad': item['cantidad'],
                 'notas': item['notas'],
-                'imagen': item['imagen']
+                'imagen': item['imagen'],
+                'nombre_cerveza': item['nombre_cerveza']
             }
             ordenes_dict[mesa_key]['items'].append(item_ticket)
         return list(ordenes_dict.values())
@@ -820,14 +856,14 @@ class DataManager:
                         items_madre = self.fetchone(query_items, (orden_madre['id_orden'],))
                         
                         if items_madre and items_madre['count'] == 0:
-                            logger.info(f"Limpieza automática: Cerrando orden grupal vacía {orden_madre['mesa_key']}")
+                            logger.info(f"Limpieza automatica: Cerrando orden grupal vacia {orden_madre['mesa_key']}")
                             self.execute(
                                 "UPDATE ordenes SET estado = 'cerrada', fecha_cierre = ? WHERE id_orden = ?",
                                 (timestamp, orden_madre['id_orden'])
                             )
                             
             except Exception as e:
-                logger.error(f"Error en validación de limpieza automática: {e}")
+                logger.error(f"Error en validacion de limpieza automatica: {e}")
 
         return orden_a_cerrar
     
@@ -846,18 +882,30 @@ class DataManager:
             start_date_obj = datetime.datetime.strptime(str(start_date).strip(), '%Y-%m-%d').date()
 
         query = """
-        SELECT m.nombre, SUM(d.cantidad) AS cantidad_total
-        FROM ordenes o
-        JOIN orden_detalle d ON o.id_orden = d.id_orden
-        JOIN menu_items m ON d.id_item_menu = m.id_item
-        WHERE o.estado = 'cerrada' 
-        AND DATE(o.fecha_cierre) BETWEEN DATE(?) AND DATE(?)
-        GROUP BY d.id_item_menu, m.nombre
+        SELECT nombre, SUM(cant) AS cantidad_total
+        FROM (
+            SELECT m.nombre, d.cantidad AS cant
+            FROM ordenes o
+            JOIN orden_detalle d ON o.id_orden = d.id_orden
+            JOIN menu_items m ON d.id_item_menu = m.id_item
+            WHERE o.estado = 'cerrada' 
+            AND DATE(o.fecha_cierre) BETWEEN DATE(?) AND DATE(?)
+            
+            UNION ALL
+            
+            SELECT d.nombre_cerveza AS nombre, d.cantidad AS cant
+            FROM ordenes o
+            JOIN orden_detalle d ON o.id_orden = d.id_orden
+            WHERE o.estado = 'cerrada' 
+            AND DATE(o.fecha_cierre) BETWEEN DATE(?) AND DATE(?)
+            AND d.id_cerveza IS NOT NULL
+        ) t
+        GROUP BY nombre
         ORDER BY cantidad_total DESC
         LIMIT 5;
         """
         
-        cursor.execute(query, (start_date_obj.isoformat(), end_date_obj.isoformat()))
+        cursor.execute(query, (start_date_obj.isoformat(), end_date_obj.isoformat(), start_date_obj.isoformat(), end_date_obj.isoformat()))
         rows = cursor.fetchall()
         
         return [dict(row) for row in rows]

@@ -26,5 +26,14 @@
             "minuto": 0.59
         }
     },
-    "api_key": "puestito_seguro_2025"
+    "api_key": "puestito_seguro_2025",
+    "printer_interface": "USB",
+    "usb_vendor_id": "0x04b8",
+    "usb_product_id": "0x0202",
+    "printer_settings": {
+        "header": "EL PUESTITO\nTicket de Venta",
+        "footer": "Gracias por su compra!",
+        "enable_proforma": true,
+        "suggest_tip": true
+    }
 }

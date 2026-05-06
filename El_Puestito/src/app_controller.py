@@ -3,6 +3,7 @@ import json
 from PyQt6.QtCore import QObject, pyqtSignal, QUrl
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from logger_setup import setup_logger
+from printer_service import PrinterService
 
 logger = setup_logger()
 
@@ -20,7 +21,11 @@ class AppController(QObject):
         self.config = self._load_config()
         self.API_KEY = self.config.get("api_key", "puestito_seguro_2025")
         self.SERVER_URL = self.config.get("server_url", "http://127.0.0.1:5000")
+        self.printer_service = PrinterService(self)
         logger.info(f"[AppController] Inicializado con API Key cargada y URL: {self.SERVER_URL}")
+
+    def get_config(self):
+        return self.config
 
     def _load_config(self):
         try:
@@ -28,13 +33,13 @@ class AppController(QObject):
             config_path = os.path.join(base_dir, "assets", "config.json")
             
             if not os.path.exists(config_path):
-                logger.warning(f"No se encontró {config_path}")
+                logger.warning(f"No se encontro {config_path}")
                 return {}
                 
             with open(config_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
-            logger.error(f"Error cargando configuración en Controller: {e}")
+            logger.error(f"Error cargando configuracion en Controller: {e}")
             return {}
 
     def get_todos_los_empleados(self):
@@ -65,17 +70,18 @@ class AppController(QObject):
         try:
             with open(config_path, 'w') as f:
                 json.dump(config_data, f, indent=4)
+            self.config = config_data
             logger.info("Configuracion guardada en config.json")
         except Exception as e:
             logger.critical(f"Error guardando config.json: {e}")
 
-    def notify_server_config_change(self):
+    def notificar_evento_servidor(self, nombre_evento):
         url = QUrl(f'{self.SERVER_URL}/trigger_update')
         request = QNetworkRequest(url)
         request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")
         request.setRawHeader(b"X-API-KEY", self.API_KEY.encode('utf-8'))
         
-        payload = json.dumps({'event': 'configuracion_actualizada'}).encode('utf-8')
+        payload = json.dumps({'event': nombre_evento}).encode('utf-8')
         
         reply = self.network_manager.post(request, payload)
         reply.finished.connect(lambda: self._handle_reply(reply))
@@ -91,15 +97,19 @@ class AppController(QObject):
             self.notificar_cambios_mesas()
 
         except Exception as e:
-            logger.error(f"Error CRÍTICO al guardar orden: {e}")
-            self.error_ocurrido.emit(f"No se guardó la orden:\n{e}")
+            logger.error(f"Error CRITICO al guardar orden: {e}")
+            self.error_ocurrido.emit(f"No se guardo la orden:\n{e}")
 
-    def cobrar_cuenta(self, mesa_key):
+    def cobrar_cuenta(self, mesa_key, order_data=None):
         logger.info(f"[Controller] Cobrando mesa {mesa_key}...")
         try:
             orden_cerrada = self.data_manager.complete_order(mesa_key)
             if orden_cerrada:
                 logger.info(f"Mesa {mesa_key} cerrada en BD.")
+                self.printer_service.open_cash_drawer()
+                if order_data:
+                    self.printer_service.print_receipt(order_data)
+                
                 self.ordenes_actualizadas.emit()
                 self.notificar_cambios_mesas()
                 return True
@@ -109,15 +119,18 @@ class AppController(QObject):
             logger.error(f"Error al cobrar cuenta: {e}")
             return False
 
+    def registrar_impresion_proforma(self, mesa_key):
+        return self.data_manager.registrar_impresion_proforma(mesa_key)
+
     def notificar_cambios_mesas(self):
-        url = QUrl(f'{self.SERVER_URL}/trigger_update')
+        self.notificar_evento_servidor("mesas_update")
+        
+    def formatear_sensor_biometrico(self):
+        url = QUrl(f'{self.SERVER_URL}/api/biometric/start-clear')
         request = QNetworkRequest(url)
-        request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")
         request.setRawHeader(b"X-API-KEY", self.API_KEY.encode('utf-8'))
         
-        payload = json.dumps({'event': 'mesas_actualizadas'}).encode('utf-8')
-        
-        reply = self.network_manager.post(request, payload)
+        reply = self.network_manager.post(request, b"")
         reply.finished.connect(lambda: self._handle_reply(reply))
 
     def _handle_reply(self, reply):

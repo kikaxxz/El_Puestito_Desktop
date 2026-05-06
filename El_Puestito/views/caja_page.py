@@ -121,6 +121,48 @@ class CajaPage(QWidget):
         total_layout.addWidget(lbl_total_text)
         total_layout.addWidget(self.total_label)
         
+        buttons_layout = QHBoxLayout()
+        
+        self.btn_abrir_cajon = QPushButton("Abrir Cajon")
+        self.btn_abrir_cajon.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_abrir_cajon.setFixedHeight(50)
+        self.btn_abrir_cajon.setStyleSheet("""
+            QPushButton {
+                background-color: #383838; 
+                color: white;
+                font-weight: bold;
+                font-size: 16px;
+                border-radius: 12px;
+                border: 1px solid #555;
+            }
+            QPushButton:hover {
+                background-color: #4d4d4d; 
+            }
+            QPushButton:pressed {
+                background-color: #2b2b2b; 
+            }
+        """)
+
+        self.btn_imprimir_proforma = QPushButton("Imprimir Proforma")
+        self.btn_imprimir_proforma.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_imprimir_proforma.setFixedHeight(50)
+        self.btn_imprimir_proforma.setStyleSheet("""
+            QPushButton {
+                background-color: #2b2b2b; 
+                color: white;
+                font-weight: bold;
+                font-size: 16px;
+                border-radius: 12px;
+                border: 1px solid #777;
+            }
+            QPushButton:hover {
+                background-color: #444; 
+            }
+            QPushButton:pressed {
+                background-color: #1a1a1a; 
+            }
+        """)
+
         self.cobrar_button = QPushButton("Cobrar y Cerrar Mesa")
         self.cobrar_button.setObjectName("orange_button")
         self.cobrar_button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -141,15 +183,22 @@ class CajaPage(QWidget):
                 background-color: #d65500; 
             }
         """)
+        
+        buttons_layout.addWidget(self.btn_abrir_cajon)
+        buttons_layout.addWidget(self.btn_imprimir_proforma)
+        buttons_layout.addWidget(self.cobrar_button)
+
         right_layout.addWidget(cuenta_title)
         right_layout.addWidget(self.tabla_cuenta)
         right_layout.addWidget(total_frame)
-        right_layout.addWidget(self.cobrar_button)
+        right_layout.addLayout(buttons_layout)
         
         main_layout.addWidget(left_panel)
         main_layout.addWidget(right_panel)
         
         self.cobrar_button.clicked.connect(self.cobrar_cuenta)
+        self.btn_abrir_cajon.clicked.connect(self.abrir_cajon_manual)
+        self.btn_imprimir_proforma.clicked.connect(self.imprimir_proforma)
         
         self.load_active_orders()
         self.app_controller.ordenes_actualizadas.connect(self.load_active_orders)
@@ -266,6 +315,42 @@ class CajaPage(QWidget):
         self.total_label.setText(f"C$ {total:,.2f}")
         self.tabla_cuenta.setUpdatesEnabled(True)
 
+    def _preparar_datos_orden(self, mesa_key):
+        orden = self.ordenes_activas.get(mesa_key)
+        if not orden:
+            return None
+            
+        items = orden.get('items', [])
+        total = sum(item['cantidad'] * item['precio_unitario'] for item in items)
+        
+        return {
+            'items': items,
+            'total': total
+        }
+
+    def imprimir_proforma(self):
+        btn_seleccionado = self.mesas_button_group.checkedButton()
+        
+        if not btn_seleccionado:
+            QMessageBox.warning(self, "Accion no valida", "Por favor, seleccione una mesa.")
+            return
+            
+        mesa_key = btn_seleccionado.mesa_key
+        order_data = self._preparar_datos_orden(mesa_key)
+        
+        if not order_data:
+            return
+            
+        if hasattr(self.app_controller, 'printer_service'):
+            exito = self.app_controller.printer_service.print_receipt(order_data, is_proforma=True)
+            if exito:
+                self.app_controller.registrar_impresion_proforma(mesa_key)
+                QMessageBox.information(self, "Impresion", "La proforma ha sido enviada a la impresora.")
+            else:
+                QMessageBox.warning(self, "Error", "No se pudo imprimir la proforma. Verifique la conexion de la impresora.")
+        else:
+            logger.error("PrinterService no esta disponible en AppController.")
+
     def cobrar_cuenta(self):
         btn_seleccionado = self.mesas_button_group.checkedButton()
         
@@ -283,13 +368,20 @@ class CajaPage(QWidget):
         )
         
         if confirm == QMessageBox.StandardButton.Yes:
-            exito = self.app_controller.cobrar_cuenta(mesa_key)
+            order_data = self._preparar_datos_orden(mesa_key)
+            exito = self.app_controller.cobrar_cuenta(mesa_key, order_data)
             
             if exito:
                 self._limpiar_tabla()
                 self.mesa_actual = None
             else:
                 QMessageBox.critical(self, "Error", "No se pudo cerrar la cuenta en la base de datos.")
+
+    def abrir_cajon_manual(self):
+        if hasattr(self.app_controller, 'printer_service'):
+            exito = self.app_controller.printer_service.open_cash_drawer()
+            if not exito:
+                logger.warning("Intento de apertura manual fallido o impresora no disponible.")
 
     def _limpiar_tabla(self):
         self.tabla_cuenta.setRowCount(0)

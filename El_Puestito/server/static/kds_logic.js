@@ -1,51 +1,3 @@
-let currentPin = "";
-
-function addPin(num) {
-    if (currentPin.length < 4) {
-        currentPin += num;
-        updatePinDisplay();
-    }
-}
-
-function clearPin() {
-    currentPin = "";
-    updatePinDisplay();
-}
-
-function updatePinDisplay() {
-    const display = document.getElementById('pinDisplay');
-    if(display) display.innerText = "*".repeat(currentPin.length).padEnd(4, '-');
-}
-
-async function submitPin() {
-    if (currentPin.length !== 4) return;
-    
-    try {
-        const res = await fetch('/api/validar-pin', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({pin: currentPin})
-        });
-        
-        if (!res.ok) {
-            const errorData = await res.json().catch(() => ({}));
-            throw new Error(errorData.message || "Error al validar PIN");
-        }
-
-        const data = await res.json();
-        
-        if (data.status === 'success') {
-            window.location.href = data.redirect;
-        } else {
-            console.error("Error validando PIN:", data.message);
-            clearPin();
-        }
-    } catch (e) {
-        console.error("Error de conexión:", e.message);
-        clearPin();
-    }
-}
-
 if (window.location.pathname.startsWith('/kds/')) {
     
     const socket = io();
@@ -86,6 +38,27 @@ if (window.location.pathname.startsWith('/kds/')) {
         }
     });
 
+    // --- ACTUALIZACIÓN DINÁMICA DE TIEMPOS ---
+    setInterval(updateAllTimers, 60000); // Ejecutar cada 60 segundos
+
+    function updateAllTimers() {
+        document.querySelectorAll('.order-card').forEach(card => {
+            const ts = card.dataset.timestamp;
+            if (!ts) return;
+            
+            const minutesElapsed = (new Date() - new Date(ts)) / 60000;
+            const timerBadge = card.querySelector('.timer-badge');
+            
+            if (minutesElapsed > 15) {
+                timerBadge.style.color = '#ff4444';
+                timerBadge.style.fontWeight = 'bold';
+                card.style.boxShadow = '0 4px 20px rgba(255, 68, 68, 0.15)'; // Resplandor rojo de urgencia
+            } else if (minutesElapsed > 10) {
+                timerBadge.style.color = '#ffeb3b'; // Advertencia amarilla
+            }
+        });
+    }
+
     function showToastNotification(mesa, mensaje) {
         const toast = document.createElement('div');
         toast.style.cssText = `
@@ -114,7 +87,7 @@ if (window.location.pathname.startsWith('/kds/')) {
 
         try {
             const audio = new Audio('/static/notification.mp3');
-            audio.play().catch(e => console.log("Audio bloqueado por el navegador (falta interacción previa)"));
+            audio.play().catch(e => console.log("Audio bloqueado por el navegador"));
         } catch(e) {
             console.error("Error al reproducir audio:", e);
         }
@@ -174,6 +147,7 @@ if (window.location.pathname.startsWith('/kds/')) {
                     <div class="qty-box">${item.cantidad}</div>
                     <div class="item-info">
                         <div class="item-name">${item.nombre}</div>
+                        ${item.nombre_cerveza ? `<div class="item-sub" style="color: #00d26a; font-size: 0.9em; font-weight: bold;">└ Cerveza: ${item.nombre_cerveza}</div>` : ''}
                         ${item.notas ? `<div class="item-note">📝 ${item.notas}</div>` : ''}
                     </div>
                 </div>

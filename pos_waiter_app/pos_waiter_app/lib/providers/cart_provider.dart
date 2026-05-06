@@ -8,6 +8,8 @@ class CartItem {
   final double precio;
   final String imagen;
   final String notas;
+  final String? idCerveza;
+  final String? nombreCerveza;
 
   CartItem({
     required this.id,
@@ -16,6 +18,8 @@ class CartItem {
     required this.precio,
     required this.imagen,
     this.notas = '',
+    this.idCerveza,
+    this.nombreCerveza,
   });
   
   CartItem copyWith({
@@ -25,6 +29,8 @@ class CartItem {
     double? precio,
     String? imagen,
     String? notas,
+    String? idCerveza,
+    String? nombreCerveza,
   }) {
     return CartItem(
       id: id ?? this.id,
@@ -33,6 +39,8 @@ class CartItem {
       precio: precio ?? this.precio,
       imagen: imagen ?? this.imagen,
       notas: notas ?? this.notas,
+      idCerveza: idCerveza ?? this.idCerveza,
+      nombreCerveza: nombreCerveza ?? this.nombreCerveza,
     );
   }
 }
@@ -76,10 +84,11 @@ class CartProvider with ChangeNotifier {
     }
   }
 
-  void addItem(Platillo platillo) {
+  void addItem(Platillo platillo, {String? idCerveza, String? nombreCerveza}) {
     String? targetKey;
+    
     _items.forEach((key, item) {
-      if (item.id == platillo.id && item.notas.isEmpty) {
+      if (item.id == platillo.id && item.notas.isEmpty && item.idCerveza == idCerveza) {
         targetKey = key;
       }
     });
@@ -99,6 +108,8 @@ class CartProvider with ChangeNotifier {
           cantidad: 1,
           precio: platillo.precio,
           imagen: platillo.imagen,
+          idCerveza: idCerveza,
+          nombreCerveza: nombreCerveza,
         ),
       );
     }

@@ -99,6 +99,59 @@ class _MenuScreenState extends State<MenuScreen> {
     });
   }
 
+  // --- LÓGICA DE SELECCIÓN DE CERVEZA PARA MICHELADAS ---
+  
+  Future<Platillo?> _mostrarDialogoCervezas(BuildContext context) {
+    // Obtenemos cervezas (CER) y bebidas RTD/Hard Seltzer (RTD)
+    final cervezas = _allPlatillos.where((p) => p.id.startsWith('CER') || p.id.startsWith('RTD')).toList();
+
+    return showDialog<Platillo>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Seleccione la Cerveza'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: cervezas.length,
+              itemBuilder: (context, index) {
+                final cerveza = cervezas[index];
+                return ListTile(
+                  leading: const Icon(Icons.sports_bar, color: Colors.amber),
+                  title: Text(cerveza.nombre),
+                  onTap: () => Navigator.of(context).pop(cerveza),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _onAddPlatillo(Platillo platillo, CartProvider cart) async {
+    // Si el ID empieza con MIC (Michelada), mostramos el diálogo
+    if (platillo.id.startsWith('MIC')) {
+      final cerveza = await _mostrarDialogoCervezas(context);
+      if (cerveza != null) {
+        cart.addItem(
+          platillo, 
+          idCerveza: cerveza.id, 
+          nombreCerveza: cerveza.nombre
+        );
+      }
+    } else {
+      cart.addItem(platillo);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -225,7 +278,7 @@ class _MenuScreenState extends State<MenuScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.add_circle), 
-              onPressed: () => cart.addItem(platillo)
+              onPressed: () => _onAddPlatillo(platillo, cart)
             ),
           ],
         ),

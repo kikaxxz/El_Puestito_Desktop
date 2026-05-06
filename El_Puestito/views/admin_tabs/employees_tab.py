@@ -1,6 +1,5 @@
 import os
 import json
-import requests
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget,
     QHeaderView, QTableWidgetItem, QDialog, QMessageBox, QLineEdit,
@@ -13,9 +12,95 @@ logger = setup_logger()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 class EmployeeFormDialog(QDialog):
-    # [NOTA: Pega aquí EXACTAMENTE la clase EmployeeFormDialog que tenías en admin_page.py]
-    # (Omitida por longitud, pero es la misma clase original de tu código)
-    pass # <-- Reemplaza este pass con tu código original de EmployeeFormDialog
+    def __init__(self, parent=None, employee_data=None, available_roles=None, api_key=None, server_url=None):
+        super().__init__(parent)
+        self.setWindowTitle("Empleado")
+        self.setModal(True)
+        self.setMinimumWidth(350)
+        self.available_roles = available_roles if available_roles else []
+        self.employee_data = employee_data
+        self.api_key = api_key
+        self.server_url = server_url
+        self.setup_ui()
+        self.populate_data()
+        self.validate_form()
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        form_layout = QFormLayout()
+
+        self.id_input = QLineEdit()
+        self.id_input.textChanged.connect(self.validate_form)
+
+        self.nombre_input = QLineEdit()
+        self.nombre_input.textChanged.connect(self.validate_form)
+
+        self.rol_combo = QComboBox()
+        self.rol_combo.addItems(self.available_roles)
+
+        self.fingerprint_input = QLineEdit()
+        self.fingerprint_input.setPlaceholderText("Opcional")
+
+        form_layout.addRow("ID:", self.id_input)
+        form_layout.addRow("Nombre Completo:", self.nombre_input)
+        form_layout.addRow("Rol:", self.rol_combo)
+        form_layout.addRow("ID Huella:", self.fingerprint_input)
+
+        layout.addLayout(form_layout)
+
+        self.warning_label = QLabel("Los campos ID y Nombre son obligatorios.")
+        self.warning_label.setStyleSheet("color: red; font-size: 11px;")
+        layout.addWidget(self.warning_label)
+
+        buttons_layout = QHBoxLayout()
+        self.btn_save = QPushButton("Guardar")
+        self.btn_save.clicked.connect(self.accept)
+        self.btn_cancel = QPushButton("Cancelar")
+        self.btn_cancel.clicked.connect(self.reject)
+
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(self.btn_save)
+        buttons_layout.addWidget(self.btn_cancel)
+
+        layout.addLayout(buttons_layout)
+
+    def populate_data(self):
+        if self.employee_data:
+            self.id_input.setText(str(self.employee_data.get("id_empleado", "")))
+            self.nombre_input.setText(str(self.employee_data.get("nombre", "")))
+            rol = self.employee_data.get("rol", "")
+            if rol in self.available_roles:
+                self.rol_combo.setCurrentText(rol)
+            self.fingerprint_input.setText(str(self.employee_data.get("fingerprint_id", "")))
+
+    def validate_form(self):
+        id_text = self.id_input.text().strip()
+        nombre_text = self.nombre_input.text().strip()
+        is_valid = bool(id_text) and bool(nombre_text)
+        
+        error_style = "border: 1px solid red;"
+        normal_style = ""
+
+        if not id_text:
+            self.id_input.setStyleSheet(error_style)
+        else:
+            self.id_input.setStyleSheet(normal_style)
+
+        if not nombre_text:
+            self.nombre_input.setStyleSheet(error_style)
+        else:
+            self.nombre_input.setStyleSheet(normal_style)
+
+        self.btn_save.setEnabled(is_valid)
+        self.warning_label.setVisible(not is_valid)
+
+    def get_data(self):
+        return {
+            "id": self.id_input.text().strip(),
+            "nombre": self.nombre_input.text().strip(),
+            "rol": self.rol_combo.currentText(),
+            "fingerprint_id": self.fingerprint_input.text().strip() or None
+        }
 
 class EmployeesTab(QWidget):
     def __init__(self, app_controller, config, parent=None):
@@ -141,8 +226,5 @@ class EmployeesTab(QWidget):
     def formatear_sensor(self):
         confirm = QMessageBox.warning(self, "PELIGRO", "¿Formatear sensor biométrico?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if confirm == QMessageBox.StandardButton.Yes:
-            try:
-                requests.post(f"{self.app_controller.SERVER_URL}/api/biometric/start-clear", headers={'X-API-KEY': self.app_controller.API_KEY}, timeout=5)
-                QMessageBox.information(self, "Enviado", "Formateando...")
-            except Exception as e:
-                logger.error(str(e))
+            self.app_controller.formatear_sensor_biometrico()
+            QMessageBox.information(self, "Enviado", "La orden de formateo ha sido enviada al servidor de forma asíncrona.")
