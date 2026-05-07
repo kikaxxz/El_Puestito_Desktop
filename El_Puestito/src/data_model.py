@@ -5,12 +5,13 @@ import json
 import datetime
 import uuid
 from logger_setup import setup_logger
+from path_manager import get_persistent_path, get_asset_path
 
 logger = setup_logger()
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(BASE_DIR, "assets", "puestito.db")
-JSON_ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+DB_PATH = get_persistent_path("puestito.db")
+
+JSON_ASSETS_DIR = get_asset_path("")
 
 class DataManager:
 
@@ -24,6 +25,30 @@ class DataManager:
         self.create_tables()
         self._check_and_update_schema()
         self.run_migration_if_needed()
+
+    def get_inventario_completo(self):
+        query = """
+        SELECT i.id_inventario, i.nombre, i.cantidad, i.es_automatico, i.id_menu_vinculado, m.nombre as nombre_menu
+        FROM inventario i
+        LEFT JOIN menu_items m ON i.id_menu_vinculado = m.id_item
+        ORDER BY i.nombre;
+        """
+        return self.fetchall(query)
+
+    def agregar_item_inventario(self, nombre, cantidad, es_automatico=0, id_menu_vinculado=None):
+        return self.execute(
+            "INSERT INTO inventario (nombre, cantidad, es_automatico, id_menu_vinculado) VALUES (?, ?, ?, ?);",
+            (nombre, cantidad, es_automatico, id_menu_vinculado)
+        )
+
+    def actualizar_cantidad_inventario(self, id_inventario, nueva_cantidad):
+        return self.execute(
+            "UPDATE inventario SET cantidad = ? WHERE id_inventario = ?;",
+            (nueva_cantidad, id_inventario)
+        )
+
+    def eliminar_item_inventario(self, id_inventario):
+        return self.execute("DELETE FROM inventario WHERE id_inventario = ?;", (id_inventario,))
 
     def get_conn(self):
         if not hasattr(self.local, 'conn'):
@@ -122,6 +147,17 @@ class DataManager:
             fecha_cierre DATETIME,
             client_uuid TEXT UNIQUE,
             proformas_impresas INTEGER NOT NULL DEFAULT 0
+        );
+        """)
+
+        self.execute("""
+        CREATE TABLE IF NOT EXISTS inventario (
+            id_inventario INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL UNIQUE,
+            cantidad INTEGER NOT NULL DEFAULT 0,
+            es_automatico INTEGER NOT NULL DEFAULT 0,
+            id_menu_vinculado TEXT UNIQUE,
+            FOREIGN KEY (id_menu_vinculado) REFERENCES menu_items (id_item)
         );
         """)
 
@@ -548,6 +584,15 @@ class DataManager:
                 """,
                 detalle_batch
             )
+            
+            for item in items_data:
+                item_id = item.get('item_id')
+                cantidad = item.get('cantidad')
+                cursor.execute(
+                    "UPDATE inventario SET cantidad = cantidad - ? WHERE id_menu_vinculado = ? AND es_automatico = 1;",
+                    (cantidad, item_id)
+                )
+
             conn.commit()
             logger.info(f"Orden {id_orden} creada exitosamente (Atomicidad garantizada).")
             return id_orden
@@ -702,6 +747,11 @@ class DataManager:
                 else:
                     cursor.execute("UPDATE orden_detalle SET cantidad = cantidad - ? WHERE id_detalle = ?", (qty_to_remove, id_detalle))
 
+                cursor.execute(
+                    "UPDATE inventario SET cantidad = cantidad + ? WHERE id_menu_vinculado = ? AND es_automatico = 1;",
+                    (qty_to_remove, row['id_item_menu'])
+                )
+
             conn.commit()
             
             self._cleanup_empty_order(mesa_key, id_orden)
@@ -821,6 +871,14 @@ class DataManager:
                 "UPDATE ordenes SET estado = 'cancelada', fecha_cierre = ? WHERE id_orden = ?", 
                 (timestamp, id_orden)
             )
+
+            cursor.execute("SELECT id_item_menu, cantidad FROM orden_detalle WHERE id_orden = ?", (id_orden,))
+            items_cancelados = cursor.fetchall()
+            for item in items_cancelados:
+                cursor.execute(
+                    "UPDATE inventario SET cantidad = cantidad + ? WHERE id_menu_vinculado = ? AND es_automatico = 1;",
+                    (item['cantidad'], item['id_item_menu'])
+                )
             
             conn.commit()
             return True
@@ -856,14 +914,13 @@ class DataManager:
                         items_madre = self.fetchone(query_items, (orden_madre['id_orden'],))
                         
                         if items_madre and items_madre['count'] == 0:
-                            logger.info(f"Limpieza automatica: Cerrando orden grupal vacia {orden_madre['mesa_key']}")
                             self.execute(
                                 "UPDATE ordenes SET estado = 'cerrada', fecha_cierre = ? WHERE id_orden = ?",
                                 (timestamp, orden_madre['id_orden'])
                             )
                             
             except Exception as e:
-                logger.error(f"Error en validacion de limpieza automatica: {e}")
+                pass
 
         return orden_a_cerrar
     

@@ -7,12 +7,13 @@ from flask import Flask
 from flask_socketio import SocketIO
 from logger_setup import setup_logger
 from server.server_routes import api_bp
+from path_manager import get_persistent_path, get_base_dir
 
 logger = setup_logger()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
-STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+TEMPLATE_DIR = os.path.join(get_base_dir(), 'server', 'templates')
+STATIC_DIR = os.path.join(get_base_dir(), 'server', 'static')
 
 class ServerWorker(QObject):
     asistencia_recibida = pyqtSignal(dict)
@@ -56,7 +57,7 @@ class ServerWorker(QObject):
 
     def _load_config(self):
         try:
-            path = os.path.join(BASE_DIR, "assets", "config.json")
+            path = get_persistent_path("config.json")
             if not os.path.exists(path):
                 return {}
             with open(path, 'r') as f:
@@ -76,11 +77,27 @@ class ServerWorker(QObject):
         try:
             available_ids = self.data_manager.get_available_menu_items()
             items_en_orden = orden.get("items", [])
+            
+            cantidades_requeridas = {}
             for item_in_order in items_en_orden:
                 item_id = item_in_order.get("item_id")
+                cantidad = item_in_order.get("cantidad", 1)
+                item_nombre = item_in_order.get("nombre", "Desconocido")
+                
                 if item_id not in available_ids:
-                    item_nombre = item_in_order.get("nombre", "Desconocido")
                     return False, f"El platillo '{item_nombre}' ya no está disponible."
+                    
+                if item_id in cantidades_requeridas:
+                    cantidades_requeridas[item_id]["cantidad"] += cantidad
+                else:
+                    cantidades_requeridas[item_id] = {"cantidad": cantidad, "nombre": item_nombre}
+                    
+            for item_id, data in cantidades_requeridas.items():
+                stock_info = self.data_manager.fetchone("SELECT cantidad, es_automatico FROM inventario WHERE id_menu_vinculado = ?", (item_id,))
+                if stock_info and stock_info['es_automatico'] == 1:
+                    if data["cantidad"] > stock_info['cantidad']:
+                        return False, f"Stock insuficiente para '{data['nombre']}'. Disponible: {stock_info['cantidad']}."
+                        
             return True, ""
         except Exception:
             return False, "Error interno al validar el menú."

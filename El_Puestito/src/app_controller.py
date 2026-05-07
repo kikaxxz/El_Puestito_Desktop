@@ -4,6 +4,7 @@ from PyQt6.QtCore import QObject, pyqtSignal, QUrl
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from logger_setup import setup_logger
 from printer_service import PrinterService
+from path_manager import get_persistent_path
 
 logger = setup_logger()
 
@@ -29,8 +30,7 @@ class AppController(QObject):
 
     def _load_config(self):
         try:
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            config_path = os.path.join(base_dir, "assets", "config.json")
+            config_path = get_persistent_path("config.json")
             
             if not os.path.exists(config_path):
                 logger.warning(f"No se encontro {config_path}")
@@ -63,17 +63,22 @@ class AppController(QObject):
     def save_config_to_file(self, config_data):
         import json
         import os
+        from path_manager import get_persistent_path
         
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        config_path = os.path.join(base_dir, "assets", "config.json")
+        config_path = get_persistent_path("config.json")
         
         try:
-            with open(config_path, 'w') as f:
+            with open(config_path, 'w', encoding='utf-8') as f:
                 json.dump(config_data, f, indent=4)
             self.config = config_data
             logger.info("Configuracion guardada en config.json")
+            return True
         except Exception as e:
             logger.critical(f"Error guardando config.json: {e}")
+            return False
+
+    def notify_server_config_change(self):
+        self.notificar_evento_servidor("config_update")
 
     def notificar_evento_servidor(self, nombre_evento):
         url = QUrl(f'{self.SERVER_URL}/trigger_update')
@@ -137,3 +142,16 @@ class AppController(QObject):
         if reply.error() != QNetworkReply.NetworkError.NoError:
             logger.error(f"Error notificando al servidor: {reply.errorString()}")
         reply.deleteLater()
+
+    def get_inventario(self):
+        return self.data_manager.get_inventario_completo()
+
+    def agregar_al_inventario(self, nombre, cantidad, es_auto, id_menu=None):
+        result = self.data_manager.agregar_item_inventario(nombre, cantidad, es_auto, id_menu)
+        return result
+
+    def actualizar_stock(self, id_inv, cantidad):
+        return self.data_manager.actualizar_cantidad_inventario(id_inv, cantidad)
+
+    def eliminar_del_inventario(self, id_inv):
+        return self.data_manager.eliminar_item_inventario(id_inv)

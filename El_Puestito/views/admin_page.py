@@ -9,6 +9,8 @@ from views.admin_tabs.promos_tab import ComboBuilderTab
 from views.admin_tabs.reports_tab import ReportsTab
 from views.admin_tabs.payroll_tab import PayrollTab
 from views.admin_tabs.printer_tab import PrinterTab
+from views.admin_tabs.settings_tab import SettingsTab
+from views.admin_tabs.inventory_tab import InventoryTab
 
 from logger_setup import setup_logger
 logger = setup_logger()
@@ -58,6 +60,12 @@ class AdminPage(QWidget):
         self.tab_printer = PrinterTab(self.app_controller, self.current_config)
         self.tab_widget.addTab(self.tab_printer, "Impresora")
 
+        self.tab_settings = SettingsTab(self.app_controller, self.current_config)
+        self.tab_widget.addTab(self.tab_settings, "Ajustes")
+
+        self.tab_inventory = InventoryTab(self.app_controller)
+        self.tab_widget.addTab(self.tab_inventory, "Inventario")
+
     def emit_config_update(self, new_config):
         self.current_config = new_config
-        self.config_updated.emit(self.current_config)
+        self.config_updated.emit(new_config)

@@ -1,29 +1,51 @@
 {
     "total_mesas": 10,
     "seguridad": {
-        "pines": {
+        "pines_acceso": {
             "Cajero": "3333",
             "Administrador": "9999",
             "Cocinero": "1111",
-            "Barra": "2222"
+            "Barra": "2222",
+            "Ajustes_Sistema": "0000"
         }
     },
     "roles_pago": {
         "Mesero": {
-            "hora": 31.25,
-            "minuto": 0.52
+            "pago_hora": 31.25,
+            "pago_minuto": 0.52
         },
         "Michelero": {
-            "hora": 31.25,
-            "minuto": 0.52
+            "pago_hora": 31.25,
+            "pago_minuto": 0.52
         },
         "Cajero": {
-            "hora": 33.33,
-            "minuto": 0.55
+            "pago_hora": 33.33,
+            "pago_minuto": 0.55
         },
         "Jefe de Cocina": {
-            "hora": 35.4,
-            "minuto": 0.59
+            "pago_hora": 35.4,
+            "pago_minuto": 0.59
+        }
+    },
+    "horarios_y_margenes": {
+        "entrada_oficial": "08:00",
+        "salida_oficial": "17:30",
+        "margen_gracia_entrada": 14,
+        "margen_gracia_salida": 15
+    },
+    "politicas_pago_extra": {
+        "multiplicador_hora_extra": 2.0,
+        "feriados": {
+            "multiplicador": 2.0,
+            "fechas": [
+                "01-01",
+                "01-05",
+                "19-07",
+                "14-09",
+                "15-09",
+                "08-12",
+                "25-12"
+            ]
         }
     },
     "api_key": "puestito_seguro_2025",

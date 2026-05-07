@@ -1,9 +1,10 @@
 import logging
 from logging.handlers import RotatingFileHandler
 import os
+from path_manager import get_appdata_dir
 
 def setup_logger():
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+    log_dir = os.path.join(get_appdata_dir(), "logs")
     os.makedirs(log_dir, exist_ok=True)
     
     log_file = os.path.join(log_dir, "puestito.log")

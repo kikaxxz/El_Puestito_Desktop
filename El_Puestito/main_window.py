@@ -14,6 +14,7 @@ try:
 except ImportError:
     sys.exit(1)
 
+from path_manager import get_persistent_path, get_asset_path
 from server.server_worker import ServerWorker
 from server.server_thread import ServerThread
 from views.attendance_page import AttendancePage
@@ -113,7 +114,7 @@ class MainWindow(QMainWindow):
         self.save_app_config() 
 
     def load_app_config(self):
-        self.config_file_path = os.path.join(BASE_DIR, "assets", "config.json")
+        self.config_file_path = get_persistent_path("config.json")
         default_config = {
             "total_mesas": 10,
             "seguridad": {
@@ -164,7 +165,8 @@ class MainWindow(QMainWindow):
         sidebar_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
         logo_label = QLabel()
-        logo_path = os.path.join(BASE_DIR, "Assets", "logo.png")
+        logo_path = get_asset_path("Logo.png")
+
         if os.path.exists(logo_path):
             logo_pixmap = QPixmap(logo_path).scaledToWidth(150, Qt.TransformationMode.SmoothTransformation)
             logo_label.setPixmap(logo_pixmap)
@@ -216,7 +218,7 @@ class MainWindow(QMainWindow):
     
     def load_stylesheet(self, filename):
         try:
-            absolute_path = os.path.join(BASE_DIR, "assets", filename) 
+            absolute_path = get_asset_path(filename)
             logger.info(f"Intentando cargar la hoja de estilos desde: {absolute_path}")
 
             with open(absolute_path, "r", encoding="utf-8") as f:

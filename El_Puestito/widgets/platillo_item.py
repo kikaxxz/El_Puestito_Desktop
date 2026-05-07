@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QGraphicsOpacityEffect
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt, QPoint
 from logger_setup import setup_logger
+from path_manager import get_asset_path
 
 logger = setup_logger()
 
@@ -28,7 +29,7 @@ class PlatilloItemWidget(QWidget):
         if not imagen_nombre:
             imagen_nombre = "default.png"
             
-        imagen_path = os.path.join(BASE_DIR, "assets", imagen_nombre)
+        imagen_path = get_asset_path(imagen_nombre)
         
         if os.path.exists(imagen_path):
             pixmap = QPixmap(imagen_path)

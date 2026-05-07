@@ -5,6 +5,7 @@ import time
 from functools import wraps
 from flask import Blueprint, request, jsonify, send_from_directory, render_template, current_app, session, redirect, url_for
 from logger_setup import setup_logger
+from path_manager import get_persistent_path, get_asset_path
 
 logger = setup_logger()
 
@@ -193,7 +194,7 @@ def registrar_asistencia_movil():
 @require_auth
 def get_configuracion():
     try:
-        config_path = os.path.join(BASE_DIR, "assets", "config.json")
+        config_path = get_persistent_path("config.json")
         with open(config_path, 'r') as f:
             return jsonify(json.load(f))
     except Exception as e:
@@ -202,7 +203,7 @@ def get_configuracion():
 
 @api_bp.route('/images/<path:filename>')
 def serve_image(filename):
-    image_directory = os.path.join(BASE_DIR, "assets")
+    image_directory = get_asset_path("")
     try:
         return send_from_directory(image_directory, filename)
     except FileNotFoundError:

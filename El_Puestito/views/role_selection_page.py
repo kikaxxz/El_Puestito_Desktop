@@ -10,6 +10,7 @@ from PyQt6.QtCore import (
 from widgets.role_card import RoleCard
 from widgets.pin_dialog import PinDialog 
 from logger_setup import setup_logger
+from path_manager import get_persistent_path, get_asset_path
 
 logger = setup_logger()
 
@@ -30,10 +31,10 @@ class RoleSelectionPage(QWidget):
         
         self.cards_container = QWidget(parent=self)
         
-        cashier_icon_path = os.path.join(BASE_DIR,"Assets", "icon_cashier.png")
-        admin_icon_path = os.path.join(BASE_DIR, "Assets", "icon_admin.png")
-        cook_icon_path = os.path.join(BASE_DIR,"Assets",  "icon_cook.png")
-        bar_icon_path = os.path.join(BASE_DIR, "Assets", "icon_bar.png")
+        cashier_icon_path = get_asset_path("icon_cashier.png")
+        admin_icon_path = get_asset_path("icon_admin.png")
+        cook_icon_path = get_asset_path("icon_cook.png")
+        bar_icon_path = get_asset_path("icon_bar.png")
 
         self.card_cashier = RoleCard(cashier_icon_path, "Cajero", "Cajero", parent=self.cards_container)
         self.card_admin = RoleCard(admin_icon_path, "Administrador", "Administrador", parent=self.cards_container)
@@ -53,10 +54,10 @@ class RoleSelectionPage(QWidget):
 
     def _load_pins_from_config(self):
         try:
-            path = os.path.join(BASE_DIR, "assets", "config.json")
+            path = get_persistent_path("config.json")
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                return data.get("seguridad", {}).get("pines", {})
+                return data.get("seguridad", {}).get("pines_acceso", {})
         except Exception as e:
             logger.critical(f"Error cargando pines: {e}")
             return {
@@ -64,7 +65,7 @@ class RoleSelectionPage(QWidget):
                 "Administrador": "9999",
                 "Cocinero": "1111",
                 "Barra": "2222"
-            }    
+            }   
 
     def handle_card_click(self, card, role_name):
         correct_pin = self.ROLE_PINS.get(role_name)
