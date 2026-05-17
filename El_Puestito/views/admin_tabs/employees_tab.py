@@ -26,6 +26,18 @@ class EmployeeFormDialog(QDialog):
         self.validate_form()
 
     def setup_ui(self):
+        self.setStyleSheet("""
+            QDialog { background-color: #1e1e24; color: white; }
+            QLabel { color: white; font-weight: bold; }
+            QLineEdit, QComboBox { 
+                padding: 6px; border-radius: 4px; background: #2b2b2b; color: white; border: 1px solid #555;
+            }
+            QPushButton {
+                background-color: #ff9500; color: white; border-radius: 4px; padding: 6px; font-weight: bold;
+            }
+            QPushButton:hover { background-color: #e68a00; }
+        """)
+        
         layout = QVBoxLayout(self)
         form_layout = QFormLayout()
 
@@ -49,13 +61,14 @@ class EmployeeFormDialog(QDialog):
         layout.addLayout(form_layout)
 
         self.warning_label = QLabel("Los campos ID y Nombre son obligatorios.")
-        self.warning_label.setStyleSheet("color: red; font-size: 11px;")
+        self.warning_label.setStyleSheet("color: #ff4c4c; font-size: 11px;")
         layout.addWidget(self.warning_label)
 
         buttons_layout = QHBoxLayout()
         self.btn_save = QPushButton("Guardar")
         self.btn_save.clicked.connect(self.accept)
         self.btn_cancel = QPushButton("Cancelar")
+        self.btn_cancel.setStyleSheet("background-color: #444; color: white;")
         self.btn_cancel.clicked.connect(self.reject)
 
         buttons_layout.addStretch()
@@ -78,8 +91,8 @@ class EmployeeFormDialog(QDialog):
         nombre_text = self.nombre_input.text().strip()
         is_valid = bool(id_text) and bool(nombre_text)
         
-        error_style = "border: 1px solid red;"
-        normal_style = ""
+        error_style = "padding: 6px; border-radius: 4px; background: #2b2b2b; color: white; border: 1px solid #ff4c4c;"
+        normal_style = "padding: 6px; border-radius: 4px; background: #2b2b2b; color: white; border: 1px solid #555;"
 
         if not id_text:
             self.id_input.setStyleSheet(error_style)
@@ -106,14 +119,17 @@ class EmployeesTab(QWidget):
     def __init__(self, app_controller, config, parent=None):
         super().__init__(parent)
         self.app_controller = app_controller
+        self.config = config
         self.employees_data = []
         
-        self.available_roles = list(config.get("roles_pago", {}).keys())
-        if not self.available_roles:
-            self.available_roles = ["Mesero", "Cajera", "Jefe de Cocina", "Michelero"]
-
         self.setup_ui()
         self.refresh_employee_table()
+
+    def _get_current_roles(self):
+        roles = list(self.config.get("roles_pago", {}).keys())
+        if not roles:
+            roles = ["Mesero", "Cajera", "Jefe de Cocina", "Michelero"]
+        return roles
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
@@ -122,14 +138,16 @@ class EmployeesTab(QWidget):
 
         controls_layout = QHBoxLayout()
         self.btn_add = QPushButton("Añadir Empleado")
-        self.btn_add.setObjectName("orange_button")
+        self.btn_add.setStyleSheet("background-color: #2e7d32; color: white; padding: 8px; border-radius: 4px; font-weight: bold;")
+        
         self.btn_edit = QPushButton("Editar Empleado")
-        self.btn_edit.setObjectName("orange_button")
+        self.btn_edit.setStyleSheet("background-color: #1976d2; color: white; padding: 8px; border-radius: 4px; font-weight: bold;")
+        
         self.btn_delete = QPushButton("Eliminar Empleado")
-        self.btn_delete.setObjectName("orange_button")
+        self.btn_delete.setStyleSheet("background-color: #c62828; color: white; padding: 8px; border-radius: 4px; font-weight: bold;")
         
         self.btn_format_sensor = QPushButton("Formatear Sensor")
-        self.btn_format_sensor.setStyleSheet("background-color: #D32F2F; color: white; font-weight: bold; padding: 5px; border-radius: 5px;")
+        self.btn_format_sensor.setStyleSheet("background-color: #b71c1c; color: white; font-weight: bold; padding: 8px; border-radius: 4px;")
         self.btn_format_sensor.setFixedWidth(150)
 
         controls_layout.addWidget(self.btn_add)
@@ -140,7 +158,6 @@ class EmployeesTab(QWidget):
         layout.addLayout(controls_layout)
 
         self.employee_table = QTableWidget()
-        self.employee_table.setObjectName("employee_table")
         self.employee_table.setColumnCount(3) 
         self.employee_table.setHorizontalHeaderLabels(["ID", "Nombre Completo", "Rol"]) 
         header = self.employee_table.horizontalHeader()
@@ -148,7 +165,15 @@ class EmployeesTab(QWidget):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         self.employee_table.setColumnWidth(0, 150)
-        self.employee_table.setColumnWidth(2, 150)
+        self.employee_table.setColumnWidth(2, 200)
+        
+        self.employee_table.setAlternatingRowColors(True)
+        self.employee_table.setShowGrid(False)
+        self.employee_table.setStyleSheet("""
+            QTableWidget { background: #1e1e24; color: white; border-radius: 5px; border: 1px solid #444; }
+            QHeaderView::section { background-color: #2b2b2b; color: white; padding: 5px; border: none; font-weight: bold; }
+            QTableWidget::item { padding: 5px; }
+        """)
         layout.addWidget(self.employee_table)
 
         self.btn_add.clicked.connect(self.add_employee)
@@ -174,7 +199,8 @@ class EmployeesTab(QWidget):
             self.employee_table.setItem(row, 2, rol_item)
 
     def add_employee(self):
-        dialog = EmployeeFormDialog(self, available_roles=self.available_roles, api_key=self.app_controller.API_KEY, server_url=self.app_controller.SERVER_URL)
+        current_roles = self._get_current_roles()
+        dialog = EmployeeFormDialog(self, available_roles=current_roles, api_key=self.app_controller.API_KEY, server_url=self.app_controller.SERVER_URL)
         if dialog.exec():
             data = dialog.get_data()
             if not data['id'] or not data['nombre']: return 
@@ -197,8 +223,9 @@ class EmployeesTab(QWidget):
         
         original_id = self.employee_table.item(current_row, 0).text()
         original_employee = self.app_controller.data_manager.get_employee_by_id(original_id)
+        current_roles = self._get_current_roles()
         
-        dialog = EmployeeFormDialog(self, employee_data=original_employee, available_roles=self.available_roles, api_key=self.app_controller.API_KEY, server_url=self.app_controller.SERVER_URL)
+        dialog = EmployeeFormDialog(self, employee_data=original_employee, available_roles=current_roles, api_key=self.app_controller.API_KEY, server_url=self.app_controller.SERVER_URL)
         if dialog.exec():
             data = dialog.get_data()
             if data['id'] != original_id and self.app_controller.data_manager.get_employee_by_id(data['id']):

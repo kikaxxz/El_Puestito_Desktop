@@ -28,15 +28,8 @@ class ServerWorker(QObject):
         self.config = self._load_config()
         self.API_KEY = self.config.get('api_key', os.environ.get('PUESTITO_API_KEY', os.urandom(24).hex()))
         
-        seguridad = self.config.get('seguridad', {})
-        self.PINS_ACCESO = seguridad.get('pines', {})
-        
         self.PINS_WEB_MAP = {}
-        for rol, pin in self.PINS_ACCESO.items():
-            if rol.lower() in ['cocinero', 'cocina']:
-                self.PINS_WEB_MAP[str(pin)] = 'cocina'
-            elif rol.lower() in ['barra', 'michelero']:
-                self.PINS_WEB_MAP[str(pin)] = 'barra'
+        self.cargar_pines_kds()
 
         self.last_enrolled_id = None
         self.enroll_mode_active = False
@@ -60,11 +53,28 @@ class ServerWorker(QObject):
             path = get_persistent_path("config.json")
             if not os.path.exists(path):
                 return {}
-            with open(path, 'r') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"Error cargando config: {e}")
             return {}
+
+    def cargar_pines_kds(self):
+        self.config = self._load_config()
+        self.PINS_WEB_MAP.clear()
+        
+        seguridad = self.config.get('seguridad', {})
+        pines = seguridad.get('pines_acceso', {})
+        
+        if isinstance(pines, dict):
+            for rol, pin in pines.items():
+                rol_lower = str(rol).lower()
+                if 'cocin' in rol_lower: 
+                    self.PINS_WEB_MAP[str(pin).strip()] = 'cocina'
+                elif 'barra' in rol_lower or 'michel' in rol_lower:
+                    self.PINS_WEB_MAP[str(pin).strip()] = 'barra'
+                    
+        logger.info(f"PINs cargados: {self.PINS_WEB_MAP}")
 
     def forzar_actualizacion_kds(self, destino):
         try:

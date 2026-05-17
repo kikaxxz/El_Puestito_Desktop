@@ -99,6 +99,6 @@ class ReportsTab(QWidget):
         logger.info(f"Reporte generado. Total: C${total_ventas:.2f}")
 
     def abrir_reportes_web(self):
-        url = f"{self.app_controller.SERVER_URL}/reportes-web"
+        selected_date = self.calendar.selectedDate().toPyDate().isoformat()
+        url = f"{self.app_controller.SERVER_URL}/reportes-web?start={selected_date}&end={selected_date}"
         QDesktopServices.openUrl(QUrl(url))
-        logger.info(f"Abriendo dashboard web: {url}")

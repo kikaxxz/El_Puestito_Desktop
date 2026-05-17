@@ -331,7 +331,13 @@ def trigger_update():
         
         logger.info(f"Retransmitiendo evento: {event_name}")
         
-        if event_name in ['mesas_actualizadas', 'mesas_update']:
+        # NUEVA LÓGICA AQUÍ: Interceptar actualización de configuración
+        if event_name == 'config_update':
+            worker.cargar_pines_kds()
+            worker.socketio.emit('config_update', payload_data)
+            return jsonify({"status": "config_reloaded_and_emitted"}), 200
+
+        elif event_name in ['mesas_actualizadas', 'mesas_update']:
             def emit_update():
                 worker.socketio.sleep(0.1)
                 table_state_payload = worker.data_manager.get_active_orders_caja()
