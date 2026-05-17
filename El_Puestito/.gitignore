@@ -1,0 +1,23 @@
+# Archivos de PyInstaller
+build/
+dist/
+*.spec
+
+# Caché de Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.vscode/
+
+# Base de datos local (¡Nunca subas datos reales al repo público!)
+Assets/puestito.db
+Assets/puestito.db-shm
+Assets/puestito.db-wal
+
+# Archivos de error temporales
+ERROR_CRITICO.txt
+*.log
+
+# Entornos virtuales (por si acaso tienes uno)
+venv/
+env/

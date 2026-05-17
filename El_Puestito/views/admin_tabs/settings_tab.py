@@ -71,7 +71,7 @@ class SettingsTab(QWidget):
         self.pins_inputs = {}
         pin_validator = QIntValidator(0, 9999, self)
         
-        for role in ["Administrador", "Cajero", "Cocinero", "Barra", "Ajustes_Sistema"]:
+        for role in ["Administrador", "Cajero", "Cocinero", "Barra"]:
             pin_container = QHBoxLayout()
             pin_container.setSpacing(5)
             
