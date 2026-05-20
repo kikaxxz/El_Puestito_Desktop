@@ -238,7 +238,12 @@ class _CartScreenState extends State<CartScreen> {
                       children: [
                         ListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: Text(item.nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          title: Text(
+                            item.nombreCerveza != null && item.nombreCerveza!.isNotEmpty
+                                ? '${item.nombre} (${item.nombreCerveza})'
+                                : item.nombre,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           subtitle: Text('C\$${item.precio.toStringAsFixed(2)} x ${item.cantidad}'),
                           trailing: Text('C\$${(item.precio * item.cantidad).toStringAsFixed(2)}', 
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)
