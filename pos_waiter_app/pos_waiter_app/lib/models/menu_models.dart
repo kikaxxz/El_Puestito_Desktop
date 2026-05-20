@@ -35,6 +35,7 @@ class Platillo {
     final String descripcion;
     final double precio;
     final String imagen;
+    final double? precioMichelada;
 
     Platillo({
         required this.id,
@@ -42,13 +43,15 @@ class Platillo {
         required this.descripcion,
         required this.precio,
         required this.imagen,
+        this.precioMichelada,
     });
 
     factory Platillo.fromJson(Map<String, dynamic> json) => Platillo(
         id: json["id"],
         nombre: json["nombre"],
-        descripcion: json["descripcion"],
-        precio: json["precio"]?.toDouble(),
+        descripcion: json["descripcion"] ?? "",
+        precio: json["precio"]?.toDouble() ?? 0.0,
         imagen: json["imagen"],
+        precioMichelada: json["precio_michelada"]?.toDouble(),
     );
 }

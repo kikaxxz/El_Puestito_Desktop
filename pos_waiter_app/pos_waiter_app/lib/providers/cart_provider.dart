@@ -84,7 +84,7 @@ class CartProvider with ChangeNotifier {
     }
   }
 
-  void addItem(Platillo platillo, {String? idCerveza, String? nombreCerveza}) {
+  void addItem(Platillo platillo, {String? idCerveza, String? nombreCerveza, double? precioFinal}) {
     String? targetKey;
     
     _items.forEach((key, item) {
@@ -106,7 +106,7 @@ class CartProvider with ChangeNotifier {
           id: platillo.id,
           nombre: platillo.nombre,
           cantidad: 1,
-          precio: platillo.precio,
+          precio: precioFinal ?? platillo.precio,
           imagen: platillo.imagen,
           idCerveza: idCerveza,
           nombreCerveza: nombreCerveza,

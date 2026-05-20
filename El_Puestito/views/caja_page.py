@@ -292,6 +292,10 @@ class CajaPage(QWidget):
         for row, platillo in enumerate(items):
             cantidad = platillo['cantidad']
             nombre = platillo['nombre']
+            
+            if platillo.get('nombre_cerveza'):
+                nombre = f"{nombre} ({platillo['nombre_cerveza']})"
+                
             precio = platillo['precio_unitario']
             subtotal = cantidad * precio
             total += subtotal

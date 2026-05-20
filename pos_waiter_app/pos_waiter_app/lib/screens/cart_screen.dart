@@ -277,7 +277,12 @@ class _CartScreenState extends State<CartScreen> {
                               icon: const Icon(Icons.add_circle_outline, color: Colors.green),
                               onPressed: () {
                                 final p = _importPlatilloDummy(item); 
-                                cart.addItem(p); 
+                                cart.addItem(
+                                  p,
+                                  idCerveza: item.idCerveza,
+                                  nombreCerveza: item.nombreCerveza,
+                                  precioFinal: item.precio,
+                                ); 
                               },
                             ),
                           ],
@@ -330,7 +335,7 @@ class _CartScreenState extends State<CartScreen> {
       nombre: item.nombre, 
       descripcion: '', 
       precio: item.precio, 
-      imagen: item.imagen
+      imagen: item.imagen,
     );
   }
 }

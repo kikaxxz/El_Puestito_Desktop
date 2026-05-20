@@ -122,6 +122,7 @@ class DataManager:
             nombre TEXT NOT NULL,
             descripcion TEXT,
             precio REAL NOT NULL,
+            precio_michelada REAL DEFAULT 0,
             imagen TEXT,
             disponible INTEGER NOT NULL DEFAULT 1,
             FOREIGN KEY (id_categoria) REFERENCES menu_categorias (id_categoria)
@@ -183,6 +184,12 @@ class DataManager:
             conn = self.get_conn()
             cursor = conn.cursor()
 
+            cursor.execute("PRAGMA table_info(menu_items)")
+            columns_menu = [info[1] for info in cursor.fetchall()]
+            if 'precio_michelada' not in columns_menu:
+                logger.info("Migracion de esquema: Agregando columna precio_michelada en menu_items")
+                self.execute("ALTER TABLE menu_items ADD COLUMN precio_michelada REAL DEFAULT 0;")
+
             cursor.execute("PRAGMA table_info(orden_detalle)")
             columns_det = [info[1] for info in cursor.fetchall()]
             
@@ -194,29 +201,24 @@ class DataManager:
             columns = [info[1] for info in cursor.fetchall()]
             
             if 'destino' not in columns:
-                logger.info("Esquema desactualizado detectado: Falta columna 'destino' en menu_categorias.")
-                logger.info("Aplicando migracion de esquema...")
-                
+                logger.info("Migracion de esquema: Falta columna destino en menu_categorias.")
                 self.execute("ALTER TABLE menu_categorias ADD COLUMN destino TEXT DEFAULT 'cocina';")
                 self._migrate_hardcoded_destinations_to_db()
-                logger.info("Esquema actualizado y destinos migrados exitosamente.")
 
             cursor.execute("PRAGMA table_info(empleados)")
             columns_emp = [info[1] for info in cursor.fetchall()]
             
             if 'fingerprint_id' not in columns_emp:
-                logger.info("Esquema: Falta columna 'fingerprint_id' en empleados. Agregando...")
+                logger.info("Migracion de esquema: Agregando fingerprint_id en empleados.")
                 self.execute("ALTER TABLE empleados ADD COLUMN fingerprint_id INTEGER;")
                 self.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_empleados_fingerprint ON empleados(fingerprint_id);")
-                logger.info("Columna 'fingerprint_id' agregada correctamente.")
                 
             cursor.execute("PRAGMA table_info(ordenes)")
             columns_ordenes = [info[1] for info in cursor.fetchall()]
             
             if 'proformas_impresas' not in columns_ordenes:
-                logger.info("Esquema: Falta columna 'proformas_impresas' en ordenes. Agregando...")
+                logger.info("Migracion de esquema: Agregando proformas_impresas en ordenes.")
                 self.execute("ALTER TABLE ordenes ADD COLUMN proformas_impresas INTEGER NOT NULL DEFAULT 0;")
-                logger.info("Columna 'proformas_impresas' agregada correctamente.")
 
         except Exception as e:
             logger.error(f"Error verificando o actualizando esquema: {e}")
@@ -316,13 +318,15 @@ class DataManager:
                     self.execute(
                         """
                         INSERT OR IGNORE INTO menu_items 
-                        (id_item, id_categoria, nombre, descripcion, precio, imagen, disponible)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        (id_item, id_categoria, nombre, descripcion, precio, precio_michelada, imagen, disponible)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             item.get('id'), cat_id, item.get('nombre'),
                             item.get('descripcion'),
-                            item.get('precio'), item.get('imagen'),
+                            item.get('precio'), 
+                            item.get('precio_michelada', 0.0), 
+                            item.get('imagen'),
                             int(item.get('disponible', True))
                         )
                     )

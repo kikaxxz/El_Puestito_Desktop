@@ -374,6 +374,7 @@
                     "nombre": "Victoria Frost",
                     "descripcion": "",
                     "precio": 47.0,
+                    "precio_michelada": 140.0,
                     "imagen": "ordenes/victoria_frost.png",
                     "disponible": true
                 },
@@ -382,6 +383,7 @@
                     "nombre": "Victoria Clásica",
                     "descripcion": "",
                     "precio": 55.0,
+                    "precio_michelada": 140.0,
                     "imagen": "ordenes/victoria_clasica.png",
                     "disponible": true
                 },
@@ -390,6 +392,7 @@
                     "nombre": "Toña",
                     "descripcion": "",
                     "precio": 55.0,
+                    "precio_michelada": 140.0,
                     "imagen": "ordenes/tona.png",
                     "disponible": true
                 },
@@ -398,6 +401,7 @@
                     "nombre": "Toña Ultra",
                     "descripcion": "",
                     "precio": 55.0,
+                    "precio_michelada": 140.0,
                     "imagen": "ordenes/tona_ultra.png",
                     "disponible": true
                 },
@@ -406,6 +410,7 @@
                     "nombre": "Toña Light",
                     "descripcion": "",
                     "precio": 55.0,
+                    "precio_michelada": 140.0,
                     "imagen": "ordenes/tona_light.png",
                     "disponible": true
                 },
@@ -414,17 +419,19 @@
                     "nombre": "Victoria Maestro",
                     "descripcion": "",
                     "precio": 60.0,
+                    "precio_michelada": 140.0,
                     "imagen": "ordenes/victoria_maestro.png",
                     "disponible": true
                 },
-                    {
-                        "id": "CER013",
-                        "nombre": "Boreal",
-                        "descripcion": "",
-                        "precio": 65.0,
-                        "imagen": "ordenes/boreal.png",
-                        "disponible": true
-                    }
+                {
+                    "id": "CER013",
+                    "nombre": "Boreal",
+                    "descripcion": "",
+                    "precio": 65.0,
+                    "precio_michelada": 140.0,
+                    "imagen": "ordenes/boreal.png",
+                    "disponible": true
+                }
             ]
         },
         {
@@ -435,6 +442,7 @@
                     "nombre": "Miller Lite",
                     "descripcion": "",
                     "precio": 60.0,
+                    "precio_michelada": 180.0,
                     "imagen": "ordenes/miller_lite.png",
                     "disponible": true
                 },
@@ -443,6 +451,7 @@
                     "nombre": "Sol",
                     "descripcion": "",
                     "precio": 80.0,
+                    "precio_michelada": 180.0,
                     "imagen": "ordenes/sol.png",
                     "disponible": true
                 },
@@ -451,6 +460,7 @@
                     "nombre": "Heineken",
                     "descripcion": "",
                     "precio": 85.0,
+                    "precio_michelada": 180.0,
                     "imagen": "ordenes/heineken.png",
                     "disponible": true
                 },
@@ -459,6 +469,7 @@
                     "nombre": "Paulaner",
                     "descripcion": "",
                     "precio": 110.0,
+                    "precio_michelada": 180.0,
                     "imagen": "ordenes/paulaner.png",
                     "disponible": true
                 },
@@ -467,6 +478,7 @@
                     "nombre": "Sol Preparada",
                     "descripcion": "",
                     "precio": 95.0,
+                    "precio_michelada": 180.0,
                     "imagen": "ordenes/sol_preparada.png",
                     "disponible": true
                 },
@@ -475,6 +487,7 @@
                     "nombre": "Corona",
                     "descripcion": "",
                     "precio": 90.0,
+                    "precio_michelada": 190.0,
                     "imagen": "ordenes/corona.png",
                     "disponible": true
                 }
@@ -488,6 +501,7 @@
                     "nombre": "Smirnoff",
                     "descripcion": "",
                     "precio": 89.0,
+                    "precio_michelada": 180.0,
                     "imagen": "ordenes/smirnoff.png",
                     "disponible": true
                 },
@@ -496,6 +510,7 @@
                     "nombre": "Bamboo",
                     "descripcion": "",
                     "precio": 64.0,
+                    "precio_michelada": 180.0,
                     "imagen": "ordenes/bamboo.png",
                     "disponible": true
                 },
@@ -504,6 +519,7 @@
                     "nombre": "Spark",
                     "descripcion": "",
                     "precio": 59.0,
+                    "precio_michelada": 140.0,
                     "imagen": "ordenes/spark.png",
                     "disponible": true
                 },
@@ -512,6 +528,7 @@
                     "nombre": "Adán y Eva",
                     "descripcion": "",
                     "precio": 74.0,
+                    "precio_michelada": 180.0,
                     "imagen": "ordenes/adan_eva.png",
                     "disponible": true
                 }

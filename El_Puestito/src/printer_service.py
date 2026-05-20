@@ -91,7 +91,14 @@ class PrinterService:
             
             for item in order_data.get("items", []):
                 qty = item.get('qty', item.get('cantidad', 1))
-                name = item.get('name', item.get('nombre', ''))[:15]
+                
+                name_base = item.get('name', item.get('nombre', ''))
+                
+                if item.get('nombre_cerveza'):
+                    name_base = f"{name_base} ({item['nombre_cerveza']})"
+                
+                name = name_base[:20]
+                
                 price = float(item.get('price', item.get('precio_unitario', 0)))
                 subtotal_item = qty * price
                 

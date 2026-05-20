@@ -176,17 +176,16 @@ class PrinterTab(QWidget):
             
         lines.append("-" * 32)
         
-        # --- AGREGADO: FECHA Y HORA EN EL PREVIEW ---
         now = datetime.datetime.now()
         date_str = now.strftime("%d/%m/%Y %H:%M")
         lines.append(self._align_line("Fecha:", date_str))
         lines.append("-" * 32)
         
         lines.append(self._align_line("1x Hamb. Sencilla", "C$ 150.00"))
-        lines.append(self._align_line("2x Cerveza Tona", "C$ 100.00"))
+        lines.append(self._align_line("1x Michelada (Corona)", "C$ 190.00"))
         lines.append("-" * 32)
         
-        subtotal = 250.00
+        subtotal = 340.00
         
         if is_proforma:
             lines.append(self._align_line("SUBTOTAL:", f"C$ {subtotal:.2f}"))

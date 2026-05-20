@@ -39,7 +39,7 @@ class MenuItemFormDialog(QDialog):
     def __init__(self, parent=None, item_data=None, categories=[]):
         super().__init__(parent)
         self.setWindowTitle("Gestionar Platillo")
-        self.setFixedSize(700, 450)
+        self.setFixedSize(700, 500)
         self.image_path = item_data.get('imagen') if item_data else None
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(25, 25, 25, 25)
@@ -61,6 +61,12 @@ class MenuItemFormDialog(QDialog):
         self.inp_precio.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
         self.inp_precio.setValue(float(item_data.get('precio', 0.0)) if item_data else 0.0)
         self.inp_precio.setObjectName("dialog_input")
+        self.inp_precio_michelada = QDoubleSpinBox()
+        self.inp_precio_michelada.setRange(0, 99999)
+        self.inp_precio_michelada.setPrefix("C$ ")
+        self.inp_precio_michelada.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
+        self.inp_precio_michelada.setValue(float(item_data.get('precio_michelada', 0.0)) if item_data and item_data.get('precio_michelada') else 0.0)
+        self.inp_precio_michelada.setObjectName("dialog_input")
         self.combo_cat = QComboBox()
         self.combo_cat.addItems([c['nombre'] for c in categories])
         if item_data and 'categoria_nombre' in item_data:
@@ -75,12 +81,15 @@ class MenuItemFormDialog(QDialog):
         lbl_nombre.setStyleSheet("font-weight: bold; color: #ccc;") 
         lbl_precio = QLabel("Precio:")
         lbl_precio.setStyleSheet("font-weight: bold; color: #ccc;")
+        self.lbl_precio_michelada = QLabel("Precio Michelada:")
+        self.lbl_precio_michelada.setStyleSheet("font-weight: bold; color: #ccc;")
         lbl_cat = QLabel("Categoria:")
         lbl_cat.setStyleSheet("font-weight: bold; color: #ccc;")
         lbl_desc = QLabel("Descripcion:")
         lbl_desc.setStyleSheet("font-weight: bold; color: #ccc;")
         form_layout.addRow(lbl_nombre, self.inp_nombre)
         form_layout.addRow(lbl_precio, self.inp_precio)
+        form_layout.addRow(self.lbl_precio_michelada, self.inp_precio_michelada)
         form_layout.addRow(lbl_cat, self.combo_cat)
         form_layout.addRow(lbl_desc, self.inp_desc)
         content_layout.addLayout(form_layout, stretch=3) 
@@ -117,6 +126,14 @@ class MenuItemFormDialog(QDialog):
         btn_box.addWidget(save_btn)
         main_layout.addLayout(btn_box)
 
+        self.combo_cat.currentTextChanged.connect(self.toggle_michelada_price)
+        self.toggle_michelada_price(self.combo_cat.currentText())
+
+    def toggle_michelada_price(self, text):
+        is_cerveza = "cerveza" in text.lower() or "rtd" in text.lower()
+        self.lbl_precio_michelada.setVisible(is_cerveza)
+        self.inp_precio_michelada.setVisible(is_cerveza)
+
     def select_image(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Seleccionar Imagen", "", "Imagenes (*.png *.jpg *.jpeg)")
         if file_name:
@@ -137,6 +154,7 @@ class MenuItemFormDialog(QDialog):
         return {
             'nombre': self.inp_nombre.text().strip(),
             'precio': self.inp_precio.value(),
+            'precio_michelada': self.inp_precio_michelada.value(),
             'descripcion': self.inp_desc.toPlainText(),
             'categoria_nombre': self.combo_cat.currentText(),
             'imagen_path': self.image_path
@@ -240,11 +258,11 @@ class MenuTab(QWidget):
                     dest_path = os.path.join(BASE_DIR, "assets", final_img_name)
                     shutil.copy(data['imagen_path'], dest_path)
                 except Exception as e:
-                    logger.error(f"Error copiando imagen: {e}")
+                    pass
             try:
                 self.app_controller.data_manager.execute(
-                    "INSERT INTO menu_items (id_item, id_categoria, nombre, precio, descripcion, imagen, disponible) VALUES (?, ?, ?, ?, ?, ?, 1)",
-                    (new_id, cat_id, data['nombre'], data['precio'], data['descripcion'], final_img_name)
+                    "INSERT INTO menu_items (id_item, id_categoria, nombre, precio, descripcion, imagen, disponible, precio_michelada) VALUES (?, ?, ?, ?, ?, ?, 1, ?)",
+                    (new_id, cat_id, data['nombre'], data['precio'], data['descripcion'], final_img_name, data['precio_michelada'])
                 )
                 self.load_menu_data()
                 self.app_controller.notify_server_config_change()
@@ -280,10 +298,10 @@ class MenuTab(QWidget):
                         dest_path = os.path.join(BASE_DIR, "assets", final_img_name)
                         shutil.copy(new_data['imagen_path'], dest_path)
                     except Exception as e:
-                        logger.error(f"Error copiando imagen: {e}")
+                        pass
             self.app_controller.data_manager.execute(
-                "UPDATE menu_items SET nombre=?, precio=?, descripcion=?, id_categoria=?, imagen=? WHERE id_item=?",
-                (new_data['nombre'], new_data['precio'], new_data['descripcion'], new_cat_id, final_img_name, item_id)
+                "UPDATE menu_items SET nombre=?, precio=?, descripcion=?, id_categoria=?, imagen=?, precio_michelada=? WHERE id_item=?",
+                (new_data['nombre'], new_data['precio'], new_data['descripcion'], new_cat_id, final_img_name, new_data['precio_michelada'], item_id)
             )
             self.load_menu_data()
             self.app_controller.notify_server_config_change()

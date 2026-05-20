@@ -99,10 +99,7 @@ class _MenuScreenState extends State<MenuScreen> {
     });
   }
 
-  // --- LÓGICA DE SELECCIÓN DE CERVEZA PARA MICHELADAS ---
-  
   Future<Platillo?> _mostrarDialogoCervezas(BuildContext context) {
-    // Obtenemos cervezas (CER) y bebidas RTD/Hard Seltzer (RTD)
     final cervezas = _allPlatillos.where((p) => p.id.startsWith('CER') || p.id.startsWith('RTD')).toList();
 
     return showDialog<Platillo>(
@@ -137,14 +134,18 @@ class _MenuScreenState extends State<MenuScreen> {
   }
 
   void _onAddPlatillo(Platillo platillo, CartProvider cart) async {
-    // Si el ID empieza con MIC (Michelada), mostramos el diálogo
     if (platillo.id.startsWith('MIC')) {
       final cerveza = await _mostrarDialogoCervezas(context);
       if (cerveza != null) {
+        double precioCombo = (cerveza.precioMichelada != null && cerveza.precioMichelada! > 0)
+            ? cerveza.precioMichelada!
+            : platillo.precio;
+
         cart.addItem(
           platillo, 
           idCerveza: cerveza.id, 
-          nombreCerveza: cerveza.nombre
+          nombreCerveza: cerveza.nombre,
+          precioFinal: precioCombo,
         );
       }
     } else {
@@ -256,7 +257,11 @@ class _MenuScreenState extends State<MenuScreen> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
       child: ListTile(
-        leading: Image.network(imageUrl, width: 60, height: 60, fit: BoxFit.cover,
+        leading: Image.network(
+          imageUrl, 
+          width: 60, 
+          height: 60, 
+          fit: BoxFit.contain,
           errorBuilder: (_,__,___) => const Icon(Icons.broken_image),
         ),
         title: Text(platillo.nombre),
