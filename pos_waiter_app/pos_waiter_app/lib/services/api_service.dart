@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-
   Future<String?> getServerUrl() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('server_url');
@@ -44,28 +43,31 @@ class ApiService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print("Error Update Note: $e");
       return false;
     }
   }
 
-  Future<bool> splitOrder(String mesaKey, List<Map<String, dynamic>> items) async {
+  Future<bool> splitOrder(String mesaKey, List<Map<String, dynamic>> items, {String? targetAccountKey, String? newAccountName}) async {
     final baseUrl = await getServerUrl();
     if (baseUrl == null) return false;
     
     try {
       final headers = await _getHeaders();
+      final bodyData = {
+        'mesa_key': mesaKey,
+        'items': items,
+      };
+      
+      if (targetAccountKey != null) bodyData['target_account_key'] = targetAccountKey;
+      if (newAccountName != null) bodyData['new_account_name'] = newAccountName;
+
       final response = await http.post(
         Uri.parse('$baseUrl/api/split-order'),
         headers: headers,
-        body: json.encode({
-          'mesa_key': mesaKey,
-          'items': items,
-        }),
+        body: json.encode(bodyData),
       );
       return response.statusCode == 200;
     } catch (e) {
-      print("Error Split Order: $e");
       return false;
     }
   }
@@ -83,7 +85,6 @@ class ApiService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print("Error Cancel Order: $e");
       return false;
     }
   }
@@ -104,7 +105,6 @@ class ApiService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print("Error Remove Items: $e");
       return false;
     }
   }
@@ -117,7 +117,6 @@ class ApiService {
       final response = await http.get(Uri.parse('$baseUrl/menu'), headers: headers);
       return (response.statusCode == 200) ? json.decode(response.body) : null;
     } catch (e) {
-      print("Error Menu: $e");
       return null;
     }
   }

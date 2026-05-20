@@ -1,4 +1,5 @@
 import os
+import datetime
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QTextEdit, QCheckBox, QPushButton, QMessageBox, QGroupBox, QFormLayout, QTabWidget, QSpinBox
@@ -173,6 +174,12 @@ class PrinterTab(QWidget):
         else:
             lines.append("TICKET DE VENTA PAGADO".center(32))
             
+        lines.append("-" * 32)
+        
+        # --- AGREGADO: FECHA Y HORA EN EL PREVIEW ---
+        now = datetime.datetime.now()
+        date_str = now.strftime("%d/%m/%Y %H:%M")
+        lines.append(self._align_line("Fecha:", date_str))
         lines.append("-" * 32)
         
         lines.append(self._align_line("1x Hamb. Sencilla", "C$ 150.00"))

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../providers/cart_provider.dart';
 import '../services/api_service.dart';
 import '../models/menu_models.dart'; 
+import '../services/socket_service.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -30,15 +31,114 @@ class _CartScreenState extends State<CartScreen> {
     super.didChangeDependencies();
   }
 
+  Future<Map<String, String>?> _selectTargetForNewItems(List<Map<String, dynamic>> existingOrders) async {
+    String? selectedOption = existingOrders.isNotEmpty ? existingOrders.first['key'] : "new";
+    final TextEditingController nameController = TextEditingController();
+
+    return await showDialog<Map<String, String>>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text("¿Dónde agregar estos artículos?"),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ...existingOrders.map((order) {
+                      final key = order['key'];
+                      final isSub = key.contains('-');
+                      final title = isSub ? "Sub-cuenta ${key.split('-').last}" : "Cuenta Principal";
+                      return RadioListTile<String>(
+                        title: Text(title),
+                        value: key,
+                        groupValue: selectedOption,
+                        onChanged: (val) => setState(() => selectedOption = val),
+                      );
+                    }).toList(),
+                    const Divider(),
+                    RadioListTile<String>(
+                      title: const Text("Nueva Sub-cuenta"),
+                      value: "new",
+                      groupValue: selectedOption,
+                      onChanged: (val) => setState(() => selectedOption = val),
+                    ),
+                    if (selectedOption == "new")
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: TextField(
+                          controller: nameController,
+                          decoration: const InputDecoration(labelText: "Nombre de la sub-cuenta"),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text("Cancelar"),
+                ),
+                ElevatedButton(
+                  onPressed: selectedOption == null
+                      ? null
+                      : () {
+                          if (selectedOption == "new" && nameController.text.trim().isEmpty) {
+                            return;
+                          }
+                          Navigator.pop(ctx, {
+                            'type': selectedOption == "new" ? "new" : "existing",
+                            'value': selectedOption == "new" ? nameController.text.trim() : selectedOption!
+                          });
+                        },
+                  child: const Text("Aceptar"),
+                ),
+              ],
+            );
+          }
+        );
+      }
+    );
+  }
+
   Future<void> _sendOrder() async {
     final cart = Provider.of<CartProvider>(context, listen: false);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    final socketService = Provider.of<SocketService>(context, listen: false);
 
     if (cart.items.isEmpty) return;
     if (_tableNumber == null) {
       messenger.showSnackBar(const SnackBar(content: Text('Error: Sin mesa asignada.')));
       return;
+    }
+
+    List<Map<String, dynamic>> existingOrders = [];
+    final baseMesaId = _tableNumber.toString();
+    
+    socketService.mesas.forEach((key, data) {
+      String keyBase = key;
+      if (keyBase.contains('+')) keyBase = keyBase.split('+')[0];
+      if (keyBase.contains('-')) keyBase = keyBase.split('-')[0];
+      
+      if (keyBase == baseMesaId) {
+        existingOrders.add({'key': key});
+      }
+    });
+
+    String? targetAccountKey;
+    String? newAccountName;
+
+    if (existingOrders.isNotEmpty) {
+      final destination = await _selectTargetForNewItems(existingOrders);
+      if (destination == null) return; 
+
+      if (destination['type'] == 'existing') {
+        targetAccountKey = destination['value'];
+      } else {
+        newAccountName = destination['value'];
+      }
     }
 
     setState(() => _isSending = true);
@@ -49,6 +149,8 @@ class _CartScreenState extends State<CartScreen> {
       'mesas_enlazadas': _childTables, 
       'mesero_id': '101', 
       'timestamp': DateTime.now().toIso8601String(), 
+      if (targetAccountKey != null) 'target_account_key': targetAccountKey,
+      if (newAccountName != null) 'new_account_name': newAccountName,
       'items': cart.items.values.map((item) => {
             'item_id': item.id,
             'nombre': item.nombre,
@@ -152,7 +254,7 @@ class _CartScreenState extends State<CartScreen> {
                               borderRadius: BorderRadius.circular(5),
                             ),
                             child: Text(
-                              "📝 ${item.notas}",
+                              " ${item.notas}",
                               style: TextStyle(fontStyle: FontStyle.italic, color: Colors.brown.shade800),
                             ),
                           ),

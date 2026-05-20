@@ -186,7 +186,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  // --- AQUÍ ESTÁ EL CAMBIO CLAVE PARA NOTAS POR ÍTEM ---
   Widget _buildItemCard(dynamic item) {
     final int idDetalle = item['id_detalle']; 
     final int maxQty = item['cantidad'];
@@ -194,7 +193,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final bool isLocked = estado == 'listo'; 
     final int currentSel = _selectedQuantities[idDetalle] ?? 0;
     
-    // Leemos la nota que viene del servidor
     final String notaActual = item['notas'] ?? ''; 
     
     final double precioUnitario = double.tryParse(item['precio_unitario'].toString()) ?? 0.0;
@@ -235,7 +233,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     ],
                   ),
                 ),
-                // BOTÓN DE NOTA (LÁPIZ)
                 IconButton(
                   icon: Icon(
                     notaActual.isNotEmpty ? Icons.comment : Icons.add_comment_outlined,
@@ -247,7 +244,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ],
             ),
             
-            // MOSTRAR LA NOTA VISUALMENTE
             if (notaActual.isNotEmpty)
               Container(
                 width: double.infinity,
@@ -442,14 +438,88 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return _selectedQuantities.values.any((q) => q > 0);
   }
 
+  Future<Map<String, String>?> _selectDestinationAccount(List<Map<String, dynamic>> relatedOrders) async {
+    String? selectedOption;
+    final TextEditingController nameController = TextEditingController();
+
+    return await showDialog<Map<String, String>>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text("Destino de los artículos"),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RadioListTile<String>(
+                      title: const Text("Nueva Sub-cuenta"),
+                      value: "new",
+                      groupValue: selectedOption,
+                      onChanged: (val) => setState(() => selectedOption = val),
+                    ),
+                    if (selectedOption == "new")
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: TextField(
+                          controller: nameController,
+                          decoration: const InputDecoration(labelText: "Nombre de la sub-cuenta"),
+                        ),
+                      ),
+                    const Divider(),
+                    ...relatedOrders.map((order) {
+                      final key = order['key'];
+                      final isSub = key.contains('-');
+                      final title = isSub ? "Sub-cuenta ${key.split('-').last}" : "Cuenta Principal";
+                      return RadioListTile<String>(
+                        title: Text(title),
+                        value: key,
+                        groupValue: selectedOption,
+                        onChanged: (val) => setState(() => selectedOption = val),
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text("Cancelar"),
+                ),
+                ElevatedButton(
+                  onPressed: selectedOption == null
+                      ? null
+                      : () {
+                          if (selectedOption == "new" && nameController.text.trim().isEmpty) {
+                            return;
+                          }
+                          Navigator.pop(ctx, {
+                            'type': selectedOption == "new" ? "new" : "existing",
+                            'value': selectedOption == "new" ? nameController.text.trim() : selectedOption!
+                          });
+                        },
+                  child: const Text("Aceptar"),
+                ),
+              ],
+            );
+          }
+        );
+      }
+    );
+  }
+
   Future<void> _submitSplit() async {
-    setState(() => _isLoading = true);
-    final api = ApiService();
-    bool allSuccess = true;
-    
     final socketService = Provider.of<SocketService>(context, listen: false);
     final allMesas = socketService.mesas;
     final relatedOrders = _getRelatedOrders(allMesas, widget.mesaKey);
+
+    final destination = await _selectDestinationAccount(relatedOrders);
+    if (destination == null) return;
+
+    setState(() => _isLoading = true);
+    final api = ApiService();
+    bool allSuccess = true;
     
     Map<String, List<Map<String, dynamic>>> batchSplit = {};
 
@@ -471,8 +541,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       }
     });
 
+    String? targetKey = destination['type'] == 'existing' ? destination['value'] : null;
+    String? newName = destination['type'] == 'new' ? destination['value'] : null;
+
     for (var entry in batchSplit.entries) {
-      final success = await api.splitOrder(entry.key, entry.value);
+      final success = await api.splitOrder(
+        entry.key, 
+        entry.value,
+        targetAccountKey: targetKey,
+        newAccountName: newName
+      );
       if (!success) allSuccess = false;
     }
 

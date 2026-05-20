@@ -1,4 +1,5 @@
 import logging
+import datetime
 from escpos.printer import Usb, Network, Dummy
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,32 @@ class PrinterService:
                 self.printer.text("TICKET DE VENTA PAGADO".center(32) + "\n")
                 
             self.printer.text("-" * 32 + "\n")
+            
+            # --- AGREGADO: FECHA Y HORA ---
+            self.printer.set(align='left')
+            now = datetime.datetime.now()
+            date_str = now.strftime("%d/%m/%Y %H:%M")
+            self.printer.text(self._align_line("Fecha:", date_str) + "\n")
+            self.printer.text("-" * 32 + "\n")
+            
+            mesa_key = str(order_data.get('mesa_key', ''))
+            if mesa_key:
+                self.printer.set(align='left', bold=True)
+                if '-' in mesa_key:
+                    parts = mesa_key.split('-')
+                    mesa_base = parts[0]
+                    nombre_subcuenta = "-".join(parts[1:])
+                    self.printer.text(f"Mesa: {mesa_base}\n")
+                    self.printer.text(f"Sub-cuenta: {nombre_subcuenta}\n")
+                elif '+' in mesa_key:
+                    self.printer.text(f"Mesa(s): {mesa_key}\n")
+                    self.printer.text("Cuenta Principal\n")
+                else:
+                    self.printer.text(f"Mesa: {mesa_key}\n")
+                    self.printer.text("Cuenta Principal\n")
+                
+                self.printer.text("-" * 32 + "\n")
+                self.printer.set(normal_text=True, bold=False)
             
             self.printer.set(align='left')
             total = float(order_data.get('total', 0))

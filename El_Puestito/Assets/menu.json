@@ -328,7 +328,7 @@
                     "id": "BSA002",
                     "nombre": "Agua Gasificada",
                     "descripcion": "",
-                    "precio": 40.0,
+                    "precio": 35.0,
                     "imagen": "ordenes/agua_gasificada.png",
                     "disponible": true
                 },
@@ -352,7 +352,7 @@
                     "id": "BSA005",
                     "nombre": "Ensa",
                     "descripcion": "",
-                    "precio": 35.0,
+                    "precio": 40.0,
                     "imagen": "ordenes/ensa.png",
                     "disponible": true
                 },
@@ -408,7 +408,23 @@
                     "precio": 55.0,
                     "imagen": "ordenes/tona_light.png",
                     "disponible": true
-                }
+                },
+                {
+                    "id": "CER012",
+                    "nombre": "Victoria Maestro",
+                    "descripcion": "",
+                    "precio": 60.0,
+                    "imagen": "ordenes/victoria_maestro.png",
+                    "disponible": true
+                },
+                    {
+                        "id": "CER013",
+                        "nombre": "Boreal",
+                        "descripcion": "",
+                        "precio": 65.0,
+                        "imagen": "ordenes/boreal.png",
+                        "disponible": true
+                    }
             ]
         },
         {
@@ -426,7 +442,7 @@
                     "id": "CER007",
                     "nombre": "Sol",
                     "descripcion": "",
-                    "precio": 74.0,
+                    "precio": 80.0,
                     "imagen": "ordenes/sol.png",
                     "disponible": true
                 },
@@ -434,16 +450,32 @@
                     "id": "CER008",
                     "nombre": "Heineken",
                     "descripcion": "",
-                    "precio": 79.0,
+                    "precio": 85.0,
                     "imagen": "ordenes/heineken.png",
                     "disponible": true
                 },
                 {
                     "id": "CER009",
-                    "nombre": "Otras Cervezas",
+                    "nombre": "Paulaner",
                     "descripcion": "",
-                    "precio": 85.0,
-                    "imagen": "ordenes/cerveza_otra.png",
+                    "precio": 110.0,
+                    "imagen": "ordenes/paulaner.png",
+                    "disponible": true
+                },
+                {
+                    "id": "CER010",
+                    "nombre": "Sol Preparada",
+                    "descripcion": "",
+                    "precio": 95.0,
+                    "imagen": "ordenes/sol_preparada.png",
+                    "disponible": true
+                },
+                {
+                    "id": "CER011",
+                    "nombre": "Corona",
+                    "descripcion": "",
+                    "precio": 90.0,
+                    "imagen": "ordenes/corona.png",
                     "disponible": true
                 }
             ]

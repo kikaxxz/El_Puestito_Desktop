@@ -272,11 +272,18 @@ def split_order_endpoint():
         data = request.json
         mesa_key = data.get('mesa_key')
         items = data.get('items') 
+        target_account_key = data.get('target_account_key')
+        new_account_name = data.get('new_account_name')
         
         if not mesa_key or not items:
             return jsonify({"error": "Datos incompletos"}), 400
             
-        success = worker.data_manager.split_order(mesa_key, items)
+        success = worker.data_manager.split_order(
+            mesa_key, 
+            items,
+            target_account_key=target_account_key,
+            new_account_name=new_account_name
+        )
         
         if success:
             logger.info(f"Cuenta separada exitosamente en Mesa {mesa_key}")

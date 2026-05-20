@@ -1,4 +1,4 @@
-python -m PyInstaller --name "El Puestito" --icon="Assets/logo.ico" --noconfirm --add-data "Assets;Assets" --add-data "server/templates;server/templates" --add-data "server/static;server/static" --collect-data escpos --paths "." --paths "src" --paths "views" --paths "widgets" --hidden-import "engineio.async_drivers.threading" app.py
+python -m PyInstaller --name "El Puestito" --windowed --uac-admin --icon="Assets/logo.ico" --noconfirm --add-data "Assets;Assets" --add-data "server/templates;server/templates" --add-data "server/static;server/static" --collect-data escpos --paths "." --paths "src" --paths "views" --paths "widgets" --hidden-import "engineio.async_drivers.threading" app.py
 
 cd dist/"El Puestito"
 .\"El Puestito.exe"

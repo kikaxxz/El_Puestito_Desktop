@@ -41,6 +41,10 @@ class ServerWorker(QObject):
         self.app.worker = self
         self.app.register_blueprint(api_bp)
 
+        @self.app.teardown_appcontext
+        def close_db_connection(exception=None):
+            self.data_manager.close_conn_for_thread()
+
         self.socketio = SocketIO(
             self.app, 
             cors_allowed_origins="*", 
@@ -132,7 +136,8 @@ class ServerWorker(QObject):
                 host='0.0.0.0', 
                 port=5000, 
                 log_output=True,
-                use_reloader=False
+                use_reloader=False,
+                allow_unsafe_werkzeug=True
             )
         except Exception as e:
             logger.critical(f"Fallo en servidor: {e}")
