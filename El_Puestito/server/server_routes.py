@@ -94,15 +94,41 @@ def complete_kds_order():
         elif destino == 'barra':
             worker.data_manager.mark_barra_order_ready(mesa_key)
         
-        logger.info(f"Orden Mesa {mesa_key} marcada lista en {destino} (via Web)")
-        
         worker.socketio.emit('kds_update', {'destino': destino})
         worker.kds_estado_cambiado.emit(destino)
         worker.socketio.emit('mesas_actualizadas', worker.data_manager.get_active_orders_caja())
+        
+        mensaje_alerta = f"Mesa {mesa_key}: Pedido de {destino} listo"
+        worker.socketio.emit('alerta_orden_lista', {
+            'mesa_key': mesa_key,
+            'destino': destino,
+            'mensaje': mensaje_alerta
+        })
+        
         return jsonify({"status": "success"}), 200
     except Exception as e:
         logger.error(f"Error completando orden KDS: {e}")
         return jsonify({"status": "error", "message": "Error interno"}), 500
+    
+@api_bp.route('/api/update-fcm', methods=['POST'])
+@require_auth
+def update_fcm_endpoint():
+    try:
+        worker = current_app.worker
+        data = request.json
+        
+        emp_id = data.get('employee_id')
+        token = data.get('fcm_token')
+        recibe_alertas = data.get('recibe_alertas', True)
+        
+        if not emp_id or not token:
+            return jsonify({"error": "Faltan datos"}), 400
+            
+        worker.data_manager.update_employee_fcm(emp_id, token, recibe_alertas)
+        return jsonify({"status": "success"}), 200
+    except Exception as e:
+        logger.error(f"Error actualizando FCM: {e}")
+        return jsonify({"error": "Error interno"}), 500
 
 @api_bp.route('/api/chart-data', methods=['GET'])
 def get_chart_data():

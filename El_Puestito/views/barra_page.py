@@ -73,9 +73,16 @@ class BarraPage(QWidget):
         try:
             ticket_widget = OrderTicket(datos)
             ticket_widget.btn_listo.clicked.connect(lambda: self._marcar_listo(key))
+            ticket_widget.item_marcado_listo.connect(lambda id_detalle, k=key: self._marcar_item_individual(id_detalle, k))
             self.tickets_en_pantalla[key] = ticket_widget
         except Exception as e:
             logger.error(f"Error instanciando widget de orden {key}: {e}")
+            
+    def _marcar_item_individual(self, id_detalle, mesa_key):
+        try:
+            self.controller.procesar_item_individual_listo(id_detalle, mesa_key, "barra")
+        except Exception as e:
+            logger.error(f"Error al marcar como listo el item individual {id_detalle} de la comanda {mesa_key}: {e}")
         
     def _eliminar_widget_memoria(self, key):
         if key in self.tickets_en_pantalla:
@@ -106,3 +113,13 @@ class BarraPage(QWidget):
             self.controller.notificar_cambios_mesas()
         except Exception as e:
             logger.error(f"Error al marcar como lista la comanda {mesa_key}: {e}")
+
+    def _marcar_listo(self, mesa_key):
+        try:
+            self.controller.data_manager.mark_barra_order_ready(mesa_key)
+            self.load_active_orders()
+            self.controller.notificar_cambios_mesas()
+            self.controller.notificar_alerta_kds(mesa_key, "barra")
+        except Exception as e:
+            logger.error(f"Error al marcar como lista la comanda {mesa_key}: {e}")
+

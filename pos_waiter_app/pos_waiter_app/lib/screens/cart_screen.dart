@@ -34,6 +34,7 @@ class _CartScreenState extends State<CartScreen> {
   Future<Map<String, String>?> _selectTargetForNewItems(List<Map<String, dynamic>> existingOrders) async {
     String? selectedOption = existingOrders.isNotEmpty ? existingOrders.first['key'] : "new";
     final TextEditingController nameController = TextEditingController();
+    final baseMesaId = _tableNumber.toString();
 
     return await showDialog<Map<String, String>>(
       context: context,
@@ -49,7 +50,8 @@ class _CartScreenState extends State<CartScreen> {
                     ...existingOrders.map((order) {
                       final key = order['key'];
                       final isSub = key.contains('-');
-                      final title = isSub ? "Sub-cuenta ${key.split('-').last}" : "Cuenta Principal";
+                      final title = key == baseMesaId ? "Cuenta Principal" : (isSub ? "Sub-cuenta ${key.split('-').last}" : "Grupo Principal");
+                      
                       return RadioListTile<String>(
                         title: Text(title),
                         value: key,
@@ -127,6 +129,10 @@ class _CartScreenState extends State<CartScreen> {
       }
     });
 
+    if (!existingOrders.any((order) => order['key'] == baseMesaId)) {
+      existingOrders.insert(0, {'key': baseMesaId});
+    }
+
     String? targetAccountKey;
     String? newAccountName;
 
@@ -177,6 +183,170 @@ class _CartScreenState extends State<CartScreen> {
         content: Text('Error: ${resultado['msg']}'),
         backgroundColor: Colors.red,
       ));
+    }
+  }
+
+  Future<void> _showSplitCartDialog() async {
+    final cart = Provider.of<CartProvider>(context, listen: false);
+    if (cart.items.isEmpty) return;
+
+    Map<String, int> selectedQuantities = {};
+    for (var key in cart.items.keys) {
+      selectedQuantities[key] = 0;
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              height: MediaQuery.of(context).size.height * 0.7,
+              child: Column(
+                children: [
+                  const Text("Dividir Orden - Seleccionar Artículos", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Divider(),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: cart.items.length,
+                      itemBuilder: (c, i) {
+                        final cartKey = cart.items.keys.elementAt(i);
+                        final item = cart.items[cartKey]!;
+                        final maxQty = item.cantidad;
+                        final currentSel = selectedQuantities[cartKey]!;
+
+                        return ListTile(
+                          title: Text(item.nombre),
+                          subtitle: Text("En carrito: $maxQty"),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline),
+                                onPressed: currentSel > 0 
+                                    ? () => setModalState(() => selectedQuantities[cartKey] = currentSel - 1)
+                                    : null,
+                              ),
+                              Text("$currentSel", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                              IconButton(
+                                icon: const Icon(Icons.add_circle_outline),
+                                onPressed: currentSel < maxQty 
+                                    ? () => setModalState(() => selectedQuantities[cartKey] = currentSel + 1)
+                                    : null,
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white
+                    ),
+                    child: const Text("Elegir Destino y Enviar"),
+                    onPressed: () async {
+                      if (!selectedQuantities.values.any((v) => v > 0)) return;
+                      Navigator.pop(ctx);
+                      await _processSplitCart(selectedQuantities);
+                    },
+                  )
+                ],
+              ),
+            );
+          }
+        );
+      }
+    );
+  }
+
+  Future<void> _processSplitCart(Map<String, int> selectedQuantities) async {
+    final socketService = Provider.of<SocketService>(context, listen: false);
+    final cart = Provider.of<CartProvider>(context, listen: false);
+
+    List<Map<String, dynamic>> existingOrders = [];
+    final baseMesaId = _tableNumber.toString();
+    
+    socketService.mesas.forEach((key, data) {
+      String keyBase = key;
+      if (keyBase.contains('+')) keyBase = keyBase.split('+')[0];
+      if (keyBase.contains('-')) keyBase = keyBase.split('-')[0];
+      
+      if (keyBase == baseMesaId) {
+        existingOrders.add({'key': key});
+      }
+    });
+
+    if (!existingOrders.any((order) => order['key'] == baseMesaId)) {
+      existingOrders.insert(0, {'key': baseMesaId});
+    }
+
+    final destination = await _selectTargetForNewItems(existingOrders);
+    if (destination == null) return;
+
+    setState(() => _isSending = true);
+
+    String? targetAccountKey;
+    String? newAccountName;
+    if (destination['type'] == 'existing') {
+      targetAccountKey = destination['value'];
+    } else {
+      newAccountName = destination['value'];
+    }
+
+    List<Map<String, dynamic>> itemsToSend = [];
+    selectedQuantities.forEach((cartKey, qty) {
+      if (qty > 0) {
+        final item = cart.items[cartKey]!;
+        itemsToSend.add({
+          'item_id': item.id,
+          'nombre': item.nombre,
+          'cantidad': qty,
+          'precio_unitario': item.precio,
+          'imagen': item.imagen,
+          'notas': item.notas,
+          'id_cerveza': item.idCerveza,
+          'nombre_cerveza': item.nombreCerveza, 
+        });
+      }
+    });
+
+    final orderData = {
+      'order_id': const Uuid().v4(),
+      'numero_mesa': _tableNumber,
+      'mesas_enlazadas': _childTables, 
+      'mesero_id': '101', 
+      'timestamp': DateTime.now().toIso8601String(), 
+      if (targetAccountKey != null) 'target_account_key': targetAccountKey,
+      if (newAccountName != null) 'new_account_name': newAccountName,
+      'items': itemsToSend,
+    };
+
+    final resultado = await _apiService.enviarOrden(orderData);
+
+    if (!mounted) return;
+    setState(() => _isSending = false);
+
+    if (resultado['exito']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Orden parcial enviada exitosamente'))
+      );
+      selectedQuantities.forEach((cartKey, qty) {
+        for (int i = 0; i < qty; i++) {
+          cart.removeSingleItem(cartKey);
+        }
+      });
+      if (cart.items.isEmpty) {
+        Navigator.popUntil(context, ModalRoute.withName('/'));
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${resultado['msg']}'), backgroundColor: Colors.red)
+      );
     }
   }
 
@@ -314,17 +484,35 @@ class _CartScreenState extends State<CartScreen> {
                 const SizedBox(height: 20),
                 _isSending
                     ? const CircularProgressIndicator()
-                    : SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _tableNumber == null ? null : _sendOrder,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 15),
-                            backgroundColor: Colors.orange,
-                            foregroundColor: Colors.white
-                          ),  
-                          child: const Text('Enviar Orden a Cocina', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        ),
+                    : Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _tableNumber == null ? null : _sendOrder,
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 15),
+                                backgroundColor: Colors.orange,
+                                foregroundColor: Colors.white
+                              ),  
+                              child: const Text('Enviar Toda la Orden', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _tableNumber == null ? null : _showSplitCartDialog,
+                              icon: const Icon(Icons.call_split),
+                              label: const Text('Dividir Orden (Enviar Parcial)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 15),
+                                foregroundColor: Colors.orange.shade800,
+                                side: BorderSide(color: Colors.orange.shade800, width: 2),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
               ],
             ),

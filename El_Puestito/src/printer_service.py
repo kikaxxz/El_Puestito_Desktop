@@ -1,13 +1,36 @@
 import logging
 import datetime
+import os
+import sys
+import ctypes
+import usb.backend.libusb1
 from escpos.printer import Usb, Network, Dummy
 
 logger = logging.getLogger(__name__)
+
+def _load_local_libusb():
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    
+    dll_path = os.path.join(base_path, "libusb-1.0.dll")
+    
+    if os.path.exists(dll_path):
+        try:
+            if os.name == 'nt' and sys.version_info >= (3, 8):
+                os.add_dll_directory(base_path)
+            ctypes.CDLL(dll_path)
+            return usb.backend.libusb1.get_backend(find_library=lambda x: dll_path)
+        except Exception as e:
+            logger.error(f"Error: {e}")
+    return None
 
 class PrinterService:
     def __init__(self, config_manager):
         self.config_manager = config_manager
         self.printer = None
+        self.custom_backend = _load_local_libusb()
 
     def connect(self):
         config = self.config_manager.get_config()
@@ -17,7 +40,11 @@ class PrinterService:
             if interface_type == "USB":
                 vendor_id = int(config.get("usb_vendor_id", "0x04b8"), 16)
                 product_id = int(config.get("usb_product_id", "0x0202"), 16)
-                self.printer = Usb(vendor_id, product_id)
+                
+                if self.custom_backend:
+                    self.printer = Usb(vendor_id, product_id, backend=self.custom_backend)
+                else:
+                    self.printer = Usb(vendor_id, product_id)
             elif interface_type == "WIFI":
                 ip_address = config.get("printer_ip", "192.168.1.100")
                 self.printer = Network(ip_address)
@@ -60,7 +87,6 @@ class PrinterService:
                 
             self.printer.text("-" * 32 + "\n")
             
-            # --- AGREGADO: FECHA Y HORA ---
             self.printer.set(align='left')
             now = datetime.datetime.now()
             date_str = now.strftime("%d/%m/%Y %H:%M")
@@ -91,14 +117,12 @@ class PrinterService:
             
             for item in order_data.get("items", []):
                 qty = item.get('qty', item.get('cantidad', 1))
-                
                 name_base = item.get('name', item.get('nombre', ''))
                 
                 if item.get('nombre_cerveza'):
                     name_base = f"{name_base} ({item['nombre_cerveza']})"
                 
                 name = name_base[:20]
-                
                 price = float(item.get('price', item.get('precio_unitario', 0)))
                 subtotal_item = qty * price
                 

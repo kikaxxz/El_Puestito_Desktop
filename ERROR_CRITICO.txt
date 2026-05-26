@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "C:\Users\KikaXxz\Documents\MiProyectoPOS\El_Puestito\app.py", line 6, in <module>
-    from path_manager import get_asset_path
-ModuleNotFoundError: No module named 'path_manager'

@@ -29,6 +29,11 @@ class _MenuScreenState extends State<MenuScreen> {
   @override
   void initState() {
     super.initState();
+    
+    Future.microtask(() {
+      Provider.of<CartProvider>(context, listen: false).clearCart();
+    });
+
     _loadMenuFromServer();
 
     final socketService = Provider.of<SocketService>(context, listen: false);

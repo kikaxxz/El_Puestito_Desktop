@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1086733183084",
+    "project_id": "el-puestito-kds",
+    "storage_bucket": "el-puestito-kds.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1086733183084:android:4cf667f7f92e8f29e4d049",
+        "android_client_info": {
+          "package_name": "com.example.pos_waiter_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC_-sayVPpRH1PjKzKgq2E7txjZHmPAgVE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

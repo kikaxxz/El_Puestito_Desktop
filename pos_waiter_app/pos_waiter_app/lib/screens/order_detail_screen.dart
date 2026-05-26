@@ -255,51 +255,50 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   border: Border.all(color: Colors.yellow.shade300)
                 ),
                 child: Text(
-                  "📝 $notaActual",
+                  " $notaActual",
                   style: TextStyle(fontStyle: FontStyle.italic, color: Colors.brown.shade800),
                 ),
               ),
 
-            if (!isLocked) 
-              Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      "Total: C\$ ${subtotalItem.toStringAsFixed(2)}   |   ${isLocked ? 'LISTO' : 'PENDIENTE'}",
-                      style: TextStyle(
-                        color: isLocked ? Colors.green.shade700 : Colors.orange.shade800,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12
-                      ),
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    "Total: C\$ ${subtotalItem.toStringAsFixed(2)}   |   ${isLocked ? 'LISTO' : 'PENDIENTE'}",
+                    style: TextStyle(
+                      color: isLocked ? Colors.green.shade700 : Colors.orange.shade800,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12
                     ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
-                      color: currentSel > 0 ? Colors.red : Colors.grey,
-                      onPressed: currentSel > 0 
-                        ? () => setState(() => _selectedQuantities[idDetalle] = currentSel - 1)
-                        : null,
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline),
+                    color: currentSel > 0 ? Colors.red : Colors.grey,
+                    onPressed: currentSel > 0 
+                      ? () => setState(() => _selectedQuantities[idDetalle] = currentSel - 1)
+                      : null,
+                  ),
+                  Text(
+                    "$currentSel",
+                    style: TextStyle(
+                      fontSize: 18, 
+                      fontWeight: FontWeight.bold,
+                      color: currentSel > 0 ? Colors.blue : Colors.black
                     ),
-                    Text(
-                      "$currentSel",
-                      style: TextStyle(
-                        fontSize: 18, 
-                        fontWeight: FontWeight.bold,
-                        color: currentSel > 0 ? Colors.blue : Colors.black
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle_outline),
-                      color: currentSel < maxQty ? Colors.green : Colors.grey,
-                      onPressed: currentSel < maxQty 
-                        ? () => setState(() => _selectedQuantities[idDetalle] = currentSel + 1)
-                        : null,
-                    ),
-                  ],
-                ),
-              )
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    color: currentSel < maxQty ? Colors.green : Colors.grey,
+                    onPressed: currentSel < maxQty 
+                      ? () => setState(() => _selectedQuantities[idDetalle] = currentSel + 1)
+                      : null,
+                  ),
+                ],
+              ),
+            )
           ],
         ),
       ),
@@ -374,7 +373,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12)
               ),
-              onPressed: (_isLoading || !_hasSelection()) ? null : _submitDelete,
+              onPressed: (_isLoading || !_canDeleteSelection()) ? null : _submitDelete,
             ),
           ),
           const SizedBox(width: 10),
@@ -436,6 +435,26 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   bool _hasSelection() {
     return _selectedQuantities.values.any((q) => q > 0);
+  }
+
+  bool _canDeleteSelection() {
+    if (!_hasSelection()) return false;
+    
+    final socketService = Provider.of<SocketService>(context, listen: false);
+    final relatedOrders = _getRelatedOrders(socketService.mesas, widget.mesaKey);
+    
+    for (var entry in _selectedQuantities.entries) {
+      if (entry.value > 0) {
+        for (var order in relatedOrders) {
+          for (var item in order['items']) {
+            if (item['id_detalle'] == entry.key && item['estado_item'] != 'listo') {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
   }
 
   Future<Map<String, String>?> _selectDestinationAccount(List<Map<String, dynamic>> relatedOrders) async {
@@ -557,10 +576,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
       if (allSuccess) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cuentas separadas exitosamente")));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Cuentas Separadas Correctamente"),
+              duration: Duration(seconds: 1),
+            )
+          );
         setState(() { _selectedQuantities.clear(); });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error al separar algunos items")));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Error al separar algunos items"),
+              duration: Duration(seconds: 1),
+            )
+          );
       }
     }
   }
@@ -613,10 +642,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
       if (allSuccess) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Productos eliminados")));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Productos eliminados"),
+              duration: Duration(seconds: 1),
+            )
+          );
         setState(() { _selectedQuantities.clear(); });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error al eliminar algunos items")));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Error al eliminar algunos items"),
+              duration: Duration(seconds: 1),
+            )
+          );
       }
     }
   }
@@ -629,10 +668,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mesa liberada correctamente")));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Mesa Liberada Correctamente"),
+              duration: Duration(seconds: 1),
+            )
+          );
         if (mounted) Navigator.pop(context); 
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error al liberar mesa")));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Error al liberar la mesa"),
+              duration: Duration(seconds: 1),
+            )
+          );
       }
     }
   }

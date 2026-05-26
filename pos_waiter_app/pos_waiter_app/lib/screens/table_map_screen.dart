@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/socket_service.dart';
 import '../services/api_service.dart';
-import 'order_detail_screen.dart'; 
+import '../services/push_notification_service.dart';
+import 'order_detail_screen.dart';
 
 class TableMapScreen extends StatefulWidget {
   const TableMapScreen({super.key});
@@ -17,22 +19,20 @@ class _TableMapScreenState extends State<TableMapScreen> {
   bool _isJoiningMode = false;
   final Set<int> _selectedTables = {};
   
-  // Suscripción para detectar cambios en la configuración
   StreamSubscription? _configSubscription;
+  bool _recibeAlertas = true;
 
   @override
   void initState() {
     super.initState();
+    _loadPreferences();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadConfigAndInit();
       
-      // --- AUTOMATIZACIÓN DE CONFIGURACIÓN ---
       final socketService = Provider.of<SocketService>(context, listen: false);
       _configSubscription = socketService.configUpdatedStream.listen((_) {
-        print("TableMapScreen: Configuración actualizada detectada. Recargando...");
         _loadConfigAndInit(); 
       });
-      // ---------------------------------------
     });
   }
 
@@ -40,6 +40,15 @@ class _TableMapScreenState extends State<TableMapScreen> {
   void dispose() {
     _configSubscription?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _recibeAlertas = prefs.getBool('recibe_alertas') ?? true;
+      });
+    }
   }
 
   Future<void> _loadConfigAndInit() async {
@@ -55,10 +64,28 @@ class _TableMapScreenState extends State<TableMapScreen> {
     }
   }
 
-  // --- FUNCIÓN CORREGIDA: Menú de Opciones sin altura fija ---
+  void _toggleAlertas() async {
+    final pushService = Provider.of<PushNotificationService>(context, listen: false);
+    final prefs = await SharedPreferences.getInstance();
+
+    bool nuevoEstado = !_recibeAlertas;
+
+    if (nuevoEstado) {
+      await pushService.subscribeToAlerts();
+    } else {
+      await pushService.unsubscribeFromAlerts();
+    }
+
+    await prefs.setBool('recibe_alertas', nuevoEstado);
+
+    if (mounted) {
+      setState(() {
+        _recibeAlertas = nuevoEstado;
+      });
+    }
+  }
+
   void _showTableOptions(BuildContext context, String mesaKey, int mesaPadreId) {
-    
-    // Reconstruimos la lista de mesas hijas
     List<int> mesasHijas = [];
     if (mesaKey.contains('+')) {
       final parts = mesaKey.split('+');
@@ -72,16 +99,15 @@ class _TableMapScreenState extends State<TableMapScreen> {
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Permite que el contenido defina la altura
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        // Usamos Padding y Column con MainAxisSize.min para evitar el overflow
         return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 30), // Padding inferior extra para estética
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
           child: Column(
-            mainAxisSize: MainAxisSize.min, // <--- ESTO SOLUCIONA EL OVERFLOW
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -99,7 +125,6 @@ class _TableMapScreenState extends State<TableMapScreen> {
               ),
               const SizedBox(height: 10),
               
-              // Opción 1: AGREGAR PRODUCTOS
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Container(
@@ -120,7 +145,6 @@ class _TableMapScreenState extends State<TableMapScreen> {
               
               const Divider(),
 
-              // Opción 2: DETALLE / DIVIDIR
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Container(
@@ -204,6 +228,11 @@ class _TableMapScreenState extends State<TableMapScreen> {
           ],
         ),
         actions: _isJoiningMode ? [] : [
+          IconButton(
+            icon: Icon(_recibeAlertas ? Icons.notifications_active : Icons.notifications_off),
+            color: _recibeAlertas ? Colors.green : Colors.grey,
+            onPressed: _toggleAlertas,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh), 
             onPressed: () => _loadConfigAndInit(),
@@ -300,7 +329,6 @@ class _TableMapScreenState extends State<TableMapScreen> {
                 }
             }
             
-            // Invocamos el menú corregido
             _showTableOptions(context, keyToSend, numMesa);
 
           } else {

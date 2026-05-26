@@ -5,6 +5,7 @@ from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkRepl
 from logger_setup import setup_logger
 from printer_service import PrinterService
 from path_manager import get_persistent_path
+from firebase_service import FirebaseService
 
 logger = setup_logger()
 
@@ -23,6 +24,7 @@ class AppController(QObject):
         self.API_KEY = self.config.get("api_key", "puestito_seguro_2025")
         self.SERVER_URL = self.config.get("server_url", "http://127.0.0.1:5000")
         self.printer_service = PrinterService(self)
+        self.firebase_service = FirebaseService()
         logger.info(f"[AppController] Inicializado con API Key cargada y URL: {self.SERVER_URL}")
 
     def get_config(self):
@@ -129,6 +131,41 @@ class AppController(QObject):
 
     def notificar_cambios_mesas(self):
         self.notificar_evento_servidor("mesas_update")
+
+    def notificar_alerta_kds(self, mesa_key, destino):
+        url = QUrl(f'{self.SERVER_URL}/trigger_update')
+        request = QNetworkRequest(url)
+        request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")
+        request.setRawHeader(b"X-API-KEY", self.API_KEY.encode('utf-8'))
+        
+        mensaje = f"Mesa {mesa_key}: Pedido de {destino} listo"
+        
+        payload = json.dumps({
+            'event': 'alerta_orden_lista',
+            'data': {
+                'mesa_key': str(mesa_key),
+                'destino': str(destino),
+                'mensaje': mensaje
+            }
+        }).encode('utf-8')
+        
+        reply = self.network_manager.post(request, payload)
+        reply.finished.connect(lambda: self._handle_reply(reply))
+
+        self.firebase_service.enviar_notificacion_tema("alertas_puestito", "Orden Lista", mensaje)
+
+    def procesar_item_individual_listo(self, id_detalle, mesa_key, destino):
+        try:
+            resultado = self.data_manager.mark_individual_item_ready(id_detalle)
+            if resultado:
+                self.ordenes_actualizadas.emit()
+                self.notificar_cambios_mesas()
+                self.notificar_alerta_kds(mesa_key, destino)
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Error procesando item listo: {e}")
+            return False
         
     def formatear_sensor_biometrico(self):
         url = QUrl(f'{self.SERVER_URL}/api/biometric/start-clear')

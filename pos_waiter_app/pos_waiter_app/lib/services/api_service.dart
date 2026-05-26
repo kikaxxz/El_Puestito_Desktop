@@ -109,6 +109,27 @@ class ApiService {
     }
   }
 
+  Future<bool> updateFCMToken(String employeeId, String token, bool recibeAlertas) async {
+    final baseUrl = await getServerUrl();
+    if (baseUrl == null) return false;
+
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/update-fcm'),
+        headers: headers,
+        body: json.encode({
+          'employee_id': employeeId,
+          'fcm_token': token,
+          'recibe_alertas': recibeAlertas,
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Map<String, dynamic>?> getMenu() async {
     final baseUrl = await getServerUrl();
     if (baseUrl == null) return null;

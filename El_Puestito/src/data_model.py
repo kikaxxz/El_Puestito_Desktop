@@ -213,6 +213,12 @@ class DataManager:
                 self.execute("ALTER TABLE empleados ADD COLUMN fingerprint_id INTEGER;")
                 self.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_empleados_fingerprint ON empleados(fingerprint_id);")
                 
+            if 'fcm_token' not in columns_emp:
+                self.execute("ALTER TABLE empleados ADD COLUMN fcm_token TEXT;")
+                
+            if 'recibe_alertas' not in columns_emp:
+                self.execute("ALTER TABLE empleados ADD COLUMN recibe_alertas INTEGER DEFAULT 1;")
+                
             cursor.execute("PRAGMA table_info(ordenes)")
             columns_ordenes = [info[1] for info in cursor.fetchall()]
             
@@ -540,13 +546,23 @@ class DataManager:
         try:
             cursor = conn.cursor()
             
+            target_account = orden_completa.get('target_account_key')
+            new_account = orden_completa.get('new_account_name')
+            
             mesa_principal = str(orden_completa['numero_mesa'])
             mesas_enlazadas = orden_completa.get('mesas_enlazadas', [])
             
-            mesa_key = mesa_principal
+            base_key = mesa_principal
             if mesas_enlazadas:
                 todas = [mesa_principal] + [str(m) for m in mesas_enlazadas]
-                mesa_key = "+".join(sorted(todas))
+                base_key = "+".join(sorted(todas))
+                
+            if target_account:
+                mesa_key = target_account
+            elif new_account:
+                mesa_key = f"{base_key}-{new_account}"
+            else:
+                mesa_key = base_key
 
             timestamp = orden_completa.get('timestamp', datetime.datetime.now().isoformat())
             client_uuid = orden_completa.get('order_id')
@@ -808,6 +824,7 @@ class DataManager:
         SELECT
             o.mesa_key,
             o.fecha_apertura, 
+            d.id_detalle,
             d.nombre_congelado AS nombre,
             d.cantidad,
             d.notas,
@@ -832,6 +849,7 @@ class DataManager:
                     'items': []
                 }
             item_ticket = {
+                'id_detalle': item['id_detalle'],
                 'nombre': item['nombre'],
                 'cantidad': item['cantidad'],
                 'notas': item['notas'],
@@ -840,6 +858,37 @@ class DataManager:
             }
             ordenes_dict[mesa_key]['items'].append(item_ticket)
         return list(ordenes_dict.values())
+
+    def mark_individual_item_ready(self, id_detalle):
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        try:
+            row = self.fetchone("SELECT * FROM orden_detalle WHERE id_detalle = ? AND estado_item = 'pendiente'", (id_detalle,))
+            if not row:
+                return False
+
+            if row['cantidad'] == 1:
+                cursor.execute("UPDATE orden_detalle SET estado_item = 'listo' WHERE id_detalle = ?", (id_detalle,))
+            else:
+                cursor.execute("UPDATE orden_detalle SET cantidad = cantidad - 1 WHERE id_detalle = ?", (id_detalle,))
+                
+                cursor.execute("""
+                    INSERT INTO orden_detalle (
+                        id_orden, id_item_menu, cantidad, precio_unitario_congelado, 
+                        nombre_congelado, imagen_congelada, notas, destino, estado_item, 
+                        id_cerveza, nombre_cerveza
+                    ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, 'listo', ?, ?)
+                """, (
+                    row['id_orden'], row['id_item_menu'], row['precio_unitario_congelado'],
+                    row['nombre_congelado'], row['imagen_congelada'], row.get('notas', ''), 
+                    row['destino'], row.get('id_cerveza'), row.get('nombre_cerveza')
+                ))
+            
+            conn.commit()
+            return True
+        except sqlite3.Error as e:
+            conn.rollback()
+            return False
 
     def get_active_cocina_orders(self):
         return self._get_active_orders_by_destino('cocina')
@@ -1004,3 +1053,13 @@ class DataManager:
                VALUES (?, ?, ?, ?, ?, ?, 1)""",
             (new_id, id_cat, nombre, precio, descripcion_contenido, imagen_path)
         )
+    
+    def update_employee_fcm(self, employee_id, token, recibe_alertas):
+        return self.execute(
+            "UPDATE empleados SET fcm_token = ?, recibe_alertas = ? WHERE id_empleado = ?;",
+            (token, int(recibe_alertas), employee_id)
+        )
+
+    def get_active_fcm_tokens(self):
+        rows = self.fetchall("SELECT fcm_token FROM empleados WHERE recibe_alertas = 1 AND fcm_token IS NOT NULL AND fcm_token != '';")
+        return [row['fcm_token'] for row in rows]

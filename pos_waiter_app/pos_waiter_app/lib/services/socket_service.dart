@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:vibration/vibration.dart';
 import '../services/api_service.dart';
+import '../main.dart';
 
 class SocketService with ChangeNotifier {
   IO.Socket? _socket;
@@ -24,7 +26,6 @@ class SocketService with ChangeNotifier {
   }
 
   Future<void> refreshTables() async {
-    print("SocketService: Refrescando mesas via HTTP...");
     await _fetchInitialData();
   }
 
@@ -34,6 +35,43 @@ class SocketService with ChangeNotifier {
       _mesasState = data;
       notifyListeners(); 
     }
+  }
+
+  void _mostrarAlertaSuperior(String mensaje) {
+    try {
+      globalMessengerKey.currentState?.hideCurrentSnackBar();
+      
+      globalMessengerKey.currentState?.showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.notifications_active, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  mensaje,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green.shade800,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(15),
+        ),
+      );
+    } catch (_) {}
+
+    Future.microtask(() async {
+      try {
+        bool? hasVibrator = await Vibration.hasVibrator();
+        if (hasVibrator == true) {
+          Vibration.vibrate(duration: 500);
+        }
+      } catch (_) {}
+    });
   }
 
   Future<void> _connectSocket() async {
@@ -57,19 +95,16 @@ class SocketService with ChangeNotifier {
       });
 
       _socket!.onConnect((_) {
-        print('Socket: Conectado');
         _isConnected = true;
         notifyListeners();
       });
 
       _socket!.onDisconnect((_) {
-        print('Socket: Desconectado');
         _isConnected = false;
         notifyListeners();
       });
 
       _socket!.on('mesas_actualizadas', (data) {
-        print("Socket: Evento mesas_actualizadas recibido.");
         if (data is Map<String, dynamic>) {
           _mesasState = data;
           notifyListeners(); 
@@ -79,12 +114,27 @@ class SocketService with ChangeNotifier {
       _socket!.on('menu_actualizado', (_) => _menuController.add(null));
 
       _socket!.on('configuracion_actualizada', (_) {
-        print("Socket: Evento configuracion_actualizada recibido.");
         _configController.add(null);
       });
-    } catch (e) {
-      print("Socket Error: \$e");
-    }
+
+      _socket!.on('alerta_orden_lista', (data) {
+        if (data != null) {
+          String? mensajeExtraido;
+          try {
+            if (data is Map && data.containsKey('mensaje')) {
+              mensajeExtraido = data['mensaje'].toString();
+            } else if (data is List && data.isNotEmpty && data[0] is Map && data[0].containsKey('mensaje')) {
+              mensajeExtraido = data[0]['mensaje'].toString();
+            }
+          } catch (_) {}
+
+          if (mensajeExtraido != null) {
+            _mostrarAlertaSuperior(mensajeExtraido);
+          }
+        }
+      });
+
+    } catch (_) {}
   }
 
   @override

@@ -4,14 +4,13 @@ from PyQt6.QtWidgets import (
     QWidget
 )
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt
-from logger_setup import setup_logger
-
-logger = setup_logger()
+from PyQt6.QtCore import Qt, pyqtSignal
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 class OrderTicket(QFrame):
+    item_marcado_listo = pyqtSignal(int)
+
     def __init__(self, orden_data, parent=None):
         super().__init__(parent)
         self.datos = orden_data 
@@ -96,8 +95,7 @@ class OrderTicket(QFrame):
                 hora = self.datos['fecha_apertura'].split('T')[1][:5]
                 self.time_label.setText(hora)
                 self.time_label.show()
-            except Exception as e:
-                logger.error(f"Error parseando fecha_apertura: {e}")
+            except Exception:
                 self.time_label.hide()
         else:
             self.time_label.hide()
@@ -168,5 +166,32 @@ class OrderTicket(QFrame):
             info_layout.addWidget(lbl_nota)
             
         row_layout.addWidget(info_container)
+
+        btn_indiv = QPushButton("✓")
+        btn_indiv.setFixedSize(35, 35)
+        btn_indiv.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_indiv.setStyleSheet("""
+            QPushButton {
+                background-color: #333;
+                color: #00d26a;
+                font-weight: bold;
+                font-size: 18px;
+                border-radius: 5px;
+                border: 1px solid #555;
+            }
+            QPushButton:hover {
+                background-color: #444;
+                border: 1px solid #00d26a;
+            }
+            QPushButton:pressed {
+                background-color: #00d26a;
+                color: black;
+            }
+        """)
+        
+        id_detalle = item.get('id_detalle', -1)
+        btn_indiv.clicked.connect(lambda checked, id_d=id_detalle: self.item_marcado_listo.emit(id_d))
+        
+        row_layout.addWidget(btn_indiv)
         
         layout.addWidget(row_widget)

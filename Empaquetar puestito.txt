@@ -1,4 +1,8 @@
-python -m PyInstaller --name "El Puestito" --windowed --uac-admin --icon="assets/logo.ico" --noconfirm --add-data "assets;assets" --add-data "server/templates;server/templates" --add-data "server/static;server/static" --collect-data escpos --paths "." --paths "src" --paths "views" --paths "widgets" --hidden-import "engineio.async_drivers.threading" --hidden-import "usb.core" --hidden-import "usb.backend.libusb1" app.py
+python -m PyInstaller --name "El Puestito" --windowed --uac-admin --icon="assets/logo.ico" --noconfirm --add-data "assets;assets" --add-data "server/templates;server/templates" --add-data "server/static;server/static" --add-binary "libusb-1.0.dll;." --collect-data escpos --paths "." --paths "src" --paths "views" --paths "widgets" --hidden-import "engineio.async_drivers.threading" --hidden-import "usb.core" --hidden-import "usb.backend.libusb1" app.py
+
+
+flutter build apk --release
+
 
 cd dist/"El Puestito"
 .\"El Puestito.exe"

@@ -9,14 +9,15 @@ __pycache__/
 .pytest_cache/
 .vscode/
 
-# Base de datos local (¡Nunca subas datos reales al repo público!)
+# Base de datos local
 Assets/puestito.db
 Assets/puestito.db-shm
 Assets/puestito.db-wal
-
-# Archivos de error temporales
+firebase_credentials.json
+# Archivos temporales
 ERROR_CRITICO.txt
 *.log
+*.VSCodeCounter
 
 # Entornos virtuales (por si acaso tienes uno)
 venv/

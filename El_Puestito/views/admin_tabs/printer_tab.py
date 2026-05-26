@@ -1,19 +1,43 @@
 import os
+import sys
+import ctypes
 import datetime
+import usb.core
+import usb.backend.libusb1
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QTextEdit, QCheckBox, QPushButton, QMessageBox, QGroupBox, QFormLayout, QTabWidget, QSpinBox
+    QTextEdit, QCheckBox, QPushButton, QMessageBox, 
+    QGroupBox, QFormLayout, QTabWidget, QSpinBox, QComboBox, QLineEdit, QStackedWidget
 )
 from PyQt6.QtCore import Qt
 from logger_setup import setup_logger
 
 logger = setup_logger()
 
+def _load_local_libusb():
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    
+    dll_path = os.path.join(base_path, "libusb-1.0.dll")
+    
+    if os.path.exists(dll_path):
+        try:
+            if os.name == 'nt' and sys.version_info >= (3, 8):
+                os.add_dll_directory(base_path)
+            ctypes.CDLL(dll_path)
+            return usb.backend.libusb1.get_backend(find_library=lambda x: dll_path)
+        except Exception as e:
+            logger.error(str(e))
+    return None
+
 class PrinterTab(QWidget):
     def __init__(self, app_controller, config, parent=None):
         super().__init__(parent)
         self.app_controller = app_controller
         self.config = config
+        self.custom_backend = _load_local_libusb()
         self.setup_ui()
         self.load_settings()
         self.update_preview()
@@ -29,6 +53,52 @@ class PrinterTab(QWidget):
         settings_layout = QFormLayout()
         settings_layout.setSpacing(15)
         
+        self.combo_interface = QComboBox()
+        self.combo_interface.addItems(["USB", "WIFI", "DUMMY (Sin impresora)"])
+        self.combo_interface.setStyleSheet("padding: 5px; background-color: #2b2b2b; color: white; border-radius: 4px;")
+        self.combo_interface.currentTextChanged.connect(self.toggle_interface_settings)
+
+        self.usb_widget = QWidget()
+        usb_layout = QHBoxLayout(self.usb_widget)
+        usb_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.combo_usb_printers = QComboBox()
+        self.combo_usb_printers.setStyleSheet("padding: 5px; background-color: #2b2b2b; color: white; border-radius: 4px;")
+        self.combo_usb_printers.setMinimumWidth(200)
+        
+        self.btn_scan = QPushButton("Escanear")
+        self.btn_scan.setStyleSheet("background-color: #0078d7; color: white; font-weight: bold; padding: 5px 10px; border-radius: 4px;")
+        self.btn_scan.clicked.connect(self.scan_usb_printers)
+        
+        usb_layout.addWidget(self.combo_usb_printers, 1)
+        usb_layout.addWidget(self.btn_scan)
+
+        self.wifi_widget = QWidget()
+        wifi_layout = QHBoxLayout(self.wifi_widget)
+        wifi_layout.setContentsMargins(0, 0, 0, 0)
+        self.ip_input = QLineEdit()
+        self.ip_input.setPlaceholderText("Ej. 192.168.1.100")
+        self.ip_input.setStyleSheet("padding: 5px; background-color: #2b2b2b; color: white; border-radius: 4px;")
+        wifi_layout.addWidget(self.ip_input)
+
+        self.interface_stack = QStackedWidget()
+        self.interface_stack.addWidget(self.usb_widget)
+        self.interface_stack.addWidget(self.wifi_widget)
+        self.interface_stack.addWidget(QWidget())
+
+        lbl_interface = QLabel("Tipo de Conexión:")
+        lbl_interface.setStyleSheet("font-weight: bold;")
+        lbl_device = QLabel("Dispositivo/IP:")
+        lbl_device.setStyleSheet("font-weight: bold;")
+
+        settings_layout.addRow(lbl_interface, self.combo_interface)
+        settings_layout.addRow(lbl_device, self.interface_stack)
+        
+        line = QWidget()
+        line.setFixedHeight(1)
+        line.setStyleSheet("background-color: #555;")
+        settings_layout.addRow(line)
+
         self.header_input = QTextEdit()
         self.header_input.setFixedHeight(70)
         self.header_input.setStyleSheet("background-color: #2b2b2b; color: white; border: 1px solid #555; border-radius: 5px; padding: 5px;")
@@ -42,7 +112,7 @@ class PrinterTab(QWidget):
         self.chk_proforma = QCheckBox("Habilitar impresion de Proforma (Pre-cuenta)")
         self.chk_proforma.setStyleSheet("font-size: 13px;")
         self.chk_proforma.stateChanged.connect(self.update_preview)
-        
+
         lbl_header = QLabel("Encabezado del Ticket:")
         lbl_header.setStyleSheet("font-weight: bold;")
         lbl_footer = QLabel("Pie de pagina:")
@@ -91,19 +161,31 @@ class PrinterTab(QWidget):
         tip3_layout.addWidget(self.spin_tip3)
         tip3_layout.addStretch()
 
-        settings_layout.addRow("Opciones de Propina:", tip1_layout)
+        lbl_propinas = QLabel("Opciones de Propina:")
+        lbl_propinas.setStyleSheet("font-weight: bold;")
+
+        settings_layout.addRow(lbl_propinas, tip1_layout)
         settings_layout.addRow("", tip2_layout)
         settings_layout.addRow("", tip3_layout)
         
+        btn_layout = QHBoxLayout()
         self.btn_save = QPushButton("Guardar Configuracion")
         self.btn_save.setFixedHeight(45)
         self.btn_save.setStyleSheet("QPushButton { background-color: #f76606; color: white; font-weight: bold; font-size: 14px; border-radius: 8px; } QPushButton:hover { background-color: #ff7b24; } QPushButton:pressed { background-color: #d65500; }")
         self.btn_save.clicked.connect(self.save_settings)
+
+        self.btn_test = QPushButton("Imprimir Prueba")
+        self.btn_test.setFixedHeight(45)
+        self.btn_test.setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; font-size: 14px; border-radius: 8px; } QPushButton:hover { background-color: #45a049; }")
+        self.btn_test.clicked.connect(self.print_test_ticket)
+
+        btn_layout.addWidget(self.btn_save)
+        btn_layout.addWidget(self.btn_test)
         
         layout_v_settings = QVBoxLayout()
         layout_v_settings.addLayout(settings_layout)
         layout_v_settings.addStretch()
-        layout_v_settings.addWidget(self.btn_save)
+        layout_v_settings.addLayout(btn_layout)
         settings_group.setLayout(layout_v_settings)
         
         preview_group = QGroupBox("Visor de Tickets")
@@ -139,8 +221,64 @@ class PrinterTab(QWidget):
         main_layout.addWidget(settings_group, 45)
         main_layout.addWidget(preview_group, 55)
 
+    def toggle_interface_settings(self, interface_type):
+        if interface_type == "USB":
+            self.interface_stack.setCurrentIndex(0)
+        elif interface_type == "WIFI":
+            self.interface_stack.setCurrentIndex(1)
+        else:
+            self.interface_stack.setCurrentIndex(2)
+
+    def scan_usb_printers(self):
+        self.combo_usb_printers.clear()
+        self.btn_scan.setText("Buscando...")
+        self.btn_scan.setEnabled(False)
+        
+        try:
+            devices = list(usb.core.find(find_all=True, backend=self.custom_backend))
+            found_count = 0
+            
+            for dev in devices:
+                es_impresora = False
+                if dev.bDeviceClass == 7:
+                    es_impresora = True
+                else:
+                    try:
+                        for cfg in dev:
+                            for intf in cfg:
+                                if intf.bInterfaceClass == 7:
+                                    es_impresora = True
+                                    break
+                            if es_impresora: break
+                    except: pass
+                
+                if es_impresora:
+                    vid_hex = hex(dev.idVendor)
+                    pid_hex = hex(dev.idProduct)
+                    self.combo_usb_printers.addItem(f"Impresora USB (VID:{vid_hex} PID:{pid_hex})", (vid_hex, pid_hex))
+                    found_count += 1
+                    
+            if found_count == 0:
+                self.combo_usb_printers.addItem("Ninguna impresora detectada", None)
+        except Exception as e:
+            logger.error(str(e))
+            self.combo_usb_printers.addItem("Error al escanear puertos", None)
+            
+        self.btn_scan.setText("Escanear")
+        self.btn_scan.setEnabled(True)
+
     def load_settings(self):
         printer_conf = self.config.get("printer_settings", {})
+        
+        interface = printer_conf.get("printer_interface", "USB")
+        self.combo_interface.setCurrentText(interface)
+        
+        vid = printer_conf.get("usb_vendor_id", "0x04b8")
+        pid = printer_conf.get("usb_product_id", "0x0202")
+        self.combo_usb_printers.addItem(f"Impresora Guardada (VID:{vid} PID:{pid})", (vid, pid))
+        
+        self.ip_input.setText(printer_conf.get("printer_ip", "192.168.1.100"))
+        
         self.header_input.setText(printer_conf.get("header", "EL PUESTITO\nTicket de Venta"))
         self.footer_input.setText(printer_conf.get("footer", "Gracias por su compra!"))
         self.chk_proforma.setChecked(printer_conf.get("enable_proforma", True))
@@ -231,6 +369,18 @@ class PrinterTab(QWidget):
         if "printer_settings" not in self.config:
             self.config["printer_settings"] = {}
             
+        interface = self.combo_interface.currentText().split()[0]
+        self.config["printer_settings"]["printer_interface"] = interface
+        
+        if interface == "USB":
+            data = self.combo_usb_printers.currentData()
+            if data:
+                self.config["printer_settings"]["usb_vendor_id"] = data[0]
+                self.config["printer_settings"]["usb_product_id"] = data[1]
+                
+        elif interface == "WIFI":
+            self.config["printer_settings"]["printer_ip"] = self.ip_input.text()
+            
         self.config["printer_settings"]["header"] = self.header_input.toPlainText()
         self.config["printer_settings"]["footer"] = self.footer_input.toPlainText()
         self.config["printer_settings"]["enable_proforma"] = self.chk_proforma.isChecked()
@@ -246,3 +396,22 @@ class PrinterTab(QWidget):
         
         self.app_controller.save_config_to_file(self.config)
         QMessageBox.information(self, "Exito", "Configuracion de impresora guardada correctamente.")
+
+    def print_test_ticket(self):
+        self.save_settings()
+        
+        test_order = {
+            "mesa_key": "Prueba",
+            "total": 340.00,
+            "items": [
+                {"nombre": "Hamb. Sencilla", "cantidad": 1, "precio_unitario": 150.0},
+                {"nombre": "Michelada", "nombre_cerveza": "Corona", "cantidad": 1, "precio_unitario": 190.0}
+            ]
+        }
+        
+        success = self.app_controller.printer_service.print_receipt(test_order, is_proforma=False)
+        
+        if success:
+            QMessageBox.information(self, "Exito", "El ticket de prueba se envió correctamente a la impresora.")
+        else:
+            QMessageBox.warning(self, "Error", "No se pudo imprimir el ticket. Verifica la conexión física y los IDs seleccionados.")
