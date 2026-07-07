@@ -22,7 +22,7 @@ def setup_firewall():
         return
 
     if is_admin():
-        comando = 'netsh advfirewall firewall add rule name="El Puestito Server" dir=in action=allow protocol=TCP localport=5000 profile=any'
+        comando = 'netsh advfirewall firewall add rule name="El Puestito Server" dir=in action=allow protocol=TCP localport=5000 profile=private'
         subprocess.run(comando, shell=True, capture_output=True)
     else:
         ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)

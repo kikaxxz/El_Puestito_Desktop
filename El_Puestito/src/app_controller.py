@@ -1,11 +1,11 @@
 import os
 import json
-from PyQt6.QtCore import QObject, pyqtSignal, QUrl
-from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
+from PyQt6.QtCore import QObject, pyqtSignal, QUrl, QThreadPool
 from logger_setup import setup_logger
-from printer_service import PrinterService
+from src.services.printer_service import PrinterService
 from path_manager import get_persistent_path
-from firebase_service import FirebaseService
+from src.services.notification_service import notification_service
+from background_tasks import Worker
 
 logger = setup_logger()
 
@@ -16,16 +16,28 @@ class AppController(QObject):
     asistencia_recibida = pyqtSignal(dict)
     error_ocurrido = pyqtSignal(str)
 
-    def __init__(self, data_manager):
+    emit_to_server = pyqtSignal(str, dict)
+
+    def __init__(self):
         super().__init__()
-        self.data_manager = data_manager
-        self.network_manager = QNetworkAccessManager()
+        from src.database.repositories.employees import employee_repo
+        from src.services.order_service import order_service
+        from src.database.repositories.inventory import inventory_repo
+        from src.database.repositories.orders import order_repo
+        self.employee_repo = employee_repo
+        self.order_service = order_service
+        self.inventory_repo = inventory_repo
+        self.order_repo = order_repo
+        
+        self.threadpool = QThreadPool()
+        logger.info(f"Multithreading con un maximo de {self.threadpool.maxThreadCount()} hilos")
+        
         self.config = self._load_config()
         self.API_KEY = self.config.get("api_key", "puestito_seguro_2025")
         self.SERVER_URL = self.config.get("server_url", "http://127.0.0.1:5000")
         self.printer_service = PrinterService(self)
-        self.firebase_service = FirebaseService()
-        logger.info(f"[AppController] Inicializado con API Key cargada y URL: {self.SERVER_URL}")
+        self.notification_service = notification_service
+        logger.info(f"[AppController] Inicializado.")
 
     def get_config(self):
         return self.config
@@ -45,22 +57,34 @@ class AppController(QObject):
             return {}
 
     def get_todos_los_empleados(self):
-        return self.data_manager.get_employees()
+        return self.employee_repo.get_employees()
 
     def agregar_empleado(self, new_id, new_name, new_rol, fingerprint_id=None):
-        result = self.data_manager.add_employee(new_id, new_name, new_rol, fingerprint_id)
-        if result: self.lista_empleados_actualizada.emit()
-        return result
+        try:
+            result = self.employee_repo.add_employee(new_id, new_name, new_rol, fingerprint_id)
+            if result: self.lista_empleados_actualizada.emit()
+            return result
+        except Exception as e:
+            self.error_ocurrido.emit(f"Error agregando empleado: {e}")
+            return False
 
     def editar_empleado(self, original_id, new_id, new_name, new_rol, fingerprint_id=None):
-        result = self.data_manager.update_employee(original_id, new_id, new_name, new_rol, fingerprint_id)
-        if result: self.lista_empleados_actualizada.emit()
-        return result
+        try:
+            result = self.employee_repo.update_employee(original_id, new_id, new_name, new_rol, fingerprint_id)
+            if result: self.lista_empleados_actualizada.emit()
+            return result
+        except Exception as e:
+            self.error_ocurrido.emit(f"Error editando empleado: {e}")
+            return False
 
     def eliminar_empleado(self, employee_id):
-        result = self.data_manager.delete_employee(employee_id)
-        if result: self.lista_empleados_actualizada.emit()
-        return result
+        try:
+            result = self.employee_repo.delete_employee(employee_id)
+            if result: self.lista_empleados_actualizada.emit()
+            return result
+        except Exception as e:
+            self.error_ocurrido.emit(f"Error eliminando empleado: {e}")
+            return False
     
     def save_config_to_file(self, config_data):
         import json
@@ -73,6 +97,7 @@ class AppController(QObject):
             with open(config_path, 'w', encoding='utf-8') as f:
                 json.dump(config_data, f, indent=4)
             self.config = config_data
+            self.printer_service.invalidate_cache()
             logger.info("Configuracion guardada en config.json")
             return True
         except Exception as e:
@@ -82,21 +107,13 @@ class AppController(QObject):
     def notify_server_config_change(self):
         self.notificar_evento_servidor("config_update")
 
-    def notificar_evento_servidor(self, nombre_evento):
-        url = QUrl(f'{self.SERVER_URL}/trigger_update')
-        request = QNetworkRequest(url)
-        request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")
-        request.setRawHeader(b"X-API-KEY", self.API_KEY.encode('utf-8'))
-        
-        payload = json.dumps({'event': nombre_evento}).encode('utf-8')
-        
-        reply = self.network_manager.post(request, payload)
-        reply.finished.connect(lambda: self._handle_reply(reply))
+    def notificar_evento_servidor(self, nombre_evento, payload_data=None):
+        self.emit_to_server.emit(nombre_evento, payload_data or {})
     
     def procesar_nueva_orden(self, orden_completa):
         logger.info("[Controller] Procesando nueva orden...")
         try:
-            nuevo_id = self.data_manager.create_new_order(orden_completa)
+            nuevo_id = self.order_service.create_new_order(orden_completa)
             if nuevo_id is None: 
                 raise Exception("Fallo en base de datos al crear orden")
 
@@ -110,12 +127,13 @@ class AppController(QObject):
     def cobrar_cuenta(self, mesa_key, order_data=None):
         logger.info(f"[Controller] Cobrando mesa {mesa_key}...")
         try:
-            orden_cerrada = self.data_manager.complete_order(mesa_key)
+            orden_cerrada = self.order_service.complete_order(mesa_key)
             if orden_cerrada:
                 logger.info(f"Mesa {mesa_key} cerrada en BD.")
-                self.printer_service.open_cash_drawer()
-                if order_data:
-                    self.printer_service.print_receipt(order_data)
+                
+                # Async I/O for printer
+                worker = Worker(self._tarea_impresion_cierre, order_data)
+                self.threadpool.start(worker)
                 
                 self.ordenes_actualizadas.emit()
                 self.notificar_cambios_mesas()
@@ -126,37 +144,35 @@ class AppController(QObject):
             logger.error(f"Error al cobrar cuenta: {e}")
             return False
 
+    def _tarea_impresion_cierre(self, order_data):
+        self.printer_service.open_cash_drawer()
+        if order_data:
+            self.printer_service.print_receipt(order_data)
+
     def registrar_impresion_proforma(self, mesa_key):
-        return self.data_manager.registrar_impresion_proforma(mesa_key)
+        return self.order_repo.registrar_impresion_proforma(mesa_key)
 
     def notificar_cambios_mesas(self):
         self.notificar_evento_servidor("mesas_update")
 
     def notificar_alerta_kds(self, mesa_key, destino):
-        url = QUrl(f'{self.SERVER_URL}/trigger_update')
-        request = QNetworkRequest(url)
-        request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")
-        request.setRawHeader(b"X-API-KEY", self.API_KEY.encode('utf-8'))
-        
         mensaje = f"Mesa {mesa_key}: Pedido de {destino} listo"
         
-        payload = json.dumps({
-            'event': 'alerta_orden_lista',
-            'data': {
-                'mesa_key': str(mesa_key),
-                'destino': str(destino),
-                'mensaje': mensaje
-            }
-        }).encode('utf-8')
+        payload_data = {
+            'mesa_key': str(mesa_key),
+            'destino': str(destino),
+            'mensaje': mensaje
+        }
         
-        reply = self.network_manager.post(request, payload)
-        reply.finished.connect(lambda: self._handle_reply(reply))
+        self.notificar_evento_servidor("alerta_orden_lista", payload_data)
 
-        self.firebase_service.enviar_notificacion_tema("alertas_puestito", "Orden Lista", mensaje)
+        # Envio a Firebase asincrono
+        worker = Worker(self.notification_service.enviar_notificacion_tema, "alertas_puestito", "Orden Lista", mensaje)
+        self.threadpool.start(worker)
 
     def procesar_item_individual_listo(self, id_detalle, mesa_key, destino):
         try:
-            resultado = self.data_manager.mark_individual_item_ready(id_detalle)
+            resultado = self.order_service.mark_individual_item_ready(id_detalle)
             if resultado:
                 self.ordenes_actualizadas.emit()
                 self.notificar_cambios_mesas()
@@ -168,27 +184,28 @@ class AppController(QObject):
             return False
         
     def formatear_sensor_biometrico(self):
-        url = QUrl(f'{self.SERVER_URL}/api/biometric/start-clear')
-        request = QNetworkRequest(url)
-        request.setRawHeader(b"X-API-KEY", self.API_KEY.encode('utf-8'))
-        
-        reply = self.network_manager.post(request, b"")
-        reply.finished.connect(lambda: self._handle_reply(reply))
-
-    def _handle_reply(self, reply):
-        if reply.error() != QNetworkReply.NetworkError.NoError:
-            logger.error(f"Error notificando al servidor: {reply.errorString()}")
-        reply.deleteLater()
+        self.notificar_evento_servidor("api/biometric/start-clear")
 
     def get_inventario(self):
-        return self.data_manager.get_inventario_completo()
+        return self.inventory_repo.get_inventario_completo()
 
     def agregar_al_inventario(self, nombre, cantidad, es_auto, id_menu=None):
-        result = self.data_manager.agregar_item_inventario(nombre, cantidad, es_auto, id_menu)
-        return result
+        try:
+            return self.inventory_repo.agregar_item_inventario(nombre, cantidad, es_auto, id_menu)
+        except Exception as e:
+            self.error_ocurrido.emit(f"Error inventario: {e}")
+            return False
 
     def actualizar_stock(self, id_inv, cantidad):
-        return self.data_manager.actualizar_cantidad_inventario(id_inv, cantidad)
+        try:
+            return self.inventory_repo.actualizar_cantidad_inventario(id_inv, cantidad)
+        except Exception as e:
+            self.error_ocurrido.emit(f"Error inventario: {e}")
+            return False
 
     def eliminar_del_inventario(self, id_inv):
-        return self.data_manager.eliminar_item_inventario(id_inv)
+        try:
+            return self.inventory_repo.eliminar_item_inventario(id_inv)
+        except Exception as e:
+            self.error_ocurrido.emit(f"Error inventario: {e}")
+            return False

@@ -152,7 +152,9 @@ class PayrollTab(QWidget):
                     self.payroll_daily_details[emp_id][day_str]["first_entry"] = ts
                 last_entry_time = ts 
                 
-            elif entry_type == "salida" and last_entry_time is not None and last_entry_time.date() == ts.date():
+            elif entry_type == "salida" and last_entry_time is not None:
+                shift_day_str = last_entry_time.date().isoformat()
+                
                 total_minutes_shift = (ts - last_entry_time).total_seconds() / 60
                 
                 employee_info = employees_dict.get(emp_id)
@@ -162,8 +164,11 @@ class PayrollTab(QWidget):
                 if rate_info and "pago_minuto" in rate_info and total_minutes_shift > 0:
                     rate_per_minute = rate_info["pago_minuto"]
                     
-                    # El límite para horas extras ahora es dinámico según la config
+                    # Para el limite de horas extra, tomamos la fecha de la entrada
                     overtime_start_time = last_entry_time.replace(hour=h_sal, minute=m_sal, second=0, microsecond=0)
+                    # Si el turno entra tarde despues de la hora de salida de la oficina y cruza de dia,
+                    # o simplemente entra despues de la hora de salida, quizas deberia considerarse que no es hora extra hasta pasar el umbral?
+                    # Para simplificar, usamos el umbral del dia en que comenzo el turno.
                     
                     regular_minutes_shift = 0
                     overtime_minutes_shift = 0
@@ -178,9 +183,13 @@ class PayrollTab(QWidget):
                         overtime_duration = ts - overtime_start_time
                         overtime_minutes_shift = overtime_duration.total_seconds() / 60
                         
-                    # Aplicamos tarifas y multiplicadores (Extra y/o Feriado)
-                    reg_pay_shift = regular_minutes_shift * rate_per_minute * current_day_mult
-                    ot_pay_shift = overtime_minutes_shift * rate_per_minute * ot_multiplier * current_day_mult
+                    # Determinamos multiplicador basado en la fecha de entrada
+                    shift_day_month_str = last_entry_time.strftime("%d-%m")
+                    is_holiday_shift = shift_day_month_str in holidays_list
+                    current_shift_mult = holiday_mult if is_holiday_shift else 1.0
+
+                    reg_pay_shift = regular_minutes_shift * rate_per_minute * current_shift_mult
+                    ot_pay_shift = overtime_minutes_shift * rate_per_minute * ot_multiplier * current_shift_mult
                     shift_pay = reg_pay_shift + ot_pay_shift
                     
                     payroll_results[emp_id]["total_reg_mins"] += regular_minutes_shift
@@ -189,27 +198,22 @@ class PayrollTab(QWidget):
                     payroll_results[emp_id]["total_ot_pay"] += ot_pay_shift   
                     payroll_results[emp_id]["total_pay"] += shift_pay       
                     
-                    self.payroll_daily_details[emp_id][day_str]["reg_mins"] += regular_minutes_shift
-                    self.payroll_daily_details[emp_id][day_str]["ot_mins"] += overtime_minutes_shift
-                    self.payroll_daily_details[emp_id][day_str]["pay"] += shift_pay
-                    self.payroll_daily_details[emp_id][day_str]["last_exit"] = ts 
+                    self.payroll_daily_details[emp_id][shift_day_str]["reg_mins"] += regular_minutes_shift
+                    self.payroll_daily_details[emp_id][shift_day_str]["ot_mins"] += overtime_minutes_shift
+                    self.payroll_daily_details[emp_id][shift_day_str]["pay"] += shift_pay
+                    self.payroll_daily_details[emp_id][shift_day_str]["last_exit"] = ts 
                     last_entry_time = None 
                 else: 
                     if total_minutes_shift <= 0:
-                        logger.info(f"Salida inmediata para {emp_id} el {day_str}.")
+                        logger.info(f"Salida inmediata para {emp_id} en turno del {shift_day_str}.")
                     else:
-                        logger.warning(f"No se pudo calcular pago para {emp_id} el {day_str} (rol '{rol}' o tarifa inválida).")
-                    self.payroll_daily_details[emp_id][day_str]["last_exit"] = ts 
+                        logger.warning(f"No se pudo calcular pago para {emp_id} en turno del {shift_day_str} (rol '{rol}' o tarifa invalida).")
+                    self.payroll_daily_details[emp_id][shift_day_str]["last_exit"] = ts 
                     last_entry_time = None
                     
-            elif last_entry_time is not None and last_entry_time.date() != ts.date():
-                last_entry_time = None
-                if entry_type == "entrada": 
-                    if day_str not in self.payroll_daily_details[emp_id]: 
-                        self.payroll_daily_details[emp_id][day_str] = {"first_entry": None, "last_exit": None, "reg_mins": 0, "ot_mins": 0, "pay": 0.0, "is_holiday": is_holiday}
-                    if self.payroll_daily_details[emp_id][day_str]["first_entry"] is None:
-                        self.payroll_daily_details[emp_id][day_str]["first_entry"] = ts
-                    last_entry_time = ts
+            elif entry_type == "salida" and last_entry_time is None:
+                # Salida huerfana
+                pass
 
         self.payroll_table.setRowCount(0)
         self.payroll_table.setRowCount(len(payroll_results))

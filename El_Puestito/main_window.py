@@ -10,7 +10,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
 try:
-    from data_model import DataManager, DB_PATH
+    from src.database.schema_manager import SchemaManager
 except ImportError:
     sys.exit(1)
 
@@ -39,10 +39,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.load_app_config()
         
-        self.data_manager = DataManager(DB_PATH)
-        self.data_manager.create_tables()
-        self.data_manager.run_migration_if_needed()
-        self.app_controller = AppController(self.data_manager)
+        self.schema_manager = SchemaManager()
+        self.app_controller = AppController()
 
         self.setWindowTitle("El Puestito - Sistema de Gestión")
         self.setMinimumSize(1200, 800)
@@ -96,7 +94,7 @@ class MainWindow(QMainWindow):
         self.load_stylesheet("style.qss")
 
         logger.info("Creando ServerWorker en Hilo Principal...")
-        self.server_worker = ServerWorker(self.data_manager) 
+        self.server_worker = ServerWorker()
 
         logger.info("Creando ServerThread...")
         self.thread = ServerThread(worker_instance=self.server_worker)
@@ -105,6 +103,7 @@ class MainWindow(QMainWindow):
         self.server_worker.ordenes_modificadas.connect(self.app_controller.ordenes_actualizadas.emit)
         self.server_worker.kds_estado_cambiado.connect(self.on_kds_externo_update)
         self.server_worker.asistencia_recibida.connect(self.app_controller.asistencia_recibida.emit)
+        self.app_controller.emit_to_server.connect(self.server_worker.on_internal_emit)
 
         self.thread.start()
         logger.info("Servidor de asistencia iniciado en segundo plano.")
@@ -233,11 +232,11 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'thread') and self.thread.isRunning():
             logger.info("Deteniendo el hilo del servidor...")
             self.server_worker.stop_server() 
+            self.thread.quit()
             
             logger.info("Esperando finalización del hilo...")
             if not self.thread.wait(3000): 
-                logger.warning("El hilo del servidor tardó demasiado en cerrarse, forzando terminación.")
-                self.thread.terminate() 
+                logger.warning("El hilo del servidor tardo demasiado, pero terminara junto con el proceso.")
             else:
                 logger.info("Hilo del servidor detenido limpiamente.")
         

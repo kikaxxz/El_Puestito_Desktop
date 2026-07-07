@@ -3,10 +3,10 @@ import json
 import datetime
 import logging
 from PyQt6.QtCore import QObject, pyqtSignal
-from flask import Flask
-from flask_socketio import SocketIO
+from flask import Flask, session
+from flask_socketio import SocketIO, join_room, disconnect
 from logger_setup import setup_logger
-from server.server_routes import api_bp
+from server.routes import api_bp
 from path_manager import get_persistent_path, get_base_dir
 
 logger = setup_logger()
@@ -22,9 +22,8 @@ class ServerWorker(QObject):
     ordenes_modificadas = pyqtSignal()
     server_error = pyqtSignal(str)
 
-    def __init__(self, data_manager):
+    def __init__(self):
         super().__init__()
-        self.data_manager = data_manager
         self.config = self._load_config()
         self.API_KEY = self.config.get('api_key', os.environ.get('PUESTITO_API_KEY', os.urandom(24).hex()))
         
@@ -37,20 +36,30 @@ class ServerWorker(QObject):
         self.enroll_status = {"step": 0, "message": "Esperando inicio..."}
 
         self.app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR)
-        self.app.secret_key = self.config.get('secret_key', os.environ.get('PUESTITO_SECRET_KEY', os.urandom(24).hex()))
+        self.app.secret_key = self._get_or_create_secret_key()
         self.app.worker = self
         self.app.register_blueprint(api_bp)
 
         @self.app.teardown_appcontext
         def close_db_connection(exception=None):
-            self.data_manager.close_conn_for_thread()
+            from src.database.connection import db_manager
+            db_manager.close_conn_for_thread()
 
         self.socketio = SocketIO(
             self.app, 
-            cors_allowed_origins="*", 
-            async_mode='threading',
-            manage_session=False
+            async_mode='threading'
         )
+
+        @self.socketio.on('connect')
+        def on_connect():
+            destino = session.get('kds_access')
+            if not destino:
+                logger.warning("Conexion Socket.IO rechazada: No hay sesion KDS activa")
+                disconnect()
+                return False
+            
+            join_room(destino)
+            logger.info(f"Cliente conectado y unido a sala: {destino}")
 
     def _load_config(self):
         try:
@@ -62,6 +71,20 @@ class ServerWorker(QObject):
         except Exception as e:
             logger.error(f"Error cargando config: {e}")
             return {}
+
+    def _get_or_create_secret_key(self):
+        secret_path = get_persistent_path("secret.key")
+        if os.path.exists(secret_path):
+            with open(secret_path, 'r') as f:
+                return f.read().strip()
+        else:
+            new_key = os.urandom(24).hex()
+            try:
+                with open(secret_path, 'w') as f:
+                    f.write(new_key)
+            except Exception as e:
+                logger.error(f"Error guardando secret.key: {e}")
+            return new_key
 
     def cargar_pines_kds(self):
         self.config = self._load_config()
@@ -83,13 +106,16 @@ class ServerWorker(QObject):
     def forzar_actualizacion_kds(self, destino):
         try:
             self.socketio.emit('kds_update', {'destino': destino})
-            self.socketio.emit('mesas_actualizadas', self.data_manager.get_active_orders_caja())
+            from src.services.order_service import order_service
+            self.socketio.emit('mesas_actualizadas', order_service.get_active_orders_caja())
         except Exception as e:
             logger.error(f"Error emitiendo socket: {e}")
 
     def _validate_order_items(self, orden):
         try:
-            available_ids = self.data_manager.get_available_menu_items()
+            from src.database.repositories.menu import menu_repo
+            from src.database.repositories.inventory import inventory_repo
+            available_ids = menu_repo.get_available_menu_items()
             items_en_orden = orden.get("items", [])
             
             cantidades_requeridas = {}
@@ -107,7 +133,7 @@ class ServerWorker(QObject):
                     cantidades_requeridas[item_id] = {"cantidad": cantidad, "nombre": item_nombre}
                     
             for item_id, data in cantidades_requeridas.items():
-                stock_info = self.data_manager.fetchone("SELECT cantidad, es_automatico FROM inventario WHERE id_menu_vinculado = ?", (item_id,))
+                stock_info = inventory_repo.get_inventario_item_by_menu(item_id)
                 if stock_info and stock_info['es_automatico'] == 1:
                     if data["cantidad"] > stock_info['cantidad']:
                         return False, f"Stock insuficiente para '{data['nombre']}'. Disponible: {stock_info['cantidad']}."
@@ -115,10 +141,38 @@ class ServerWorker(QObject):
             return True, ""
         except Exception:
             return False, "Error interno al validar el menú."
+            
+    def on_internal_emit(self, event_name, payload_data):
+        logger.info(f"Retransmitiendo evento interno: {event_name}")
+        
+        if event_name == 'config_update':
+            self.cargar_pines_kds()
+            self.socketio.emit('config_update', payload_data)
+
+        elif event_name in ['mesas_actualizadas', 'mesas_update', 'order_updated']:
+            def emit_update():
+                self.socketio.sleep(0.1)
+                from src.services.order_service import order_service
+                table_state_payload = order_service.get_active_orders_caja()
+                self.socketio.emit('mesas_actualizadas', table_state_payload)
+            self.socketio.start_background_task(emit_update)
+            
+        elif event_name == 'menu_actualizado':
+            self.socketio.emit('menu_actualizado', {'mensaje': 'Menu cambiado'})
+            
+        elif event_name == 'api/biometric/start-clear':
+            self.clear_mode_active = True
+            
+        else:
+            if payload_data:
+                self.socketio.emit(event_name, payload_data)
+            else:
+                self.socketio.emit(event_name)
         
     def _registrar_evento(self, emp_id, tipo):
         ts = datetime.datetime.now().isoformat(timespec='seconds')
-        self.data_manager.add_attendance_event(emp_id, tipo, ts)
+        from src.services.attendance_service import attendance_service
+        attendance_service.add_attendance_event(emp_id, tipo, ts)
         self.asistencia_recibida.emit({
             "employee_id": emp_id, "event_type": tipo, "timestamp": ts
         })

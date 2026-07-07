@@ -26,3 +26,20 @@ def get_persistent_path(filename, relative_source_folder="Assets"):
 
 def get_asset_path(filename):
     return os.path.join(get_base_dir(), "Assets", filename)
+
+def get_image_dir():
+    appdata = get_appdata_dir()
+    img_dir = os.path.join(appdata, 'images')
+    if not os.path.exists(img_dir):
+        os.makedirs(img_dir)
+    return img_dir
+
+def resolve_image_path(filename):
+    # Primero busca en AppData/images
+    img_dir = get_image_dir()
+    appdata_path = os.path.join(img_dir, filename)
+    if os.path.exists(appdata_path):
+        return img_dir, filename
+    
+    # Si no existe, usa Assets/ (fallback para imagenes iniciales)
+    return os.path.join(get_base_dir(), "Assets"), filename

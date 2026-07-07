@@ -8,3 +8,10 @@ requests
 qrcode
 Pillow
 PyQt6
+pytest
+pytest-flask
+pytest-qt
+firebase-admin
+pyusb
+python-escpos
+fpdf2

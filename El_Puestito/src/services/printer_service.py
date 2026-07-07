@@ -32,6 +32,10 @@ class PrinterService:
         self.printer = None
         self.custom_backend = _load_local_libusb()
 
+    def invalidate_cache(self):
+        logger.info("Invalidando conexion activa con la impresora por cambio de configuracion")
+        self.printer = None
+
     def connect(self):
         config = self.config_manager.get_config()
         interface_type = config.get("printer_interface", "USB")

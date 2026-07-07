@@ -206,9 +206,10 @@ class CajaPage(QWidget):
     def load_active_orders(self):
         self.mesas_container.setUpdatesEnabled(False)
         try:
+            from src.database.repositories.orders import order_repo
             mesa_previa = self.mesa_actual
             
-            nuevas_ordenes = self.app_controller.data_manager.get_active_orders_caja()
+            nuevas_ordenes = order_repo.get_active_orders_caja()
             
             ids_bd = set(nuevas_ordenes.keys())
             ids_pantalla = set(self.botones_mesas.keys())

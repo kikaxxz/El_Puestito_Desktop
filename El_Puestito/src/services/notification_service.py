@@ -6,12 +6,15 @@ from logger_setup import setup_logger
 
 logger = setup_logger()
 
-class FirebaseService:
+class NotificationService:
     def __init__(self, cred_filename="firebase_credentials.json"):
         self.cred_filename = cred_filename
+        self._disabled = False
         self.inicializar()
 
     def inicializar(self):
+        if self._disabled:
+            return False
         try:
             if not firebase_admin._apps:
                 # Detectar si estamos en el ejecutable de PyInstaller o en desarrollo puro
@@ -26,8 +29,8 @@ class FirebaseService:
                 
                 # Validación estricta del archivo
                 if not os.path.exists(cred_path):
-                    logger.error(f"¡EL ARCHIVO JSON NO EXISTE EN LA RUTA: {cred_path}!")
-                    logger.error("Asegurate de que el nombre sea correcto y de haberlo incluido en PyInstaller.")
+                    logger.warning("Credenciales de Firebase ausentes. Servicio de notificaciones deshabilitado silenciosamente.")
+                    self._disabled = True
                     return False
                     
                 cred = credentials.Certificate(cred_path)
@@ -39,11 +42,11 @@ class FirebaseService:
             return False
 
     def enviar_notificacion_tema(self, tema, titulo, cuerpo):
-        # Si no arrancó al inicio, intentamos encenderlo justo antes de enviar el mensaje
+        if self._disabled:
+            return False
+            
         if not firebase_admin._apps:
-            logger.warning("Firebase no esta inicializado. Intentando inicializar ahora...")
             if not self.inicializar():
-                logger.error("Cancelando envio: No se puede enviar la notificacion porque Firebase no arranca.")
                 return False
 
         try:
@@ -67,3 +70,4 @@ class FirebaseService:
         except Exception as e:
             logger.error(f"Error al enviar notificacion FCM al tema: {e}")
             return False
+notification_service = NotificationService()

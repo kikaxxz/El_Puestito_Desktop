@@ -1,5 +1,15 @@
 if (window.location.pathname.startsWith('/kds/')) {
     
+    window.logoutKDS = async function() {
+        try {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/';
+        } catch(e) {
+            console.error("Error al cerrar sesion", e);
+            window.location.href = '/';
+        }
+    }
+    
     const socket = io();
     const alertOverlay = document.getElementById('disconnect-alert');
 
@@ -79,11 +89,21 @@ if (window.location.pathname.startsWith('/kds/')) {
             animation: slideDown 0.5s ease-out;
         `;
         
-        toast.innerHTML = `
-            <div style="font-size: 24px; font-weight: 900; margin-bottom: 5px;">MESA ${mesa}</div>
-            <div style="font-size: 18px; font-weight: 500;">${mensaje}</div>
-            <div style="font-size: 12px; margin-top: 5px; opacity: 0.8;">Mensaje del Mesero</div>
-        `;
+        const mesaDiv = document.createElement('div');
+        mesaDiv.style.cssText = 'font-size: 24px; font-weight: 900; margin-bottom: 5px;';
+        mesaDiv.textContent = 'MESA ' + mesa;
+        
+        const msgDiv = document.createElement('div');
+        msgDiv.style.cssText = 'font-size: 18px; font-weight: 500;';
+        msgDiv.textContent = mensaje;
+        
+        const subDiv = document.createElement('div');
+        subDiv.style.cssText = 'font-size: 12px; margin-top: 5px; opacity: 0.8;';
+        subDiv.textContent = 'Mensaje del Mesero';
+
+        toast.appendChild(mesaDiv);
+        toast.appendChild(msgDiv);
+        toast.appendChild(subDiv);
 
         try {
             const audio = new Audio('/static/notification.mp3');
@@ -110,7 +130,11 @@ if (window.location.pathname.startsWith('/kds/')) {
     `;
     document.head.appendChild(styleSheet);
 
+    let isFetching = false;
     async function loadOrders() {
+        if (isFetching) return;
+        isFetching = true;
+        
         try {
             const res = await fetch(`/api/kds-orders/${DESTINO}`);
             if (!res.ok) {
@@ -121,8 +145,17 @@ if (window.location.pathname.startsWith('/kds/')) {
             renderTickets(orders);
         } catch (e) {
             console.error("Error cargando órdenes:", e);
+        } finally {
+            isFetching = false;
         }
     }
+    
+    // Consulta periódica de respaldo (cada 2 minutos)
+    setInterval(() => {
+        if (socket.connected) {
+            loadOrders();
+        }
+    }, 120000);
 
     function renderTickets(orders) {
         const container = document.getElementById('orders-container');
@@ -142,34 +175,76 @@ if (window.location.pathname.startsWith('/kds/')) {
             const card = document.createElement('div');
             card.className = 'order-card';
             
-            const itemsHtml = group.items.map(item => `
-                <div class="item-row">
-                    <div class="qty-box">${item.cantidad}</div>
-                    <div class="item-info">
-                        <div class="item-name">${item.nombre}</div>
-                        ${item.nombre_cerveza ? `<div class="item-sub" style="color: #00d26a; font-size: 0.9em; font-weight: bold;">└ Cerveza: ${item.nombre_cerveza}</div>` : ''}
-                        ${item.notas ? `<div class="item-note">📝 ${item.notas}</div>` : ''}
-                    </div>
-                </div>
-            `).join('');
-
             const minutesElapsed = (new Date() - new Date(group.timestamp)) / 60000;
-            const timeClass = minutesElapsed > 15 ? 'color: #ff4444;' : ''; 
+            const timeStyle = minutesElapsed > 15 ? 'color: #ff4444;' : ''; 
+            
+            const header = document.createElement('div');
+            header.className = 'card-header';
+            
+            const mesaBadge = document.createElement('div');
+            mesaBadge.className = 'mesa-badge';
+            mesaBadge.textContent = 'Mesa ' + group.numero_mesa;
+            
+            const timerBadge = document.createElement('div');
+            timerBadge.className = 'timer-badge';
+            timerBadge.style = timeStyle;
+            timerBadge.textContent = formatTime(group.timestamp);
+            
+            header.appendChild(mesaBadge);
+            header.appendChild(timerBadge);
+            card.appendChild(header);
+            
+            const itemsContainer = document.createElement('div');
+            itemsContainer.className = 'card-items';
+            
+            group.items.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'item-row';
+                
+                const qty = document.createElement('div');
+                qty.className = 'qty-box';
+                qty.textContent = item.cantidad;
+                
+                const info = document.createElement('div');
+                info.className = 'item-info';
+                
+                const name = document.createElement('div');
+                name.className = 'item-name';
+                name.textContent = item.nombre;
+                info.appendChild(name);
+                
+                if (item.nombre_cerveza) {
+                    const sub = document.createElement('div');
+                    sub.className = 'item-sub';
+                    sub.style.cssText = 'color: #00d26a; font-size: 0.9em; font-weight: bold;';
+                    sub.textContent = '└ Cerveza: ' + item.nombre_cerveza;
+                    info.appendChild(sub);
+                }
+                
+                if (item.notas) {
+                    const note = document.createElement('div');
+                    note.className = 'item-note';
+                    note.textContent = '📝 ' + item.notas;
+                    info.appendChild(note);
+                }
+                
+                row.appendChild(qty);
+                row.appendChild(info);
+                itemsContainer.appendChild(row);
+            });
+            
+            card.appendChild(itemsContainer);
 
-            card.innerHTML = `
-                <div class="card-header">
-                    <div class="mesa-badge">Mesa ${group.numero_mesa}</div>
-                    <div class="timer-badge" style="${timeClass}">${formatTime(group.timestamp)}</div>
-                </div>
-                <div class="card-items">
-                    ${itemsHtml}
-                </div>
-                <div class="card-actions">
-                    <button class="btn-complete" onclick="markReady('${group.numero_mesa}')">
-                        ✓ LISTO
-                    </button>
-                </div>
-            `;
+            const actions = document.createElement('div');
+            actions.className = 'card-actions';
+            const btn = document.createElement('button');
+            btn.className = 'btn-complete';
+            btn.textContent = '✓ LISTO';
+            btn.addEventListener('click', (e) => window.markReady(group.numero_mesa, e));
+            
+            actions.appendChild(btn);
+            card.appendChild(actions);
+
             container.appendChild(card);
         });
     }
@@ -179,8 +254,8 @@ if (window.location.pathname.startsWith('/kds/')) {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    window.markReady = async function(mesaKey) {
-        const btn = event.target.closest('button');
+    window.markReady = async function(mesaKey, e) {
+        const btn = e.target.closest('button');
         const originalText = btn.innerHTML;
         
         btn.innerHTML = 'Enviando...';
@@ -191,8 +266,7 @@ if (window.location.pathname.startsWith('/kds/')) {
             const response = await fetch('/api/kds-complete', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-KEY': typeof API_KEY !== 'undefined' ? API_KEY : '' 
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ mesa_key: mesaKey, destino: DESTINO })
             });
@@ -204,7 +278,7 @@ if (window.location.pathname.startsWith('/kds/')) {
         } catch (e) {
             console.error("Error de conexión al completar orden:", e);
             btn.disabled = false;
-            btn.innerHTML = originalText;
+            btn.textContent = originalText;
             btn.style.backgroundColor = ''; 
         }
     }

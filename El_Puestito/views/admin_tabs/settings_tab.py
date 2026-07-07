@@ -364,8 +364,17 @@ class SettingsTab(QWidget):
         if "pines_acceso" not in self.config["seguridad"]:
             self.config["seguridad"]["pines_acceso"] = {}
 
+        pins_seen = set()
         for role, edit in self.pins_inputs.items():
-            self.config["seguridad"]["pines_acceso"][role] = edit.text()
+            pin_text = edit.text().strip()
+            if len(pin_text) != 4 or not pin_text.isdigit():
+                QMessageBox.warning(self, "Error de validacion", f"El PIN para {role} debe tener exactamente 4 digitos numericos.")
+                return
+            if pin_text in pins_seen:
+                QMessageBox.warning(self, "Error de validacion", f"El PIN {pin_text} esta duplicado. Los PINes deben ser unicos.")
+                return
+            pins_seen.add(pin_text)
+            self.config["seguridad"]["pines_acceso"][role] = pin_text
 
         new_roles = {}
         for i in range(self.pay_table.rowCount()):

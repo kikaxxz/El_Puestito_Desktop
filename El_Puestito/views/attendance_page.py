@@ -2,7 +2,7 @@ import datetime
 import csv
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableWidget, QLineEdit, QHeaderView, QTableWidgetItem, QMessageBox, QFileDialog
+    QTableWidget, QLineEdit, QHeaderView, QTableWidgetItem, QMessageBox, QFileDialog, QInputDialog
 )
 from PyQt6.QtCore import Qt, pyqtSlot
 from logger_setup import setup_logger
@@ -89,7 +89,8 @@ class AttendancePage(QWidget):
             self.employee_row_map.clear()
 
             all_employees = self.app_controller.get_todos_los_empleados()
-            today_events = self.app_controller.data_manager.get_events_for_today()
+            from src.database.repositories.attendance import attendance_repo
+            today_events = attendance_repo.get_events_for_today()
 
             employee_states = {}
             for event in today_events:
@@ -200,13 +201,26 @@ class AttendancePage(QWidget):
         if confirm == QMessageBox.StandardButton.No:
             return
 
+        pin, ok = QInputDialog.getText(self, "PIN de Administrador", "Ingrese el PIN de administrador para continuar:", QLineEdit.EchoMode.Password)
+        if not ok or not pin:
+            return
+
+        admin_pin_str = str(self.app_controller.config.get('seguridad', {}).get('pines_acceso', {}).get('Admin', '')).strip()
+        
+        if str(pin).strip() != admin_pin_str or not admin_pin_str:
+            QMessageBox.critical(self, "Acceso Denegado", "PIN incorrecto. Operacion cancelada.")
+            logger.warning("Intento fallido de limpiar registros de asistencia: PIN incorrecto.")
+            return
+
         logger.info("Limpiando TODO el historial de la base de datos...")
         
         try:
-            self.app_controller.data_manager.clear_all_attendance_history()
-            self.load_and_refresh_table()
-            logger.info("Registros de historial limpiados. Tabla de asistencia reseteada.")
-            QMessageBox.information(self,"Limpieza Completa", "Se ha borrado todo el historial de asistencia.")
+            if confirm == QMessageBox.StandardButton.Yes:
+                from src.database.repositories.attendance import attendance_repo
+                attendance_repo.clear_all_attendance_history()
+                self.load_and_refresh_table()
+                logger.info("Registros de historial limpiados. Tabla de asistencia reseteada.")
+                QMessageBox.information(self,"Limpieza Completa", "Se ha borrado todo el historial de asistencia.")
         except Exception as e:
             logger.error(f"Error al limpiar los registros de asistencia: {e}")
             QMessageBox.critical(self, "Error", "No se pudo limpiar el historial de asistencia.")

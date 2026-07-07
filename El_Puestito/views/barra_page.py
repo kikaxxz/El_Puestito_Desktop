@@ -46,7 +46,8 @@ class BarraPage(QWidget):
     @pyqtSlot()
     def load_active_orders(self):
         try:
-            datos_ordenes = self.controller.data_manager.get_active_barra_orders()
+            from src.database.repositories.orders import order_repo
+            datos_ordenes = order_repo.get_active_barra_orders()
             ordenes_actuales = { str(orden['numero_mesa']): orden for orden in datos_ordenes }
             
             ids_bd = set(ordenes_actuales.keys())
@@ -108,7 +109,8 @@ class BarraPage(QWidget):
 
     def _marcar_listo(self, mesa_key):
         try:
-            self.controller.data_manager.mark_barra_order_ready(mesa_key)
+            from src.services.order_service import order_service
+            order_service.mark_order_ready(mesa_key, 'barra')
             self.load_active_orders()
             self.controller.notificar_cambios_mesas()
         except Exception as e:
@@ -116,7 +118,8 @@ class BarraPage(QWidget):
 
     def _marcar_listo(self, mesa_key):
         try:
-            self.controller.data_manager.mark_barra_order_ready(mesa_key)
+            from src.services.order_service import order_service
+            order_service.mark_order_ready(mesa_key, 'barra')
             self.load_active_orders()
             self.controller.notificar_cambios_mesas()
             self.controller.notificar_alerta_kds(mesa_key, "barra")
