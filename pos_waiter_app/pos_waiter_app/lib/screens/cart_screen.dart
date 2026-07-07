@@ -149,27 +149,14 @@ class _CartScreenState extends State<CartScreen> {
 
     setState(() => _isSending = true);
 
-    final orderData = {
-      'order_id': const Uuid().v4(),
-      'numero_mesa': _tableNumber,
-      'mesas_enlazadas': _childTables, 
-      'mesero_id': '101', 
-      'timestamp': DateTime.now().toIso8601String(), 
-      if (targetAccountKey != null) 'target_account_key': targetAccountKey,
-      if (newAccountName != null) 'new_account_name': newAccountName,
-      'items': cart.items.values.map((item) => {
-            'item_id': item.id,
-            'nombre': item.nombre,
-            'cantidad': item.cantidad,
-            'precio_unitario': item.precio,
-            'imagen': item.imagen,
-            'notas': item.notas,
-            'id_cerveza': item.idCerveza,
-            'nombre_cerveza': item.nombreCerveza, 
-          }).toList(),
-    };
-
-    final resultado = await _apiService.enviarOrden(orderData);
+    final resultado = await cart.submitOrder(
+      _apiService,
+      _tableNumber!.toString(),
+      _childTables.map((e) => e.toString()).toList(),
+      '101',
+      targetAccountKey: targetAccountKey,
+      newAccountName: newAccountName,
+    );
 
     if (!mounted) return;
     setState(() => _isSending = false);
@@ -315,18 +302,15 @@ class _CartScreenState extends State<CartScreen> {
       }
     });
 
-    final orderData = {
-      'order_id': const Uuid().v4(),
-      'numero_mesa': _tableNumber,
-      'mesas_enlazadas': _childTables, 
-      'mesero_id': '101', 
-      'timestamp': DateTime.now().toIso8601String(), 
-      if (targetAccountKey != null) 'target_account_key': targetAccountKey,
-      if (newAccountName != null) 'new_account_name': newAccountName,
-      'items': itemsToSend,
-    };
-
-    final resultado = await _apiService.enviarOrden(orderData);
+    final resultado = await cart.submitOrder(
+      _apiService,
+      _tableNumber!.toString(),
+      _childTables.map((e) => e.toString()).toList(),
+      '101',
+      targetAccountKey: targetAccountKey,
+      newAccountName: newAccountName,
+      customItems: itemsToSend,
+    );
 
     if (!mounted) return;
     setState(() => _isSending = false);

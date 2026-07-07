@@ -159,4 +159,36 @@ class CartProvider with ChangeNotifier {
     _items = {};
     notifyListeners();
   }
+
+  Future<Map<String, dynamic>> submitOrder(
+    dynamic apiService, 
+    String tableNumber, 
+    List<String> childTables, 
+    String meseroId, 
+    {String? targetAccountKey, String? newAccountName, List<Map<String, dynamic>>? customItems}
+  ) async {
+    final itemsToSend = customItems ?? _items.values.map((item) => {
+      'item_id': item.id,
+      'nombre': item.nombre,
+      'cantidad': item.cantidad,
+      'precio_unitario': item.precio,
+      'imagen': item.imagen,
+      'notas': item.notas,
+      'id_cerveza': item.idCerveza,
+      'nombre_cerveza': item.nombreCerveza, 
+    }).toList();
+
+    final orderData = {
+      'order_id': DateTime.now().millisecondsSinceEpoch.toString(), // Simplify UUID dependency here or pass UUID from screen
+      'numero_mesa': tableNumber,
+      'mesas_enlazadas': childTables, 
+      'mesero_id': meseroId, 
+      'timestamp': DateTime.now().toIso8601String(), 
+      if (targetAccountKey != null) 'target_account_key': targetAccountKey,
+      if (newAccountName != null) 'new_account_name': newAccountName,
+      'items': itemsToSend,
+    };
+
+    return await apiService.enviarOrden(orderData);
+  }
 }
