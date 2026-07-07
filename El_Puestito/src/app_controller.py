@@ -9,6 +9,24 @@ from background_tasks import Worker
 
 logger = setup_logger()
 
+class LegacyDataManager:
+    def __init__(self, ac):
+        from src.database.connection import db_manager
+        from src.database.repositories.menu import menu_repo
+        from src.database.repositories.attendance import attendance_repo
+        self.ac = ac
+        self.db = db_manager
+        self.menu = menu_repo
+        self.attendance = attendance_repo
+    def __getattr__(self, name):
+        if hasattr(self.db, name): return getattr(self.db, name)
+        if hasattr(self.ac.employee_repo, name): return getattr(self.ac.employee_repo, name)
+        if hasattr(self.ac.inventory_repo, name): return getattr(self.ac.inventory_repo, name)
+        if hasattr(self.ac.order_repo, name): return getattr(self.ac.order_repo, name)
+        if hasattr(self.menu, name): return getattr(self.menu, name)
+        if hasattr(self.attendance, name): return getattr(self.attendance, name)
+        raise AttributeError(f"Ningun repositorio tiene el metodo {name}")
+
 class AppController(QObject):
     
     lista_empleados_actualizada = pyqtSignal()
@@ -28,6 +46,7 @@ class AppController(QObject):
         self.order_service = order_service
         self.inventory_repo = inventory_repo
         self.order_repo = order_repo
+        self.data_manager = LegacyDataManager(self)
         
         self.threadpool = QThreadPool()
         logger.info(f"Multithreading con un maximo de {self.threadpool.maxThreadCount()} hilos")

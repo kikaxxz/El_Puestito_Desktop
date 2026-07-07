@@ -76,7 +76,7 @@ class TablesTab(QWidget):
         self._update_tables_status()
 
     def _update_tables_status(self):
-        ordenes_activas = self.app_controller.data_manager.get_active_orders_caja()
+        ordenes_activas = self.app_controller.order_repo.get_active_orders_caja()
         
         for card in self.table_widgets.values():
             card.set_status(False)

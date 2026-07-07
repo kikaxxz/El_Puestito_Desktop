@@ -21,7 +21,8 @@ class NotificationService:
                 if getattr(sys, 'frozen', False):
                     base_path = sys._MEIPASS
                 else:
-                    base_path = os.path.dirname(os.path.abspath(__file__))
+                    from path_manager import get_base_dir
+                    base_path = get_base_dir()
                     
                 cred_path = os.path.join(base_path, self.cred_filename)
                 
@@ -70,4 +71,5 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Error al enviar notificacion FCM al tema: {e}")
             return False
+            
 notification_service = NotificationService()

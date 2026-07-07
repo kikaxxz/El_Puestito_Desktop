@@ -89,9 +89,7 @@ class SocketService with ChangeNotifier {
       _socket = IO.io(serverUrl, <String, dynamic>{
         'transports': ['websocket'],
         'autoConnect': true,
-        'extraHeaders': {
-          'X-API-KEY': apiKey 
-        }
+        'query': {'api_key': apiKey},
       });
 
       _socket!.onConnect((_) {

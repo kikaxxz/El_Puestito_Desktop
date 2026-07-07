@@ -25,7 +25,7 @@ class ServerWorker(QObject):
     def __init__(self):
         super().__init__()
         self.config = self._load_config()
-        self.API_KEY = self.config.get('api_key', os.environ.get('PUESTITO_API_KEY', os.urandom(24).hex()))
+        self.API_KEY = self.config.get('api_key', 'puestito_seguro_2025')
         
         self.PINS_WEB_MAP = {}
         self.cargar_pines_kds()
@@ -52,9 +52,16 @@ class ServerWorker(QObject):
 
         @self.socketio.on('connect')
         def on_connect():
+            from flask import request
+            api_key = request.args.get('api_key')
+            
+            if api_key and api_key == self.API_KEY:
+                logger.info("Cliente movil conectado via API KEY")
+                return True
+                
             destino = session.get('kds_access')
             if not destino:
-                logger.warning("Conexion Socket.IO rechazada: No hay sesion KDS activa")
+                logger.warning("Conexion Socket.IO rechazada: No hay sesion KDS activa ni API_KEY")
                 disconnect()
                 return False
             
